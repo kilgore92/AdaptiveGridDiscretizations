@@ -1,67 +1,73 @@
 import numpy as np
 
 # Dot product (vector-vector, matrix-vector and matrix-matrix) in parallel
-def dotP_VV(v,w):
-    if v.shape!=w.shape: raise ValueError('dotP_VV : Incompatible shapes')
+def dot_VV(v,w):
+    if v.shape!=w.shape: raise ValueError('dot_VV : Incompatible shapes')
     return np.multiply(v,w).sum(0)
 
-def dotP_AV(a,v):
+def dot_AV(a,v):
     m,n = a.shape[:2]
     bounds = a.shape[2:]
     if v.shape != (n,)+bounds:
-        raise ValueError("dotP_AV : Incompatible shapes")
+        raise ValueError("dot_AV : Incompatible shapes")
 
     return np.multiply(a,\
         np.broadcast_to(np.reshape(v,(1,n,)+bounds), (m,n,)+bounds) \
         ).sum(1)
 
-def dotP_AA(a,b):
+def dot_AA(a,b):
     m,n=a.shape[:2]
     bounds = a.shape[2:]
     k = b.shape[1]
     if b.shape!=(n,k,)+bounds:
-        raise ValueError("dotP_AA error : Incompatible shapes")
+        raise ValueError("dot_AA error : Incompatible shapes")
     return np.multiply(
         np.broadcast_to(np.reshape(a,(m,n,1,)+bounds),(m,n,k,)+bounds),
         np.broadcast_to(np.reshape(b,(1,n,k,)+bounds),(m,n,k,)+bounds)
     ).sum(1)
+
+def dot_VAV(v,a,w):
+    return dot_VV(v,dot_AV(a,w))
     
 # Multiplication by scalar, of a vector or matrix
-def multP(k,x):
+def mult(k,x):
     bounds = k.shape
     dim = x.ndim-k.ndim
     if x.shape[dim:]!=bounds:
-        raise ValueError("multP error : incompatible shapes")
+        raise ValueError("mult error : incompatible shapes")
     return np.multiply(
         np.broadcast_to(np.reshape(k,(1,)*dim+bounds),x.shape),
         x)
     
 
-def perpP(v):
+def perp(v):
     if v.shape[0]!=2:
-        raise ValueError("perpP error : Incompatible dimension")        
+        raise ValueError("perp error : Incompatible dimension")        
     return np.array( (-v[1],v[0]) )
     
-def crossP(v,w):
+def cross(v,w):
     if v.shape[0]!=3 or v.shape!=w.shape:
-        raise ValueError("perpP error : Incompatible dimensions")
+        raise ValueError("perp error : Incompatible dimensions")
     return np.array( (v[1]*w[2]-v[2]*w[1], \
     v[2]*w[0]-v[0]*w[2], v[0]*w[1]-v[1]*w[0]) )
     
-def outerP(v,w):
+def outer(v,w):
     if v.shape != w.shape:
-        raise ValueError("perpP error : Incompatible dimensions")
+        raise ValueError("outer error : Incompatible dimensions")
     d=v.shape[0]
     bounds = v.shape[1:]
     return np.multiply(
         np.broadcast_to(np.reshape(v,(d,1,)+bounds),(d,d,)+bounds),
         np.broadcast_to(np.reshape(v,(1,d,)+bounds),(d,d,)+bounds)
     )
-    
-def transP(a):
+
+def outer_self(v):
+    return outer(v,v)
+
+def transpose(a):
     return a.transpose( (1,0,)+tuple(range(2,a.ndim)) )
     
-def traceP(a):
+def trace(a):
     dim = a.shape[0]
     if a.shape[1]!=dim:
         raise ValueError("traceP error : incompatible dimensions")
@@ -69,7 +75,7 @@ def traceP(a):
 
 # Low dimensional special cases
 
-def detP(a):
+def det(a):
     dim = a.shape[0]
     if a.shape[1]!=dim:
         raise ValueError("traceP error : incompatible dimensions")
@@ -83,7 +89,7 @@ def detP(a):
     else:
         raise ValueError("detP error : unsupported dimension") 
     
-def inverseP(a):
+def inverse(a):
     dim = a.shape[0]
     if a.shape[1]!=dim:
         raise ValueError("traceP error : incompatible dimensions")
