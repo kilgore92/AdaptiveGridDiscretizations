@@ -9,6 +9,12 @@ typedef typename IO::Msg Msg;
 typedef typename IO::WarnMsg WarnMsg;
 #include "DispatchAndRun.h"
 
+/* // Set directory under windows
+#include <direct.h>
+char path[] = "C:/Users/Jean-Marie Mirebeau/Documents/Cpp/FileVDE/Debug";
+_chdir(path);
+*/
+
 int main(int argc, const char * argv[]) { 
     std::string inputPrefix, outputPrefix;
     
