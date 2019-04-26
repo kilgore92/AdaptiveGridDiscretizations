@@ -63,7 +63,7 @@ def Decomposition1(m):
     coefs = m
     coefs.reshape(bounds)
     
-    offsets = np.ones( (1,1,) + bounds)
+    offsets = np.ones( (1,1,) + bounds,  dtype=int)
     return coefs, offsets    
 
 # ------- Two dimensional variant ------
@@ -120,7 +120,7 @@ def Decomposition2(m):
     for (i,j,k) in [(0,1,2),(1,2,0),(2,0,1)]:
         coef[i] = -dot_VV(b[:,j], dot_AV(m, b[:,k]) )
     
-    return coef,perp(b)
+    return coef,perp(b).astype(int)
 
 
 # ------- Three dimensional variant -------
@@ -181,4 +181,4 @@ def Decomposition3(m):
         coef[iter] = -dot_VV(b[:,i], dot_AV(m, b[:,j]) )
         offset[:,iter] = cross(b[:,k], b[:,l])
         
-    return coef,offset
+    return coef,offset.astype(int)

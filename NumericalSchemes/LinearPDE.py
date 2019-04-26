@@ -1,7 +1,8 @@
-import Selling
 import numpy as np
 import scipy.sparse as sp
-import LinearP as LP
+
+from NumericalSchemes import Selling
+from NumericalSchemes import LinearParallel as LP
 
 diff = np.zeros((3,3,2,2))
 diff[:,:,0,0]=1
@@ -38,7 +39,7 @@ def OperatorMatrix(diff,omega=None,mult=None, \
         raise ValueError("OperatorMatrix error : inconsistent matrix dimensions")
         
     # -------- Decompose the tensors --------
-    coef,offset = Selling.DecompP(diff)
+    coef,offset = Selling.Decomposition(diff)
     nCoef = coef.shape[0]
     
     # ------ Check bounds or apply periodic boundary conditions -------
@@ -56,9 +57,10 @@ def OperatorMatrix(diff,omega=None,mult=None, \
                 neigh[neigh>=bound] -= bound
                 neigh[neigh<0] +=bound
             else:
-                inside = (neigh>=0) and (neigh<bound)
+                inside = np.logical_and(neigh>=0, neigh<bound)
     
-            
+    print(insidePos)
+
     # ------- Get the neighbor indices --------
     # Cumulative product in reverse order, omitting last term, beginning with 1
     cum = tuple(list(reversed(np.cumprod(list(reversed(bounds+(1,)))))))[1:]
@@ -73,42 +75,45 @@ def OperatorMatrix(diff,omega=None,mult=None, \
         if intrinsicDrift:
             eta=omega
         else:
-            eta = LP.dot_AV(LP.inverseP(diff),omega)
+            eta = LP.dot_AV(LP.inverse(diff),omega)
             
-        scalEta = LP.dotP_VV(offset, 
+        scalEta = LP.dot_VV(offset.astype(float), 
             np.broadcast_to(np.reshape(eta,(dim,1,)+bounds),offset.shape)) 
         coefOmega = coef*scalEta
 
     # ------- Create the triplets ------
     
     # Second order part
-    # TODO Non periodic boundary conditions ...
+    # Nemann : remove all differences which are not inside (a.k.a multiply coef by inside)
+    # TODO : Dirichlet : set to zero the coef only for the outside part
     
     coef = coef.flatten()
     index = index.flatten()
     indexPos = indexPos.flatten()
     indexNeg = indexNeg.flatten()
-    
+    iP, iN = insidePos.flatten().astype(float), insideNeg.flatten().astype(float)
+
     if divergenceForm:
         row = np.concatenate((index, indexPos, index, indexPos))
         col = np.concatenate((index, index, indexPos, indexPos))
-        data = np.concatenate((coef/2, -coef/2, -coef/2, coef/2))
+        data = np.concatenate((iP*coef/2, -iP*coef/2, -iP*coef/2, iP*coef/2))
         
         row  = np.concatenate(( row, index, indexNeg, index, indexNeg))
         col  = np.concatenate(( col, index, index, indexNeg, indexNeg))
-        data = np.concatenate((data, coef/2, -coef/2, -coef/2, coef/2))
+        data = np.concatenate((data, iN*coef/2, -iN*coef/2, -iN*coef/2, iN*coef/2))
         
     else:
         row = np.concatenate( (index, index,    index))
         col = np.concatenate( (index, indexPos, indexNeg))
-        data = np.concatenate((2*coef, -coef, -coef))
-        
+        data = np.concatenate((iP*coef+iN*coef, -iP*coef, -iN*coef))
+    
+
     # First order part, using centered finite differences
     if not omega is None:       
         coefOmega = coefOmega.flatten()
         row = np.concatenate((row, index,    index))
         col = np.concatenate((col, indexPos, indexNeg))
-        data= np.concatenate((data,coefOmega/2,-coefOmega/2))
+        data= np.concatenate((data,iP*coefOmega/2,-iN*coefOmega/2))
     
     if not mult is None:
         # TODO Non periodic boundary conditions
@@ -116,8 +121,10 @@ def OperatorMatrix(diff,omega=None,mult=None, \
         row = np.concatenate((row, range(size)))
         col = np.concatenate((col, range(size)))
         data= np.concatenate((data,mult.flatten()))
+
+    nz = data!=0
         
-    return (row,col,data)
+    return (row[nz],col[nz],data[nz])
     
     
     

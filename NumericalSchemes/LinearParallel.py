@@ -70,7 +70,7 @@ def transpose(a):
 def trace(a):
     dim = a.shape[0]
     if a.shape[1]!=dim:
-        raise ValueError("traceP error : incompatible dimensions")
+        raise ValueError("trace error : incompatible dimensions")
     return a[(range(dim),range(dim))].sum(0)
 
 # Low dimensional special cases
@@ -78,7 +78,7 @@ def trace(a):
 def det(a):
     dim = a.shape[0]
     if a.shape[1]!=dim:
-        raise ValueError("traceP error : incompatible dimensions")
+        raise ValueError("inverse error : incompatible dimensions")
     if dim==1:
         return a[0,0]
     elif dim==2:
@@ -87,25 +87,25 @@ def det(a):
         return a[0,0]*a[1,1]*a[2,2]+a[0,1]*a[1,2]*a[2,0]+a[0,2]*a[1,0]*a[2,1] \
         - a[0,2]*a[1,1]*a[2,0] - a[1,2]*a[2,1]*a[0,0]- a[2,2]*a[0,1]*a[1,0]
     else:
-        raise ValueError("detP error : unsupported dimension") 
+        raise ValueError("det error : unsupported dimension") 
     
 def inverse(a):
     dim = a.shape[0]
     if a.shape[1]!=dim:
-        raise ValueError("traceP error : incompatible dimensions")
+        raise ValueError("inverse error : incompatible dimensions")
     if dim==1:
         return 1./a[0,0]
     elif dim==2:
-        d=detP(a)
+        d=det(a)
         return np.array( ((a[1,1]/d,-a[0,1]/d),(-a[1,0]/d,a[0,0]/d)) )
     elif dim==3:
-        d=detP(a)
+        d=det(a)
         return np.array([[(
         a[(i+1)%3,(j+1)%3]*a[(i+2)%3,(j+2)%3]-
         a[(i+2)%3,(j+1)%3]*a[(i+1)%3,(j+2)%3]
         )/d
         for i in range(3)] for j in range(3)])
     else: 
-        raise ValueError("detP error : unsupported dimension")
+        raise ValueError("inverse error : unsupported dimension")
     
         
