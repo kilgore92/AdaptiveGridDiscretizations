@@ -15,7 +15,7 @@ diff[:,:,1,1]=1
 - an array of scalars (optionnal),
 
 additional parameters
-- a grid scale
+- a grid scale 
 - boundary conditions, possibly axis by axis 
 	('Periodic', 'Reflected', 'Neumann', 'Dirichlet') 
 - divergence for or not
@@ -23,15 +23,17 @@ additional parameters
 Returns : a list of triplets, for building a coo matrix
 """
 def OperatorMatrix(diff,omega=None,mult=None, \
-		h=1,bc='Periodic', divergenceForm=False,
+		gridScale=1,
+		boundaryConditions='Periodic', 
+		divergenceForm=False,
 		intrinsicDrift=False):
 	
 	# ----- Get the domain shape -----
 	bounds = diff.shape[2:]
 	dim = len(bounds)
-	if isinstance(bc,str):
-		bc = np.full( (dim,2), bc)
-	elif len(bc)!=dim:
+	if isinstance(boundaryConditions,str):
+		boundaryConditions = np.full( (dim,2), boundaryConditions)
+	elif len(boundaryConditions)!=dim:
 		raise ValueError("""OperatorMatrix error : 
 		inconsistent boundary conditions""")
 	
@@ -54,7 +56,7 @@ def OperatorMatrix(diff,omega=None,mult=None, \
 	dirichletNeg = np.full(coef.shape,False)
 	
 	for neigh_,neumann,dirichlet in zip( (neighPos,neighNeg), (neumannPos,neumannNeg), (dirichletPos,dirichletNeg) ): 
-		for neigh,cond_,bound in zip(neigh_,bc,bounds): # Component by component
+		for neigh,cond_,bound in zip(neigh_,boundaryConditions,bounds): # Component by component
 			for out,cond in zip( (neigh<0,neigh>=bound), cond_):
 				if cond=='Periodic':
    				 	neigh[out] %= bound 
@@ -89,7 +91,8 @@ def OperatorMatrix(diff,omega=None,mult=None, \
 	# Nemann : remove all differences which are not inside (a.k.a multiply coef by inside)
 	# TODO : Dirichlet : set to zero the coef only for the outside part
 	
-	coef = coef.flatten()
+	coef = coef.flatten()/ (gridScale**2) # Take grid scale into account
+
 	index = index.flatten()
 	indexPos = indexPos.flatten()
 	indexNeg = indexNeg.flatten()
@@ -103,24 +106,24 @@ def OperatorMatrix(diff,omega=None,mult=None, \
 	if divergenceForm:
 		row = np.concatenate((index, indexPos, index, indexPos))
 		col = np.concatenate((index, index, indexPos, indexPos))
-		data = np.concatenate((iP*coef/2, -iP*coef/2, -iP*coef/2, iP*coef/2))
+		data = np.concatenate((iP*coef/2, -IP*coef/2, -IP*coef/2, IP*coef/2))
 		
 		row  = np.concatenate(( row, index, indexNeg, index, indexNeg))
 		col  = np.concatenate(( col, index, index, indexNeg, indexNeg))
-		data = np.concatenate((data, iN*coef/2, -iN*coef/2, -iN*coef/2, iN*coef/2))
+		data = np.concatenate((data, iN*coef/2, -IN*coef/2, -IN*coef/2, IN*coef/2))
 		
 	else:
 		row = np.concatenate( (index, index,	index))
 		col = np.concatenate( (index, indexPos, indexNeg))
-		data = np.concatenate((iP*coef+iN*coef, -iP*coef, -iN*coef))
+		data = np.concatenate((iP*coef+iN*coef, -IP*coef, -IN*coef))
 	
 
 	# First order part, using centered finite differences
 	if not omega is None:	   
-		coefOmega = coefOmega.flatten()
+		coefOmega = coefOmega.flatten() / gridScale # Take grid scale in
 		row = np.concatenate((row, index,	index))
 		col = np.concatenate((col, indexPos, indexNeg))
-		data= np.concatenate((data,iP*coefOmega/2,-iN*coefOmega/2))
+		data= np.concatenate((data,IP*coefOmega/2,-IN*coefOmega/2))
 	
 	if not mult is None:
 		# TODO Non periodic boundary conditions
@@ -131,7 +134,7 @@ def OperatorMatrix(diff,omega=None,mult=None, \
 
 	nz = data!=0
 		
-	return (row[nz],col[nz],data[nz])
+	return data[nz],(row[nz],col[nz])
 	
 	
 	

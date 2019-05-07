@@ -1,5 +1,12 @@
 import numpy as np
 
+def identity(shape):
+    dim = len(shape)
+    a = np.full((dim,dim)+shape,0.)
+    for i in range(dim):
+        a[i,i]=1.
+    return a
+
 # Dot product (vector-vector, matrix-vector and matrix-matrix) in parallel
 def dot_VV(v,w):
     if v.shape!=w.shape: raise ValueError('dot_VV : Incompatible shapes')
@@ -107,5 +114,9 @@ def inverse(a):
         for i in range(3)] for j in range(3)])
     else: 
         raise ValueError("inverse error : unsupported dimension")
+
+def solve_AV(a,v):
+    # TODO : faster implementation
+    return dot_AV(inverse(a),v)
     
         
