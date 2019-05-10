@@ -18,9 +18,20 @@ def dot_AV(a,v):
     if v.shape != (n,)+bounds:
         raise ValueError("dot_AV : Incompatible shapes")
 
-    return np.multiply(a,\
-        np.broadcast_to(np.reshape(v,(1,n,)+bounds), (m,n,)+bounds) \
+    return np.multiply(a,
+        np.broadcast_to(np.reshape(v,(1,n)+bounds), (m,n,)+bounds) 
         ).sum(1)
+
+def dot_VA(v,a):
+    m,n = a.shape[:2]
+    bounds = a.shape[2:]
+    if v.shape != (m,)+bounds:
+        raise ValueError("dot_VA : Incompatible shapes")
+
+    return np.multiply(a,
+        np.broadcast_to(np.reshape(v,(m,1)+bounds), (m,n,)+bounds) 
+        ).sum(0)
+
 
 def dot_AA(a,b):
     m,n=a.shape[:2]

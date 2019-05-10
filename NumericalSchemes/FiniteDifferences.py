@@ -1,38 +1,50 @@
 import numpy as np
-from .SparseAD import spAD
+from . import SparseAutomaticDifferentiation as spAD
 
-def TakeWithOffset(u,offset,padding=np.inf,uniform=None,autodiff=True):
+def OffsetToIndex(shape,offset, mode='clip', uniform=None):
 	"""
 	Returns the value of u at current position + offset. Also returns the coefficients and indices.
 	Set padding=None for periodic boundary conditions
 	"""
-	assert(offset.shape[0]==u.ndim)
+	ndim = len(shape)
+	assert(offset.shape[0]==ndim)
 	if uniform is None:
-		uniform = not ((offset.ndim >= 1+u.ndim) and (offset.shape[-u.ndim:]==u.ndim))
+		uniform = not ((offset.ndim > ndim) and (offset.shape[-ndim:]==shape))
 
-	grid = np.mgrid[tuple(slice(n) for n in u.shape)]
-	grid = grid.reshape( (u.ndim,) + (1,)*(offset.ndim-1-u.ndim*int(not uniform))+u.shape)
+	grid = np.mgrid[tuple(slice(n) for n in shape)]
+	grid = grid.reshape( (ndim,) + (1,)*(offset.ndim-1-ndim*int(not uniform))+shape)
 
-	neigh = grid + (offset.reshape(offset.shape + (1,)*u.ndim) if uniform else offset)
+	neigh = grid + (offset.reshape(offset.shape + (1,)*ndim) if uniform else offset)
 	inside = np.full(neigh.shape[1:],True) # Weither neigh falls out the domain
 
-	if padding is None: # Apply periodic bc
-		for coord,bound in zip(neigh,u.shape):
+	if mode=='wrap': # Apply periodic bc
+		for coord,bound in zip(neigh,shape):
 			coord %= bound
 	else: #identify bad indices
-		for coord,bound in zip(neigh,u.shape):
+		for coord,bound in zip(neigh,shape):
 			inside =np.logical_and(inside, np.logical_and(coord>=0,coord<bound))
 #			inside = np.logical_and.reduce(inside, coord>=0, coord<bound)
 
-	neighIndex = np.ravel_multi_index(neigh, u.shape, mode = 'clip')
-	result = np.full(inside.shape,padding if padding is not None else u.flatten()[0])
-	result[inside] = u.flatten()[neighIndex[inside]]
+	neighIndex = np.ravel_multi_index(neigh, shape, mode=mode)
+	return neighIndex, inside
 
-	return spAD(result,inside,neighIndex) if autodiff else result
+def TakeAtOffset(u,offset, padding=0., **kwargs):
+	mode = 'wrap' if padding is None else 'clip'
+	neighIndex, inside = OffsetToIndex(u.shape,offset,mode=mode, **kwargs)
+
+	values = u.flatten()[neighIndex]
+	if padding is not None:
+		values = spAD.replace_at(values,np.logical_not(inside),padding)
+	return values
+
+#	result = np.full(inside.shape,padding if padding is not None else u.flatten()[0])
+#	result[inside] = u.flatten()[neighIndex[inside]]
+
+#	return spAD(result,inside,neighIndex) if autodiff else result
 
 def AlignedSum(u,offset,multiples,weights,**kwargs):
 	"""Returns sum along the direction offset, with specified multiples and weights"""
-	return sum(TakeWithOffset(u,mult*offset,**kwargs)*weight for mult,weight in zip(multiples,weights))
+	return sum(TakeAtOffset(u,mult*np.array(offset),**kwargs)*weight for mult,weight in zip(multiples,weights))
 
 def Diff2(u,offset,gridScale=1.,**kwargs):
 	"""Second order finite difference in the specidied direction"""
