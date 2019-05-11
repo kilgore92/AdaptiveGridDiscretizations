@@ -101,19 +101,20 @@ class spAD:
 			return spAD(value,coef,index)
 
 	@property
+	def ndim(self):		return self.value.ndim
+	@property
 	def shape(self):	return self.value.shape
 	@property
 	def size(self):		return self.value.size
 	@property
 	def size_ad(self):  return self.coef.shape[-1]
 	
-
 	def __getitem__(self,key):
 		return spAD(self.value[key], self.coef[key], self.index[key])
 
 	def __setitem__(self,key,other):
-		self.value[key] = other.value
 		if isinstance(other,spAD):
+			self.value[key] = other.value
 			pad_size = max(self.coef.shape[-1],other.coef.shape[-1])
 			if pad_size>self.coef.shape[-1]:
 				self.coef = _pad_last(self.coef,pad_size)
@@ -121,7 +122,8 @@ class spAD:
 			self.coef[key] = _pad_last(other.coef,pad_size)
 			self.index[key] = _pad_last(other.index,pad_size)
 		else:
-			self.coef[key] = 0.
+			self.value[key] = other
+			self.coef[key]  = 0.
 			self.index[key] = 0
 
 	def reshape(self,shape):
@@ -150,9 +152,9 @@ class spAD:
 
 # -------- Some utility functions, for internal use -------
 
-def _concatenate(a,b): return np.concatenate((a,b),axis=-1)
-def _add_dim(a):	return np.expand_dims(a,axis=-1)	
-def _get_value(a): return a.value if isinstance(a,spAD) else a
+def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
+def _add_dim(a):		return np.expand_dims(a,axis=-1)	
+def _get_value(a): 		return a.value if isinstance(a,spAD) else a
 def _pad_last(a,pad_total):
 		return np.pad(a, pad_width=((0,0),)*(a.ndim-1)+((0,pad_total-a.shape[-1]),), mode='constant', constant_values=0)
 
@@ -161,25 +163,37 @@ def _pad_last(a,pad_total):
 def replace_at(a,mask,b): 
 	if isinstance(a,spAD): return a.replace_at(mask,b) 
 	elif isinstance(b,spAD): return b.replace_at(np.logical_not(mask),a) 
-	else: result=np.copy(a); result[mask]=b[mask] if isinstance(b,np.ndarray) else b; return result
-
-def maximum(a,b): return replace_at(a,a<b,b)
-def minimum(a,b): return replace_at(a,a>b,b)
-def abs(a,b): return replace_at(a,a<0,-a)
+	elif isinstance(a,np.ndarray): result=np.copy(a); result[mask]=b[mask] if isinstance(b,np.ndarray) else b; return result
+	elif isinstance(b,np.ndarray): result=np.copy(b); result[np.logical_not(mask)]=a; return result;
+	else: return b if mask else a 
 
 
 def identity(shape):
 	return spAD(np.full(shape,0.),np.full(shape+(1,),1.),np.arange(np.prod(shape)).reshape(shape+(1,)))
 
-def stack(elems,axis=0):
-	return spAD( 
-		np.stack((e.value for e in elems),axis=axis), 
-		np.stack((e.coef  for e in elems),axis=axis),
-		np.stack((e.index for e in elems),axis=axis))
 
 def cast_left_operand(u,v):
 	"""Returns u, or a cast of u if necessary to ensure compatibility for u+v, u*v, u-v, u/v, etc"""
 	return spAD(u) if (type(u)==np.ndarray and type(v)==spAD) else u
 
+# ----- Various functions, intended to be numpy-compatible ------
 
+def maximum(a,b): 	return replace_at(a,a<b,b)
+def minimum(a,b): 	return replace_at(a,a>b,b)
+def abs(a,b): 		return replace_at(a,a<0,-a)
+
+
+def stack(elems,axis=0):
+	if len(elems)==0 or not isinstance(elems[0],spAD): 
+		return np.stack(elems,axis=axis) 
+	return spAD( 
+		np.stack((e.value for e in elems),axis=axis), 
+		np.stack((e.coef  for e in elems),axis=axis),
+		np.stack((e.index for e in elems),axis=axis))
+
+def broadcast_to(array,shape):
+	if not isinstance(array,spAD):
+		return np.broadcast_to(array,shape)
+	shape2 = shape+(array.size_ad,)
+	return spAD(np.broadcast_to(array.value,shape), np.broadcast_to(array.coef,shape2), np.broadcast_to(array.index,shape2))
 

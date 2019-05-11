@@ -6,25 +6,56 @@ import numpy as np
 from itertools import cycle
 from NumericalSchemes.LinearParallel import dot_VV, dot_AV, perp, cross
 
-iterMax2 = 100 #20
-iterMax3 = 100 #30
+iterMax2 = 100 
+iterMax3 = 100 
 
 # -------- Dimension based dispatch -----
 
-def Decomposition(m):
+def GetDimBounds(m):
+    """Returns dim,bounds where m.shape = (dim,dim)+bounds. Purposedly fails if dim not in [1,2,3]."""
+    shape = m.shape
+    if len(shape)<2:
+        raise ValueError("Selling error : insufficient depth of input array. Shape : " + str(shape))
+    dim = shape[0]
+    if dim != shape[1]:
+        raise ValueError("Selling error : non square matrix. Shape : " +str(shape))
+    if not dim in (1,2,3):
+        raise ValueError("Selling error : unsupported matrix dimension. Shape : "+ str(shape))
+    return dim, shape[2:]
+
+def ObtuseSuperbase(m,sb=None):
+    """
+    In : symmetric positive definite matrix m. Initial superbase sb (optional).
+    Out : obtuse superbase is stored in input argument sb if it is not None. Else it is returned.
+    """
+    dim,bounds = GetDimBounds(m)
+    osb = CanonicalSuperbase(dim,bounds) if sb is None else sb
+
+    if   dim==1:            success = ObtuseSuperbase1(m,osb)    
+    elif dim==2:            success = ObtuseSuperbase2(m,osb)
+    else: assert dim==3;    success = ObtuseSuperbase3(m,osb) 
+
+    if sb is None:
+        if not success: raise ValueError('Selling.Decomposition2 error: Selling algorithm unterminated')
+        else: return osb
+    else:
+        sb = osb
+        return success
+
+def Decomposition(m,sb=None):
     """
          Use Selling's algorithm to decompose a tensor
 
-        input : symmetric positive definite tensor, d<=3
+        input : symmetric positive definite tensor, d<=3. Superbase (optional).
         output : coefficients, offsets
     """
-    dim = m.shape[0]
-    if m.shape[1]!=dim:
-        raise ValueError('Selling.Decomposition error : non square matrix')
-    if   dim==1: return Decomposition1(m)    
-    elif dim==2: return Decomposition2(m)
-    elif dim==3: return Decomposition3(m)
-    else: raise ValueError('Selling.Decomposition error : unsupported dimension')
+    dim,bounds=GetDimBounds(m)
+    if sb is None:
+        sb = ObtuseSuperbase(m)
+
+    if   dim==1:            return Decomposition1(m,sb)    
+    elif dim==2:            return Decomposition2(m,sb)
+    else: assert dim==3;    return Decomposition3(m,sb)
 
 
 def GatherByOffset(T,Coefs,Offsets):
@@ -49,27 +80,29 @@ def GatherByOffset(T,Coefs,Offsets):
 
 
 def CanonicalSuperbase(d, bounds = tuple()):
-    b=np.zeros((d,d+1,)+bounds)
-    b[:,0]=-1
+    sb=np.zeros((d,d+1,)+bounds)
+    sb[:,0]=-1
     for i in range(d):
-        b[i,i+1]=1
-    return b
+        sb[i,i+1]=1
+    return sb
 
 # ------- One dimensional variant (trivial) ------
 
-def Decomposition1(m):
-    bounds = m.shape[2:]
-    
-    coefs = m
-    coefs.reshape(bounds)
-    
-    offsets = np.ones( (1,1,) + bounds,  dtype=int)
-    return coefs, offsets    
+def ObtuseSuperbase1(m,sb=None):
+    osb = CanonicalSuperbase(*GetDimBounds(m))
+    if sb is None:  return osb
+    else: sb=osb; return True
+
+def Decomposition1(m,sb):
+    _,bounds = GetDimBounds(m)
+    offsets = sb.reshape((1,1,)+bounds)
+    coefs = (m/offsets**2).reshape((1,)+bounds)    
+    return coefs, offsets.astype(int)
 
 # ------- Two dimensional variant ------
 
 # We do everyone in parallel, without selection or early abort
-def ObtuseSuperbase2(m,b):
+def ObtuseSuperbase2(m,sb):
     """
         Use Selling's algorithm to compute an obtuse superbase.
 
@@ -91,42 +124,34 @@ def ObtuseSuperbase2(m,b):
         (i,j,k) = next(sigma)
         
         # Test for a positive angle, and modify superbase if necessary
-        acute = dot_VV(b[:,i],dot_AV(m,b[:,j])) > 0
+        acute = dot_VV(sb[:,i],dot_AV(m,sb[:,j])) > 0
         if np.any(acute):
-            b[:,k,acute] = b[:,i,acute]-b[:,j,acute]
-            b[:,i,acute] = -b[:,i,acute]
+            sb[:,k,acute] = sb[:,i,acute]-sb[:,j,acute]
+            sb[:,i,acute] = -sb[:,i,acute]
             iterReduced=0
     
     return iterReduced==iterReducedMax
     
 # Produce the matrix decomposition
-def Decomposition2(m):
+def Decomposition2(m,sb):
     """
         Use Selling's algorithm to decompose a tensor
 
         input : symmetric positive definite tensor 
         output : coefficients, offsets
     """
-    bounds = m.shape[2:]
-    if m.shape!=(2,2,)+bounds:
-        raise ValueError("Selling.Decomposition2 error: Incompatible dimensions")
-        
-    b=CanonicalSuperbase(2,bounds)
-
-    if not ObtuseSuperbase2(m,b):
-        raise ValueError('Selling.Decomposition2 error: Selling algorithm unterminated')
-    
+    _,bounds = GetDimBounds(m)
     coef=np.zeros((3,)+bounds)
     for (i,j,k) in [(0,1,2),(1,2,0),(2,0,1)]:
-        coef[i] = -dot_VV(b[:,j], dot_AV(m, b[:,k]) )
+        coef[i] = -dot_VV(sb[:,j], dot_AV(m, sb[:,k]) )
     
-    return coef,perp(b).astype(int)
+    return coef,perp(sb).astype(int)
 
 
 # ------- Three dimensional variant -------
 
 # We do everyone in parallel, without selection or early abort
-def ObtuseSuperbase3(m,b):
+def ObtuseSuperbase3(m,sb):
     """
         Use Selling's algorithm to compute an obtuse superbase.
 
@@ -148,37 +173,29 @@ def ObtuseSuperbase3(m,b):
         (i,j,k,l) = next(sigma)
         
         # Test for a positive angle, and modify superbase if necessary
-        acute = dot_VV(b[:,i],dot_AV(m,b[:,j])) > 0
+        acute = dot_VV(sb[:,i],dot_AV(m,sb[:,j])) > 0
         if np.any(acute):
-            b[:,k,acute] += b[:,i,acute]
-            b[:,l,acute] += b[:,i,acute]
-            b[:,i,acute] = -b[:,i,acute]
+            sb[:,k,acute] += sb[:,i,acute]
+            sb[:,l,acute] += sb[:,i,acute]
+            sb[:,i,acute] = -sb[:,i,acute]
             iterReduced=0
     
     return iterReduced==iterReducedMax
     
-def Decomposition3(m):
+def Decomposition3(m,sb):
     """
         Use Selling's algorithm to decompose a tensor
 
         input : symmetric positive definite tensor, d=3
         output : coefficients, offsets
     """
-    bounds = m.shape[2:]
-    
-    if m.shape!=(3,3,)+bounds:
-        raise ValueError("Selling.Decomposition3 error: Incompatible dimensions")
-
-    b=CanonicalSuperbase(3,bounds)
-
-    if not ObtuseSuperbase3(m,b):
-        raise ValueError('DecompP3 error: Selling algorithm unterminated')
+    _,bounds = GetDimBounds(m)
     
     coef=np.zeros((6,)+bounds)
     offset=np.zeros((3,6,)+bounds)
     for iter,(i,j,k,l) in zip(range(6),
     [(0,1,2,3),(0,2,1,3),(0,3,1,2),(1,2,0,3),(1,3,0,2),(2,3,0,1)]):
-        coef[iter] = -dot_VV(b[:,i], dot_AV(m, b[:,j]) )
-        offset[:,iter] = cross(b[:,k], b[:,l])
+        coef[iter] = -dot_VV(sb[:,i], dot_AV(m, sb[:,j]) )
+        offset[:,iter] = cross(sb[:,k], sb[:,l])
         
     return coef,offset.astype(int)
