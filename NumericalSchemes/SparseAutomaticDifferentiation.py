@@ -61,7 +61,7 @@ class spAD:
 	__rmul__ = __mul__
 	__radd__ = __add__
 	def __rsub__(self,other): 		return -(self-other)
-	def __rtruediv__(self,other): 	return self.__truediv__(self.constant(other),self)
+	def __rtruediv__(self,other): 	spAD(other/self.value,self.coef*__add_dim(-other/self.value**2),self.index)
 
 	def __neg__(self):		return spAD(-self.value,-self.coef,self.index)
 	def __pow__(self,n): 	return spAD(self.value**n, _add_dim(n*self.value**(n-1))*self.coef,self.index)
@@ -127,7 +127,7 @@ class spAD:
 			self.index[key] = 0
 
 	def reshape(self,shape):
-		shape2 = shape+(self.coef.shape[-1],)
+		shape2 = shape+(self.size_ad,)
 		return spAD(self.value.reshape(shape),self.coef.reshape(shape2), self.index.reshape(shape2))
 
 	def flatten(self):	
@@ -141,12 +141,40 @@ class spAD:
 		pos=coef!=0
 		return (coef[pos],(row[pos],column[pos]))
 
+	# Reductions
+
 	def sum(self,axis=0):
 		value = self.value.sum(axis)
 		shape = value.shape +(self.size_ad * self.shape[axis],)
 		coef = np.moveaxis(self.coef, axis,-1).reshape(shape)
 		index = np.moveaxis(self.index, axis,-1).reshape(shape)
 		return spAD(value,coef,index)
+
+	def argmin(self,*varargs,**kwargs):
+		return self.value.argmin(*varargs,**kwargs)
+
+	def argmax(self,*varargs,**kwargs):
+		return self.value.argmin(*varargs,**kwargs)
+
+	def take_along_axis(self,indices,axis):
+		indices2 = np.broadcast_to(_add_dim(indices),indices.shape+(self.size_ad,))
+		return spAD(np.take_along_axis(self.value,indices,axis),
+			np.take_along_axis(self.coef,indices2,axis),
+			np.take_along_axis(self.index,indices2,axis))
+
+	def min(self,axis=0,keepdims=False):
+		ai = np.expand_dims(np.argmin(self.value, axis=axis), axis=axis)
+		result = self.take_along_axis(ai,axis=axis)
+		return result if keepdims else result.reshape(self.shape[:axis]+self.shape[axis+1:])
+
+	def max(self,axis=0,keepdims=False):
+		ai = np.expand_dims(np.argmax(self.value, axis=axis), axis=axis)
+		result = self.take_along_axis(ai,axis=axis)
+		return result if keepdims else result.reshape(self.shape[:axis]+self.shape[axis+1:])
+
+	def sort(self,*varargs,**kwargs):
+		self=sort(self,*varargs,**kwargs)
+
 
 # -------- End of class spAD -------
 
@@ -196,4 +224,17 @@ def broadcast_to(array,shape):
 		return np.broadcast_to(array,shape)
 	shape2 = shape+(array.size_ad,)
 	return spAD(np.broadcast_to(array.value,shape), np.broadcast_to(array.coef,shape2), np.broadcast_to(array.index,shape2))
+
+def take_along_axis(array,indices,axis):
+	if not isinstance(array,spAD):
+		return np.take_along_axis(array,indices,axis)
+	return array.take_along_axis(indices,axis)
+
+def sort(array,axis=-1,*varargs,**kwargs):
+	if not isinstance(array,spAD):
+		return np.sort(array,axis=axis,*varargs,**kwargs)
+	ai = np.argsort(array.value,axis=axis,*varargs,**kwargs)
+	return array.take_along_axis(ai,axis=axis)
+
+
 
