@@ -86,6 +86,16 @@ def CanonicalSuperbase(d, bounds = tuple()):
         sb[i,i+1]=1
     return sb
 
+def SuperbasesForConditioning(cond,dim=2):
+    """
+    Returns a family of superbases. 
+    One of them is M-obtuse, for any positive definite matrix M with condition number below the given bound.
+    (Condition number is the ratio of the largest to the smallest eigenvalue.)
+    """
+    if dim==1:          return SuperbasesForConditioning1(cond)
+    elif dim==2:        return SuperbasesForConditioning2(cond)
+    else: assert dim==3;return SuperbasesForConditioning3(cond)
+
 # ------- One dimensional variant (trivial) ------
 
 def ObtuseSuperbase1(m,sb=None):
@@ -98,6 +108,10 @@ def Decomposition1(m,sb):
     offsets = sb.reshape((1,1,)+bounds)
     coefs = (m/offsets**2).reshape((1,)+bounds)    
     return coefs, offsets.astype(int)
+
+def SuperbasesForConditioning1(cond):
+    sb = CanonicalSuperbase(1)
+    return sb.reshape(sb.shape+(1,))
 
 # ------- Two dimensional variant ------
 
@@ -146,6 +160,32 @@ def Decomposition2(m,sb):
         coef[i] = -dot_VV(sb[:,j], dot_AV(m, sb[:,k]) )
     
     return coef,perp(sb).astype(int)
+
+def SuperbasesForConditioning2(cond):
+    """
+    Implementation is based on exploring the Stern-Brocot tree, 
+    with a stopping criterion based on the angle between consecutive vectors.
+    """
+
+    mu = np.sqrt(cond)
+    theta = np.pi/2. - np.arccos( 2/(mu+1./mu))
+
+    u=np.array( (1,0) )
+    l = [np.array( (-1,0) ),np.array( (0,1) )]
+    m = []
+
+    def angle(u,v): return np.arctan2(u[0]*v[1]-u[1]*v[0], u[0]*v[0]+u[1]*v[1])
+
+    while l:
+        v=l[-1]
+        if angle(u,v)<=theta:
+            m.append(u)
+            u=v
+            l.pop()
+        else:
+            l.append(u+v)
+
+    return np.array( [(e,-f,f-e) for e,f in zip(m,m[1:]+[np.array((-1,0))] )] ).transpose((2,1,0))
 
 
 # ------- Three dimensional variant -------
@@ -199,3 +239,6 @@ def Decomposition3(m,sb):
         offset[:,iter] = cross(sb[:,k], sb[:,l])
         
     return coef,offset.astype(int)
+
+def SuperbasesForConditioning3(cond):
+    raise ValueError("Sorry, SuperbasesForConditioning3 is not implemented yet")

@@ -10,7 +10,7 @@ def identity(shape):
 # Dot product (vector-vector, matrix-vector and matrix-matrix) in parallel
 def dot_VV(v,w):
     if v.shape!=w.shape: raise ValueError('dot_VV : Incompatible shapes')
-    return np.multiply(v,w).sum(0)
+    return (v*w).sum(0)
 
 def dot_AV(a,v):
     m,n = a.shape[:2]
@@ -18,9 +18,7 @@ def dot_AV(a,v):
     if v.shape != (n,)+bounds:
         raise ValueError("dot_AV : Incompatible shapes")
 
-    return np.multiply(a,
-        np.broadcast_to(np.reshape(v,(1,n)+bounds), (m,n,)+bounds) 
-        ).sum(1)
+    return (a*v.reshape((1,n)+bounds)).sum(1)
 
 def dot_VA(v,a):
     m,n = a.shape[:2]
@@ -28,9 +26,7 @@ def dot_VA(v,a):
     if v.shape != (m,)+bounds:
         raise ValueError("dot_VA : Incompatible shapes")
 
-    return np.multiply(a,
-        np.broadcast_to(np.reshape(v,(m,1)+bounds), (m,n,)+bounds) 
-        ).sum(0)
+    return (v.reshape((m,1)+bounds)*a).sum(0)
 
 
 def dot_AA(a,b):
@@ -39,10 +35,7 @@ def dot_AA(a,b):
     k = b.shape[1]
     if b.shape!=(n,k,)+bounds:
         raise ValueError("dot_AA error : Incompatible shapes")
-    return np.multiply(
-        np.broadcast_to(np.reshape(a,(m,n,1,)+bounds),(m,n,k,)+bounds),
-        np.broadcast_to(np.reshape(b,(1,n,k,)+bounds),(m,n,k,)+bounds)
-    ).sum(1)
+    return (a.reshape((m,n,1)+bounds)*b.reshape((1,n,k)+bounds)).sum(1)
 
 def dot_VAV(v,a,w):
     return dot_VV(v,dot_AV(a,w))
@@ -53,9 +46,7 @@ def mult(k,x):
     dim = x.ndim-k.ndim
     if x.shape[dim:]!=bounds:
         raise ValueError("mult error : incompatible shapes")
-    return np.multiply(
-        np.broadcast_to(np.reshape(k,(1,)*dim+bounds),x.shape),
-        x)
+    return k.reshape((1,)*dim+bounds)*x
     
 
 def perp(v):
@@ -70,14 +61,11 @@ def cross(v,w):
     v[2]*w[0]-v[0]*w[2], v[0]*w[1]-v[1]*w[0]) )
     
 def outer(v,w):
-    if v.shape != w.shape:
+    if v.shape[1:] != w.shape[1:]:
         raise ValueError("outer error : Incompatible dimensions")
-    d=v.shape[0]
+    m,n=v.shape[0],w.shape[0]
     bounds = v.shape[1:]
-    return np.multiply(
-        np.broadcast_to(np.reshape(v,(d,1,)+bounds),(d,d,)+bounds),
-        np.broadcast_to(np.reshape(v,(1,d,)+bounds),(d,d,)+bounds)
-    )
+    return v.reshape((m,1)+bounds)*w.reshape((1,n)+bounds)
 
 def outer_self(v):
     return outer(v,v)

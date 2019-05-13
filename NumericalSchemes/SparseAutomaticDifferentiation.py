@@ -11,9 +11,8 @@ class spAD:
 		self.coef  = np.full(value.shape+(0,),0.) if coef is None else coef
 		self.index = np.full(value.shape+(0,),0) if index is None else index 
 
-#	@staticmethod
-#	def constant(value):
-#		return spAD(value,np.full(value.shape+(0,),0.),np.full(value.shape+(0,),0) )
+	def copy(self,order='C'):
+		return spAD(self.value.copy(order=order),self.coef.copy(order=order),self.index.copy(order=order))
 
 	# Representation 
 	def __iter__(self):
@@ -40,11 +39,15 @@ class spAD:
 
 	def __mul__(self,other):
 		if isinstance(other,spAD):
-			return spAD(self.value*other.value, 
-				_concatenate(_add_dim(other.value)*self.coef,_add_dim(self.value)*other.coef), 
-				_concatenate(self.index,other.index))
+			value = self.value*other.value
+			coef1,coef2 = _add_dim(other.value)*self.coef,_add_dim(self.value)*other.coef
+			index1,index2 = np.broadcast_to(self.index,coef1.shape),np.broadcast_to(other.index,coef2.shape)
+			return spAD(value,_concatenate(coef1,coef2),_concatenate(index1,index2))
 		elif isinstance(other,np.ndarray):
-			return spAD(self.value*other, _add_dim(other)*self.coef, self.index)
+			value = self.value*other
+			coef = _add_dim(other)*self.coef
+			index = np.broadcast_to(self.index,coef.shape)
+			return spAD(value,coef,index)
 		else:
 			return spAD(self.value*other,other*self.coef,self.index)
 
@@ -54,14 +57,14 @@ class spAD:
 				_concatenate(self.coef*_add_dim(1/other.value),other.coef*_add_dim(-self.value/other.value**2)),
 				_concatenate(self.index,other.index))
 		elif isinstance(other,np.ndarray):
-			return spAD(self.value/other,self.coef*_add_dim(1/other),self.index)
+			return spAD(self.value/other,self.coef*_add_dim(1./other),self.index)
 		else:
 			return spAD(self.value/other,self.coef/other,self.index)
 
 	__rmul__ = __mul__
 	__radd__ = __add__
 	def __rsub__(self,other): 		return -(self-other)
-	def __rtruediv__(self,other): 	spAD(other/self.value,self.coef*__add_dim(-other/self.value**2),self.index)
+	def __rtruediv__(self,other): 	spAD(other/self.value,self.coef*_add_dim(-other/self.value**2),self.index)
 
 	def __neg__(self):		return spAD(-self.value,-self.coef,self.index)
 	def __pow__(self,n): 	return spAD(self.value**n, _add_dim(n*self.value**(n-1))*self.coef,self.index)
@@ -108,6 +111,8 @@ class spAD:
 	def size(self):		return self.value.size
 	@property
 	def size_ad(self):  return self.coef.shape[-1]
+
+	def __len__(self):	return self.shape[0]
 	
 	def __getitem__(self,key):
 		return spAD(self.value[key], self.coef[key], self.index[key])
@@ -204,6 +209,12 @@ def cast_left_operand(u,v):
 	"""Returns u, or a cast of u if necessary to ensure compatibility for u+v, u*v, u-v, u/v, etc"""
 	return spAD(u) if (type(u)==np.ndarray and type(v)==spAD) else u
 
+def remove_ad(array):
+	return array.value if isinstance(array,spAD) else array
+
+#def simplify_ad(array): #TODO
+#	if not isinstance(array,spAD): return array
+
 # ----- Various functions, intended to be numpy-compatible ------
 
 def maximum(a,b): 	return replace_at(a,a<b,b)
@@ -236,5 +247,8 @@ def sort(array,axis=-1,*varargs,**kwargs):
 	ai = np.argsort(array.value,axis=axis,*varargs,**kwargs)
 	return array.take_along_axis(ai,axis=axis)
 
-
-
+def sqrt(array):return array.sqrt() if isinstance(array,spAD) else np.sqrt(array)
+def log(array):	return array.log() if isinstance(array,spAD) else np.log(array)
+def exp(array):	return array.exp() if isinstance(array,spAD) else np.exp(array)
+def sin(array):	return array.sin() if isinstance(array,spAD) else np.sin(array)
+def cos(array):	return array.cos() if isinstance(array,spAD) else np.cos(array)
