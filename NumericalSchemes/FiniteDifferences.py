@@ -1,5 +1,5 @@
 import numpy as np
-from . import SparseAutomaticDifferentiation as spAD
+#from . import SparseAutomaticDifferentiation as spAD
 
 def OffsetToIndex(shape,offset, mode='clip', uniform=None):
 	"""
@@ -22,8 +22,7 @@ def OffsetToIndex(shape,offset, mode='clip', uniform=None):
 			coord %= bound
 	else: #identify bad indices
 		for coord,bound in zip(neigh,shape):
-			inside =np.logical_and(inside, np.logical_and(coord>=0,coord<bound))
-#			inside = np.logical_and.reduce(inside, coord>=0, coord<bound)
+			inside = np.logical_and.reduce( (inside, coord>=0, coord<bound) )
 
 	neighIndex = np.ravel_multi_index(neigh, shape, mode=mode)
 	return neighIndex, inside
@@ -34,13 +33,9 @@ def TakeAtOffset(u,offset, padding=0., **kwargs):
 
 	values = u.flatten()[neighIndex]
 	if padding is not None:
-		values = spAD.replace_at(values,np.logical_not(inside),padding)
+		values[np.logical_not(inside)] = padding
+#		values = spAD.replace_at(values,np.logical_not(inside),padding)
 	return values
-
-#	result = np.full(inside.shape,padding if padding is not None else u.flatten()[0])
-#	result[inside] = u.flatten()[neighIndex[inside]]
-
-#	return spAD(result,inside,neighIndex) if autodiff else result
 
 def AlignedSum(u,offset,multiples,weights,**kwargs):
 	"""Returns sum along the direction offset, with specified multiples and weights"""

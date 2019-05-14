@@ -208,8 +208,35 @@ class spAD(np.ndarray):
 		if ufunc==np.sin: return self.sin()
 		if ufunc==np.cos: return self.cos()
 
+		# Operators
+		if ufunc==np.add: return self.add(*inputs,**kwargs)
+		if ufunc==np.subtract: return self.subtract(*inputs,**kwargs)
+		if ufunc==np.multiply: return self.multiply(*inputs,**kwargs)
+		if ufunc==np.true_divide: return self.true_divide(*inputs,**kwargs)
+
 
 		return NotImplemented
+
+	# Support for +=, -=, *=, /=
+	@staticmethod
+	def add(a,b,out=None,where=True): 
+		if out is None: return a+b; 
+		else: result=_tuple_first(out); result[where]=a[where]+b[where]; return result
+
+	@staticmethod
+	def subtract(a,b,out=None,where=True): 
+		if out is None: return a-b; 
+		else: result=_tuple_first(out); result[where]=a[where]-b[where]; return result
+
+	@staticmethod
+	def multiply(a,b,out=None,where=True): 
+		if out is None: return a*b; 
+		else: result=_tuple_first(out); result[where]=a[where]*b[where]; return result
+
+	@staticmethod
+	def true_divide(a,b,out=None,where=True): 
+		if out is None: return a/b; 
+		else: result=_tuple_first(out); result[where]=a[where]/b[where]; return result
 
 
 # -------- End of class spAD -------
@@ -221,22 +248,28 @@ def _add_dim(a):		return np.expand_dims(a,axis=-1)
 def _get_value(a): 		return a.value if isinstance(a,spAD) else a
 def _pad_last(a,pad_total):
 		return np.pad(a, pad_width=((0,0),)*(a.ndim-1)+((0,pad_total-a.shape[-1]),), mode='constant', constant_values=0)
+def _tuple_first(a): return a[0] if isinstance(a,tuple) else a
 
 # -------- Various functions, including factory methods -----
 
-def identity(shape):
-	return spAD(np.full(shape,0.),np.full(shape+(1,),1.),np.arange(np.prod(shape)).reshape(shape+(1,)))
+def identity(shape=None,constant=None):
+	if shape is None:
+		if constant is None:
+			raise ValueError("identity error : shape or constant term must be specified")
+		shape = constant.shape
+	if constant is None:
+		constant = np.full(shape,0.)
+	shape2 = shape+(1,)
+	return spAD(constant,np.full(shape2,1.),np.arange(np.prod(shape)).reshape(shape2))
 
-
-#def cast_left_operand(u,v):
-#	"""Returns u, or a cast of u if necessary to ensure compatibility for u+v, u*v, u-v, u/v, etc"""
-#	return spAD(u) if (type(u)==np.ndarray and type(v)==spAD) else u
-
-#def remove_ad(array):
-#	return array.value if isinstance(array,spAD) else array
 
 #def simplify_ad(array): #TODO
 #	if not isinstance(array,spAD): return array
+
+# ----- Operators -----
+
+def add(a,other,out=None):	out=self+other; return out
+
 
 # ----- Various functions, intended to be numpy-compatible ------
 
@@ -270,4 +303,4 @@ def sort(array,axis=-1,*varargs,**kwargs):
 	if not isinstance(array,spAD):
 		return np.sort(array,axis=axis,*varargs,**kwargs)
 	ai = np.argsort(array.value,axis=axis,*varargs,**kwargs)
-	return array.take_along_axis(ai,axis=axis)
+	return np.take_along_axis(array,ai,axis=axis)
