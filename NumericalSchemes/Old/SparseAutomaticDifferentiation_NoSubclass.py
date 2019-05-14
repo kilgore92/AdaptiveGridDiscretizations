@@ -6,18 +6,18 @@ class spAD(np.ndarray):
 	"""
 
 	# Construction
-	# See : https://docs.scipy.org/doc/numpy-1.13.0/user/basics.subclassing.html
 	def __new__(cls,value,coef=None,index=None):
-		if isinstance(value,spAD):
-			assert coef is None and index is None
-			return value
 		obj = np.asarray(value).view(spAD)
 		shape2 = obj.shape+(0,)
 		obj.coef  = np.full(shape2,0.) if coef  is None else coef
 		obj.index = np.full(shape2,0)  if index is None else index
-		return obj
 
-#	def __array_finalize__(self,obj): pass
+	def __array_finalize__(self,obj):
+
+	def __init__(self,value,coef=None,index=None):
+		self.value = value
+		self.coef  = np.full(value.shape+(0,),0.) if coef is None else coef
+		self.index = np.full(value.shape+(0,),0) if index is None else index 
 
 	def copy(self,order='C'):
 		return spAD(self.value.copy(order=order),self.coef.copy(order=order),self.index.copy(order=order))
@@ -75,17 +75,19 @@ class spAD(np.ndarray):
 	def __rtruediv__(self,other): 	spAD(other/self.value,self.coef*_add_dim(-other/self.value**2),self.index)
 
 	def __neg__(self):		return spAD(-self.value,-self.coef,self.index)
-
-	# Math functions
 	def __pow__(self,n): 	return spAD(self.value**n, _add_dim(n*self.value**(n-1))*self.coef,self.index)
 	def sqrt(self):		 	return self**0.5
 	def log(self):			return spAD(np.log(self.value), self.coef*_add_dim(1./self.value), self.index)
 	def exp(self):			return spAD(np.exp(self.value), self.coef*_add_dim(np.exp(self.value)), self.index)
-	def abs(self):			return spAD(np.abs(self.value), self.coef*_add_dim(np.sign(self.value)), self.index)
-
-	# Trigonometry
 	def sin(self):			return spAD(np.sin(self.value), self.coef*_add_dim(np.cos(self.value)), self.index)
 	def cos(self):			return spAD(np.cos(self.value), self.coef*_add_dim(-np.sin(self.value)), self.index)
+
+	def __lt__(self,other): return self.value <  _get_value(other)
+	def __le__(self,other): return self.value <= _get_value(other)
+	def __eq__(self,other): return self.value == _get_value(other)
+	def __ne__(self,other): return self.value != _get_value(other)
+	def __gt__(self,other): return self.value >  _get_value(other)
+	def __ge__(self,other): return self.value >= _get_value(other)
 
 	#Indexing
 
@@ -110,9 +112,15 @@ class spAD(np.ndarray):
 			return spAD(value,coef,index)
 
 	@property
-	def value(self): return self.view(np.ndarray)
+	def ndim(self):		return self.value.ndim
+	@property
+	def shape(self):	return self.value.shape
+	@property
+	def size(self):		return self.value.size
 	@property
 	def size_ad(self):  return self.coef.shape[-1]
+
+	def __len__(self):	return self.shape[0]
 	
 	def __getitem__(self,key):
 		return spAD(self.value[key], self.coef[key], self.index[key])
@@ -148,68 +156,37 @@ class spAD(np.ndarray):
 
 	# Reductions
 
-	def sum(self,axis=0,out=None,**kwargs):
-		value = self.value.sum(axis,**kwargs)
+	def sum(self,axis=0):
+		value = self.value.sum(axis)
 		shape = value.shape +(self.size_ad * self.shape[axis],)
 		coef = np.moveaxis(self.coef, axis,-1).reshape(shape)
 		index = np.moveaxis(self.index, axis,-1).reshape(shape)
-		out = spAD(value,coef,index)
-		return out
+		return spAD(value,coef,index)
 
-	def min(self,axis=0,keepdims=False,out=None):
+	def argmin(self,*varargs,**kwargs):
+		return self.value.argmin(*varargs,**kwargs)
+
+	def argmax(self,*varargs,**kwargs):
+		return self.value.argmin(*varargs,**kwargs)
+
+	def take_along_axis(self,indices,axis):
+		indices2 = np.broadcast_to(_add_dim(indices),indices.shape+(self.size_ad,))
+		return spAD(np.take_along_axis(self.value,indices,axis),
+			np.take_along_axis(self.coef,indices2,axis),
+			np.take_along_axis(self.index,indices2,axis))
+
+	def min(self,axis=0,keepdims=False):
 		ai = np.expand_dims(np.argmin(self.value, axis=axis), axis=axis)
-		out = np.take_along_axis(self,ai,axis=axis)
-		if not keepdims: out = out.reshape(self.shape[:axis]+self.shape[axis+1:])
-		return out
+		result = self.take_along_axis(ai,axis=axis)
+		return result if keepdims else result.reshape(self.shape[:axis]+self.shape[axis+1:])
 
-	def max(self,axis=0,keepdims=False,out=None):
+	def max(self,axis=0,keepdims=False):
 		ai = np.expand_dims(np.argmax(self.value, axis=axis), axis=axis)
-		out = np.take_along_axis(self,ai,axis=axis)
-		if not keepdims: out = out.reshape(self.shape[:axis]+self.shape[axis+1:])
-		return out
+		result = self.take_along_axis(ai,axis=axis)
+		return result if keepdims else result.reshape(self.shape[:axis]+self.shape[axis+1:])
 
 	def sort(self,*varargs,**kwargs):
 		self=sort(self,*varargs,**kwargs)
-
-
-	# See https://docs.scipy.org/doc/numpy/reference/ufuncs.html
-	def __array_ufunc__(self,ufunc,method,*inputs,**kwargs):
-
-		# Return an np.ndarray for piecewise constant functions
-		if ufunc in [
-		# Comparison functions
-		np.greater,np.greater_equal,
-		np.less,np.less_equal,
-		np.equal,np.not_equal,
-
-		# Math
-		np.floor_divide,np.rint,np.sign,np.heaviside,
-
-		# Floating functions
-		np.isfinite,np.isinf,np.isnan,np.isnat,
-		np.signbit,np.floor,np.ceil,np.trunc
-		]:
-			inputs_ = (a.value if isinstance(a,spAD) else a for a in inputs)
-			return super(spAD,self).__array_ufunc__(ufunc,method,*inputs_,**kwargs)
-
-		assert method=="__call__"
-
-		# Reimplemented
-		if ufunc==np.maximum: return maximum(*inputs,**kwargs)
-		if ufunc==np.minimum: return minimum(*inputs,**kwargs)
-
-		# Math functions
-		if ufunc==np.sqrt: return self.sqrt()
-		if ufunc==np.log: return self.log()
-		if ufunc==np.exp: return self.exp()
-		if ufunc==np.abs: return self.abs()
-
-		# Trigonometry
-		if ufunc==np.sin: return self.sin()
-		if ufunc==np.cos: return self.cos()
-
-
-		return NotImplemented
 
 
 # -------- End of class spAD -------
@@ -224,41 +201,42 @@ def _pad_last(a,pad_total):
 
 # -------- Various functions, including factory methods -----
 
+def replace_at(a,mask,b): 
+	if isinstance(a,spAD): return a.replace_at(mask,b) 
+	elif isinstance(b,spAD): return b.replace_at(np.logical_not(mask),a) 
+	elif isinstance(a,np.ndarray): result=np.copy(a); result[mask]=b[mask] if isinstance(b,np.ndarray) else b; return result
+	elif isinstance(b,np.ndarray): result=np.copy(b); result[np.logical_not(mask)]=a; return result;
+	else: return b if mask else a 
+
+
 def identity(shape):
 	return spAD(np.full(shape,0.),np.full(shape+(1,),1.),np.arange(np.prod(shape)).reshape(shape+(1,)))
 
 
-#def cast_left_operand(u,v):
-#	"""Returns u, or a cast of u if necessary to ensure compatibility for u+v, u*v, u-v, u/v, etc"""
-#	return spAD(u) if (type(u)==np.ndarray and type(v)==spAD) else u
+def cast_left_operand(u,v):
+	"""Returns u, or a cast of u if necessary to ensure compatibility for u+v, u*v, u-v, u/v, etc"""
+	return spAD(u) if (type(u)==np.ndarray and type(v)==spAD) else u
 
-#def remove_ad(array):
-#	return array.value if isinstance(array,spAD) else array
+def remove_ad(array):
+	return array.value if isinstance(array,spAD) else array
 
 #def simplify_ad(array): #TODO
 #	if not isinstance(array,spAD): return array
 
 # ----- Various functions, intended to be numpy-compatible ------
 
-def where(mask,a,b): 
-	if isinstance(b,spAD): return b.replace_at(mask,a) 
-	elif isinstance(a,spAD): return a.replace_at(np.logical_not(mask),b) 
-	else: return np.where(mask,a,b)
+def maximum(a,b): 	return replace_at(a,a<b,b)
+def minimum(a,b): 	return replace_at(a,a>b,b)
+def abs(a,b): 		return replace_at(a,a<0,-a)
 
-def maximum(a,b): 	return where(a>b,a,b)
-def minimum(a,b): 	return where(a<b,a,b)
 
 def stack(elems,axis=0):
-	if any(isinstance(e,spAD) for e in elems):
-		elems2 = tuple(spAD(e) for e in elems)
-		size_ad = max(e.size_ad for e in elems2)
-		return spAD( 
-		np.stack(tuple(e.value for e in elems2), axis=axis), 
-		np.stack(tuple(_pad_last(e.coef,size_ad)  for e in elems2),axis=axis),
-		np.stack(tuple(_pad_last(e.index,size_ad) for e in elems2),axis=axis))
-	else:
+	if len(elems)==0 or not isinstance(elems[0],spAD): 
 		return np.stack(elems,axis=axis) 
-
+	return spAD( 
+		np.stack((e.value for e in elems),axis=axis), 
+		np.stack((e.coef  for e in elems),axis=axis),
+		np.stack((e.index for e in elems),axis=axis))
 
 def broadcast_to(array,shape):
 	if not isinstance(array,spAD):
@@ -266,8 +244,19 @@ def broadcast_to(array,shape):
 	shape2 = shape+(array.size_ad,)
 	return spAD(np.broadcast_to(array.value,shape), np.broadcast_to(array.coef,shape2), np.broadcast_to(array.index,shape2))
 
+def take_along_axis(array,indices,axis):
+	if not isinstance(array,spAD):
+		return np.take_along_axis(array,indices,axis)
+	return array.take_along_axis(indices,axis)
+
 def sort(array,axis=-1,*varargs,**kwargs):
 	if not isinstance(array,spAD):
 		return np.sort(array,axis=axis,*varargs,**kwargs)
 	ai = np.argsort(array.value,axis=axis,*varargs,**kwargs)
 	return array.take_along_axis(ai,axis=axis)
+
+def sqrt(array):return array.sqrt() if isinstance(array,spAD) else np.sqrt(array)
+def log(array):	return array.log() if isinstance(array,spAD) else np.log(array)
+def exp(array):	return array.exp() if isinstance(array,spAD) else np.exp(array)
+def sin(array):	return array.sin() if isinstance(array,spAD) else np.sin(array)
+def cos(array):	return array.cos() if isinstance(array,spAD) else np.cos(array)
