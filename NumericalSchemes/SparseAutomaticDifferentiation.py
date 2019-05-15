@@ -28,7 +28,7 @@ class spAD(np.ndarray):
 			yield spAD(value,coef,index)
 
 	def __str__(self):
-		return "spAD "+str((self.value,self.coef,self.index))
+		return "spAD"+str((self.value,self.coef,self.index))
 	def __repr__(self):
 		return "spAD"+repr((self.value,self.coef,self.index))	
 
@@ -72,7 +72,7 @@ class spAD(np.ndarray):
 	__rmul__ = __mul__
 	__radd__ = __add__
 	def __rsub__(self,other): 		return -(self-other)
-	def __rtruediv__(self,other): 	spAD(other/self.value,self.coef*_add_dim(-other/self.value**2),self.index)
+	def __rtruediv__(self,other): 	return spAD(other/self.value,self.coef*_add_dim(-other/self.value**2),self.index)
 
 	def __neg__(self):		return spAD(-self.value,-self.coef,self.index)
 
@@ -113,7 +113,7 @@ class spAD(np.ndarray):
 	def value(self): return self.view(np.ndarray)
 	@property
 	def size_ad(self):  return self.coef.shape[-1]
-	
+
 	def __getitem__(self,key):
 		return spAD(self.value[key], self.coef[key], self.index[key])
 
@@ -131,12 +131,20 @@ class spAD(np.ndarray):
 			self.coef[key]  = 0.
 			self.index[key] = 0
 
-	def reshape(self,shape):
-		shape2 = shape+(self.size_ad,)
-		return spAD(self.value.reshape(shape),self.coef.reshape(shape2), self.index.reshape(shape2))
+	def reshape(self,shape,order='C'):
+		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad,)
+		return spAD(self.value.reshape(shape,order=order),self.coef.reshape(shape2,order=order), self.index.reshape(shape2,order=order))
 
 	def flatten(self):	
 		return self.reshape( (self.size,) )
+
+	@property
+	def T(self):	return self if self.ndim<2 else self.transpose()
+	
+	def transpose(self,axes=None):
+		if axes is None: axes = tuple(reversed(range(self.ndim)))
+		axes2 = tuple(axes) +(self.ndim,)
+		return spAD(self.value.transpose(axes),self.coef.transpose(axes2),self.index.transpose(axes2))
 
 	def triplets(self):
 		coef = self.coef.flatten()
@@ -147,14 +155,20 @@ class spAD(np.ndarray):
 		return (coef[pos],(row[pos],column[pos]))
 
 	# Reductions
-
-	def sum(self,axis=0,out=None,**kwargs):
+	def sum(self,axis=None,out=None,**kwargs):
+		if axis is None: return self.flatten().sum(axis=0,out=out,**kwargs)
 		value = self.value.sum(axis,**kwargs)
 		shape = value.shape +(self.size_ad * self.shape[axis],)
 		coef = np.moveaxis(self.coef, axis,-1).reshape(shape)
 		index = np.moveaxis(self.index, axis,-1).reshape(shape)
 		out = spAD(value,coef,index)
 		return out
+
+#	def prod(self,axis=None,out=None,**kwargs):
+#		if axis is None: return self.flatten().prod(axis=0,out=out,**kwargs)
+#		result = reduce( 
+#		cprod = np.cumprod(self.value,axis=axis)
+#		cprod_rev = n
 
 	def min(self,axis=0,keepdims=False,out=None):
 		ai = np.expand_dims(np.argmin(self.value, axis=axis), axis=axis)
@@ -192,27 +206,28 @@ class spAD(np.ndarray):
 			inputs_ = (a.value if isinstance(a,spAD) else a for a in inputs)
 			return super(spAD,self).__array_ufunc__(ufunc,method,*inputs_,**kwargs)
 
-		assert method=="__call__"
 
-		# Reimplemented
-		if ufunc==np.maximum: return maximum(*inputs,**kwargs)
-		if ufunc==np.minimum: return minimum(*inputs,**kwargs)
+		if method=="__call__":
 
-		# Math functions
-		if ufunc==np.sqrt: return self.sqrt()
-		if ufunc==np.log: return self.log()
-		if ufunc==np.exp: return self.exp()
-		if ufunc==np.abs: return self.abs()
+			# Reimplemented
+			if ufunc==np.maximum: return maximum(*inputs,**kwargs)
+			if ufunc==np.minimum: return minimum(*inputs,**kwargs)
 
-		# Trigonometry
-		if ufunc==np.sin: return self.sin()
-		if ufunc==np.cos: return self.cos()
+			# Math functions
+			if ufunc==np.sqrt: return self.sqrt()
+			if ufunc==np.log: return self.log()
+			if ufunc==np.exp: return self.exp()
+			if ufunc==np.abs: return self.abs()
 
-		# Operators
-		if ufunc==np.add: return self.add(*inputs,**kwargs)
-		if ufunc==np.subtract: return self.subtract(*inputs,**kwargs)
-		if ufunc==np.multiply: return self.multiply(*inputs,**kwargs)
-		if ufunc==np.true_divide: return self.true_divide(*inputs,**kwargs)
+			# Trigonometry
+			if ufunc==np.sin: return self.sin()
+			if ufunc==np.cos: return self.cos()
+
+			# Operators
+			if ufunc==np.add: return self.add(*inputs,**kwargs)
+			if ufunc==np.subtract: return self.subtract(*inputs,**kwargs)
+			if ufunc==np.multiply: return self.multiply(*inputs,**kwargs)
+			if ufunc==np.true_divide: return self.true_divide(*inputs,**kwargs)
 
 
 		return NotImplemented
@@ -220,22 +235,22 @@ class spAD(np.ndarray):
 	# Support for +=, -=, *=, /=
 	@staticmethod
 	def add(a,b,out=None,where=True): 
-		if out is None: return a+b; 
+		if out is None: return a+b #if isinstance(a,spAD) else b+a; 
 		else: result=_tuple_first(out); result[where]=a[where]+b[where]; return result
 
 	@staticmethod
-	def subtract(a,b,out=None,where=True): 
-		if out is None: return a-b; 
+	def subtract(a,b,out=None,where=True):
+		if out is None: return a-b #if isinstance(a,spAD) else b.__rsub__(a); 
 		else: result=_tuple_first(out); result[where]=a[where]-b[where]; return result
 
 	@staticmethod
 	def multiply(a,b,out=None,where=True): 
-		if out is None: return a*b; 
+		if out is None: return a*b #if isinstance(a,spAD) else b*a; 
 		else: result=_tuple_first(out); result[where]=a[where]*b[where]; return result
 
 	@staticmethod
 	def true_divide(a,b,out=None,where=True): 
-		if out is None: return a/b; 
+		if out is None: return a/b #if isinstance(a,spAD) else b.__rtruediv__(a); 
 		else: result=_tuple_first(out); result[where]=a[where]/b[where]; return result
 
 
