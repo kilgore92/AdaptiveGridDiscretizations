@@ -56,7 +56,7 @@ def perp(v):
     
 def cross(v,w):
     if v.shape[0]!=3 or v.shape!=w.shape:
-        raise ValueError("perp error : Incompatible dimensions")
+        raise ValueError("cross error : Incompatible dimensions")
     return np.array( (v[1]*w[2]-v[2]*w[1], \
     v[2]*w[0]-v[0]*w[2], v[0]*w[1]-v[1]*w[0]) )
     
@@ -96,26 +96,28 @@ def det(a):
         raise ValueError("det error : unsupported dimension") 
     
 def inverse(a):
-    dim = a.shape[0]
-    if a.shape[1]!=dim:
-        raise ValueError("inverse error : incompatible dimensions")
-    if dim==1:
-        return 1./a[0,0]
-    elif dim==2:
-        d=det(a)
-        return np.array( ((a[1,1]/d,-a[0,1]/d),(-a[1,0]/d,a[0,0]/d)) )
-    elif dim==3:
-        d=det(a)
-        return np.array([[(
-        a[(i+1)%3,(j+1)%3]*a[(i+2)%3,(j+2)%3]-
-        a[(i+2)%3,(j+1)%3]*a[(i+1)%3,(j+2)%3]
-        )/d
-        for i in range(3)] for j in range(3)])
-    else: 
-        raise ValueError("inverse error : unsupported dimension")
+    return np.moveaxis(np.linalg.inv(np.moveaxis(a,(0,1),(-2,-1))),(-2,-1),(0,1))
+
+#    dim = a.shape[0]
+#    if a.shape[1]!=dim:
+#        raise ValueError("inverse error : incompatible dimensions")
+#    if dim==1:
+#        return 1./a[0,0]
+#    elif dim==2:
+#        d=det(a)
+#        return np.array( ((a[1,1]/d,-a[0,1]/d),(-a[1,0]/d,a[0,0]/d)) )
+#    elif dim==3:
+#        d=det(a)
+#        return np.array([[(
+#        a[(i+1)%3,(j+1)%3]*a[(i+2)%3,(j+2)%3]-
+#        a[(i+2)%3,(j+1)%3]*a[(i+1)%3,(j+2)%3]
+#        )/d
+#        for i in range(3)] for j in range(3)])
+#    else: 
+#        raise ValueError("inverse error : unsupported dimension")
 
 def solve_AV(a,v):
-    # TODO : faster implementation
-    return dot_AV(inverse(a),v)
+    return np.moveaxis(np.linalg.solve(np.moveaxis(a,(0,1),(-2,-1)),np.moveaxis(v,0,-1)),-1,0)
+#    return dot_AV(inverse(a),v)
     
         
