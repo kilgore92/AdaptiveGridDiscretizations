@@ -280,6 +280,61 @@ class spAD(np.ndarray):
 		np.stack(tuple(_pad_last(e.coef,size_ad)  for e in elems2),axis=axis),
 		np.stack(tuple(_pad_last(e.index,size_ad) for e in elems2),axis=axis))
 
+	# Memory optimization
+	def simplify_ad(self):
+		bad_index = np.iinfo(self.index.dtype).max
+		bad_pos = self.coef==0
+		self.index[bad_pos] = bad_index
+		ordering = self.index.argsort(axis=-1)
+		self.coef = np.take_along_axis(self.coef,ordering,axis=-1)
+		self.index = np.take_along_axis(self.index,ordering,axis=-1)
+
+		cum_coef = np.full(self.shape,0.)
+		indices = np.full(self.shape,0)
+		size_ad = self.size_ad
+		self.coef = np.moveaxis(self.coef,-1,0)
+		self.index = np.moveaxis(self.index,-1,0)
+		prev_index = np.copy(self.index[0])
+
+#		for i,co,ind in enumerate(zip(self.coef,self.index)):
+		for i in range(size_ad):
+			 # Note : self.index, self.coef change during iterations
+			ind,co = self.index[i],self.coef[i]
+			pos_new_index = np.logical_and(prev_index != ind,ind!=bad_index)
+			pos_old_index = np.logical_not(pos_new_index)
+			prev_index[pos_new_index] = ind[pos_new_index]
+			cum_coef[pos_new_index]=co[pos_new_index]
+			cum_coef[pos_old_index]+=co[pos_old_index]
+			indices[pos_new_index]+=1
+			indices_exp = np.expand_dims(indices,axis=0)
+			np.put_along_axis(self.index,indices_exp,prev_index,axis=0)
+			np.put_along_axis(self.coef,indices_exp,cum_coef,axis=0)
+
+		indices[self.index[0]==bad_index]=-1
+		indices_max = np.max(indices,axis=None)
+		size_ad_new = indices_max+1
+		self.coef  = self.coef[:size_ad_new]
+		self.index = self.index[:size_ad_new]
+		if size_ad_new==0:
+			return
+
+		coef_end  = self.coef[ np.maximum(indices_max,0)]
+		index_end = self.index[np.maximum(indices_max,0)]
+		coef_end[ indices<indices_max] = 0.
+		index_end[indices<indices_max] = -1
+		while np.min(indices,axis=None)<indices_max:
+			indices=np.minimum(indices_max,1+indices)
+			indices_exp = np.expand_dims(indices,axis=0)
+			np.put_along_axis(self.coef, indices_exp,coef_end,axis=0)
+			np.put_along_axis(self.index,indices_exp,index_end,axis=0)
+
+		self.coef  = np.moveaxis(self.coef,0,-1)
+		self.index = np.moveaxis(self.index,0,-1)
+		self.coef  = self.coef.reshape( self.shape+(size_ad_new,))
+		self.index = self.index.reshape(self.shape+(size_ad_new,))
+
+			
+
 
 # -------- End of class spAD -------
 
@@ -287,7 +342,6 @@ class spAD(np.ndarray):
 
 def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
 def _add_dim(a):		return np.expand_dims(a,axis=-1)	
-def _get_value(a): 		return a.value if isinstance(a,spAD) else a
 def _pad_last(a,pad_total):
 		return np.pad(a, pad_width=((0,0),)*(a.ndim-1)+((0,pad_total-a.shape[-1]),), mode='constant', constant_values=0)
 def _tuple_first(a): return a[0] if isinstance(a,tuple) else a
