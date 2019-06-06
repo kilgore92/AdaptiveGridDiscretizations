@@ -71,7 +71,8 @@ def displayTOCs(inFNames):
 					continue
 				line1 = s[0].strip()
 				if line1.startswith('##') and line1[3].isdigit() and int(line1[3])!=0:
-					contents.append(" "*2 + "* " + line1[len("## "):]+"\n")
+					contents.append(" "*2 + line1[len("## "):]+"\n")
+			contents.append("\n")
 	display(Markdown("# Table of contents"))
 	display(Markdown("\n".join(contents)))
 
