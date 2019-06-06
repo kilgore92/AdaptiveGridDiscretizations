@@ -1,6 +1,6 @@
 import numpy as np
 from NumericalSchemes import FileIO
-#FileVDE_binary_dir = None
+import os
 
 def FlattenSymmetricMatrix(a):
 	"""
@@ -25,8 +25,28 @@ def Decomposition(a):
 	"""
 		Call the FileVDZ library to decompose the provided tensor field.
 	"""
-	if FileVDE_binary_dir is None:
-		raise ValueError("VDEUtils.Decomposition error : path to FileVDE binaries not specified")
+	bin_dir = FileVDE_binary_dir if 'FileVDE_binary_dir' in globals() else GetFileVDE_binary_dir()
 	vdeIn ={'tensors':np.moveaxis(FlattenSymmetricMatrix(a),0,-1)}
-	vdeOut = FileIO.WriteCallRead(vdeIn, "FileVDE", FileVDE_binary_dir)
+	vdeOut = FileIO.WriteCallRead(vdeIn, "FileVDE", bin_dir)
 	return np.moveaxis(vdeOut['weights'],-1,0),np.moveaxis(vdeOut['offsets'],[-1,-2],[0,1])
+
+def GetFileVDE_binary_dir():
+	set_directory_msg = """
+IMPORTANT : Please set the path to the FileVDE compiled binaries, as follows : \n
+>>> VDEUtils.FileVDE_binary_dir = "path/to/FileVDE/bin"\n
+\n
+In order to do this automatically in the future, please set this path 
+in the first line of a file named 'FileVDE_binary_dir.txt' in the current directory\n
+>>> with open('FileVDE_binary_dir.txt','w+') as file: file.write("path/to/FileVDE/bin")
+"""
+	try:
+		with open('FileVDE_binary_dir.txt','r') as f:
+			FileVDE_binary_dir = f.readline().replace('\n','')
+			if not os.path.isdir(FileVDE_binary_dir):
+				print("ERROR : the path to the FileVDE binaries appears to be incorrect.\n")
+				print("Current path : ", FileVDE_binary_dir, "\n")
+				print(set_directory_msg)
+			return FileVDE_binary_dir
+	except OSError as e:
+		print("ERROR : the path to the FileVDE binaries is not set\n")
+		print(set_directory_msg)
