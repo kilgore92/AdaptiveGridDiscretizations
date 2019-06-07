@@ -9,16 +9,17 @@ def identity(shape):
 
 # Dot product (vector-vector, matrix-vector and matrix-matrix) in parallel
 def dot_VV(v,w):
-    if v.shape!=w.shape: raise ValueError('dot_VV : Incompatible shapes')
+    if v.shape[0]!=w.shape[0]: raise ValueError('dot_VV : Incompatible shapes')
     return (v*w).sum(0)
 
 def dot_AV(a,v):
-    m,n = a.shape[:2]
-    bounds = a.shape[2:]
-    if v.shape != (n,)+bounds:
-        raise ValueError("dot_AV : Incompatible shapes")
+    if a.shape[1]!=v.shape[0]: raise ValueError("dot_AV : Incompatible shapes")
+#    m,n = a.shape[:2]
+#    bounds = a.shape[2:]
+#    if v.shape != (n,)+bounds:
+#        raise ValueError("dot_AV : Incompatible shapes")
 
-    return (a*v.reshape((1,n)+bounds)).sum(1)
+    return (a*np.expand_dims(v,axis=0)).sum(1)
 
 def dot_VA(v,a):
     m,n = a.shape[:2]

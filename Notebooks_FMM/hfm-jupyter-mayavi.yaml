@@ -1,0 +1,12 @@
+name: hfm-jupyter-mayavi
+channels:
+  - conda-forge
+  - menpo
+  - mirebeau
+dependencies:
+  - python=3.5
+  - pyqt=4
+  - mayavi
+#  - hfm
+  - matplotlib
+  - notebook
