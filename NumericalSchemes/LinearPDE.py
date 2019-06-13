@@ -18,7 +18,10 @@ additional parameters
 - a grid scale 
 - boundary conditions, possibly axis by axis 
 	('Periodic', 'Reflected', 'Neumann', 'Dirichlet') 
-- divergence for or not
+- divergence form or not
+
+The discretized operator is - div(diff * grad u) + <omega, grad u> + mult*u 
+replace the first term with Tr(diff * hess u) in non-divergence form.
 
 Returns : a list of triplets, for building a coo matrix
 """
