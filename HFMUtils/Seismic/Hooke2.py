@@ -12,9 +12,9 @@ def ExtractXZ(h):
 	corresponding to a slice through the X and Z axes.
 	"""
 	return np.array([ 
-		[h[1,1], h[1,3], h[1,5] ],
-		[h[3,1], h[3,3], h[3,5] ],
-		[h[5,1], h[5,3], h[5,5] ]
+		[h[0,0], h[0,2], h[0,4] ],
+		[h[2,0], h[2,2], h[2,4] ],
+		[h[4,0], h[4,2], h[4,4] ]
 		])
 
 
