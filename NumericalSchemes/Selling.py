@@ -105,8 +105,8 @@ def ObtuseSuperbase1(m,sb=None):
 
 def Decomposition1(m,sb):
     _,bounds = GetDimBounds(m)
-    offsets = sb.reshape((1,1,)+bounds)
-    coefs = (m/offsets**2).reshape((1,)+bounds)    
+    offsets = sb[:,0].reshape((1,1,)+bounds)
+    coefs = m.reshape((1,)+bounds)    
     return coefs, offsets.astype(int)
 
 def SuperbasesForConditioning1(cond):

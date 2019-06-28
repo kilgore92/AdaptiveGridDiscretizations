@@ -103,11 +103,10 @@ class spAD(np.ndarray):
 
 			return spAD(value,coef,index)
 		else:
-			value,coef,index = np.copy(self.value), np.copy(self.coef), np.copy(self.index)
+			value,coef = np.copy(self.value), np.copy(self.coef)
 			value[mask]=other[mask] if isinstance(other,np.ndarray) else other
 			coef[mask]=0.
-			index[mask]=0
-			return spAD(value,coef,index)
+			return spAD(value,coef,self.index)
 
 	@property
 	def value(self): return self.view(np.ndarray)
@@ -129,7 +128,7 @@ class spAD(np.ndarray):
 		else:
 			self.value[key] = other
 			self.coef[key]  = 0.
-			self.index[key] = 0
+#			self.index[key] = 0
 
 	def reshape(self,shape,order='C'):
 		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad,)
@@ -139,8 +138,8 @@ class spAD(np.ndarray):
 		return self.reshape( (self.size,) )
 
 	def broadcast_to(self,shape):
-		shape2 = shape+(array.size_ad,)
-		return spAD(np.broadcast_to(array.value,shape), np.broadcast_to(array.coef,shape2), np.broadcast_to(array.index,shape2))
+		shape2 = shape+(self.size_ad,)
+		return spAD(np.broadcast_to(self.value,shape), np.broadcast_to(self.coef,shape2), np.broadcast_to(self.index,shape2))
 
 	@property
 	def T(self):	return self if self.ndim<2 else self.transpose()
@@ -248,6 +247,16 @@ class spAD(np.ndarray):
         scipy.sparse.coo_matrix(self.triplets()).tocsr(),
         np.array(self).flatten()).reshape(self.shape)
 
+	def bound_ad(self):
+		return 1+np.max(self.index,initial=-1)
+	def to_dense(self,dense_size_ad=None):
+		def mvax(arr): return np.moveaxis(arr,-1,0)
+		from . import Dense
+		coef = np.zeros(self.shape+(self.bound_ad() if dense_size_ad is None else dense_size_ad,))
+		for c,i in zip(mvax(self.coef),mvax(self.index)):
+			np.put_along_axis(coef,_add_dim(i),np.take_along_axis(coef,_add_dim(i),axis=-1)+c,axis=-1)
+		return Dense.denseAD(self.value,coef)
+
 	# Static methods
 
 	# Support for +=, -=, *=, /=
@@ -282,6 +291,12 @@ class spAD(np.ndarray):
 
 	# Memory optimization
 	def simplify_ad(self):
+		if len(self.shape)==0: # Workaround for scalar-like arrays
+			other = self.reshape((1,))
+			other.simplify_ad()
+			other = other.reshape(tuple())
+			self.coef,self.index = other.coef,other.index
+			return
 		bad_index = np.iinfo(self.index.dtype).max
 		bad_pos = self.coef==0
 		self.index[bad_pos] = bad_index
@@ -296,7 +311,6 @@ class spAD(np.ndarray):
 		self.index = np.moveaxis(self.index,-1,0)
 		prev_index = np.copy(self.index[0])
 
-#		for i,co,ind in enumerate(zip(self.coef,self.index)):
 		for i in range(size_ad):
 			 # Note : self.index, self.coef change during iterations
 			ind,co = self.index[i],self.coef[i]
@@ -316,6 +330,8 @@ class spAD(np.ndarray):
 		self.coef  = self.coef[:size_ad_new]
 		self.index = self.index[:size_ad_new]
 		if size_ad_new==0:
+			self.coef  = np.moveaxis(self.coef,0,-1)
+			self.index = np.moveaxis(self.index,0,-1)
 			return
 
 		coef_end  = self.coef[ np.maximum(indices_max,0)]
@@ -332,6 +348,8 @@ class spAD(np.ndarray):
 		self.index = np.moveaxis(self.index,0,-1)
 		self.coef  = self.coef.reshape( self.shape+(size_ad_new,))
 		self.index = self.index.reshape(self.shape+(size_ad_new,))
+
+		self.index[self.index==-1]=0 # Corresponding coefficient is zero anyway.
 
 			
 

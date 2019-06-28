@@ -8,6 +8,11 @@ def ViewOnline(inFName,volume):
 		"http://nbviewer.jupyter.org/urls/rawgithub.com/Mirebeau/AdaptiveGridDiscretizations/master/"+
 		subdir+inFName+".ipynb"+")")
 
+def MakeLink(inFName,volume):
+	dirName = "./Notebooks_"+volume+"/"; extension = ".ipynb"
+	display(Markdown("Notebook ["+inFName+"]("+dirName+inFName+extension+") "+ViewOnline(inFName,volume)
+		+ ", from volume "+ volume + " [Summary]("+dirName+"Summary"+extension+") "+ViewOnline("Summary",volume) ))
+
 def Info(volume):
 	if volume in ['NonDiv','Div','Algo']:
 		return """
@@ -36,8 +41,8 @@ VolumeFilenames = {
 	"MonotoneSchemes1D","LinearMonotoneSchemes2D","NonlinearMonotoneFirst2D","NonlinearMonotoneSecond2D",
 	"MongeAmpere","OTBoundary1D"
 ],
-'Div':["VaradhanGeodesics"],
-'Algo':["TensorSelling","TensorVoronoi"],
+'Div':["Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
+'Algo':["TensorSelling","TensorVoronoi","Sparse"],
 }
 
 RepositoryDescription = """
@@ -59,7 +64,7 @@ def displayTOC(inFName,volume):
 			plainText = line1[count+1:].strip()
 			if plainText[0].isdigit() and int(plainText[0])!=0:
 				link = plainText.replace(' ','-')
-				listItem = " "*count + "* [" + plainText + "](#" + link + ")"
+				listItem = "  "*count + "* [" + plainText + "](#" + link + ")"
 				contents.append(listItem)
 
 	display(Markdown("[**Summary**](Summary.ipynb) of this series of notebooks. "+ViewOnline(inFName,volume)))

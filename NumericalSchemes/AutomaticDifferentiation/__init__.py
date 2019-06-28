@@ -1,17 +1,23 @@
 from . import Sparse
 from . import Dense
+from . import Sparse2
+from . import Dense2
 import numpy as np
 
 def is_adtype(t):
-	return t in (Sparse.spAD, Dense.denseAD)
+	return t in (Sparse.spAD, Dense.denseAD, Sparse2.spAD2, Dense2.denseAD2)
 
 def is_ad(array):
 	return is_adtype(type(array)) 
 
+def simplify_ad(a):
+	if type(a) in (Sparse.spAD,Sparse2.spAD2): 
+		a.simplify_ad()
+
 def is_strict_subclass(type0,type1):
 	return issubclass(type0,type1) and type0!=type1
 
-def toarray(a,array_type=np.ndarray):
+def to_array(a,array_type=np.ndarray):
 	if isinstance(a,array_type): return a
 	return array_type(a) if is_strict_subclass(array_type,np.ndarray) else np.array(a)
 
@@ -78,3 +84,4 @@ def dense_eval(f,b,shape_factor):
 		return compose(f(b_dense),b,shape_factor=shape_factor)
 	else:
 		return f(b)
+

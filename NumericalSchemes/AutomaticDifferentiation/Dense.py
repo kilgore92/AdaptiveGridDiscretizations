@@ -2,7 +2,7 @@ import numpy as np
 
 class denseAD(np.ndarray):
 	"""
-	A class for sparse forward automatic differentiation
+	A class for dense forward automatic differentiation
 	"""
 
 	# Construction
@@ -27,9 +27,11 @@ class denseAD(np.ndarray):
 			yield denseAD(value,coef)
 
 	def __str__(self):
-		return "denseAD"+str((self.value,self.coef))
+		return "denseAD("+str(self.value)+","+_prep_nl(str(self.coef))+")"
+#		return "denseAD"+str((self.value,self.coef))
 	def __repr__(self):
-		return "denseAD"+repr((self.value,self.coef))	
+		return "denseAD("+repr(self.value)+","+_prep_nl(repr(self.coef))+")"
+#		return "denseAD"+repr((self.value,self.coef))	
 
 	# Operators
 	def __add__(self,other):
@@ -85,7 +87,7 @@ class denseAD(np.ndarray):
 
 	#Indexing
 	def replace_at(self,mask,other):		
-		if isinstance(other,denseAD):
+		if isinstance(other,denseAD):	
 			if other.size_ad==0: return self.replace_at(mask,other.view(np.array))
 			elif self.size_ad==0: return other.replace_at(np.logical_not(mask),self.view(np.array))
 			value,coef = np.copy(self.value), np.copy(self.coef)
@@ -108,8 +110,8 @@ class denseAD(np.ndarray):
 
 	def __setitem__(self,key,other):
 		if isinstance(other,denseAD):
-			if other.size_ad==0: return self.__setitem__(k,other.view(np.ndarray))
-			elif self.size_ad==0: self.coef=np.zeros(other.coef.shape)
+			if other.size_ad==0: return self.__setitem__(key,other.view(np.ndarray))
+			elif self.size_ad==0: self.coef=np.zeros(self.coef.shape[:-1]+(other.size_ad,))
 			self.value[key] = other.value
 			self.coef[key] =  other.coef
 		else:
@@ -124,8 +126,8 @@ class denseAD(np.ndarray):
 		return self.reshape( (self.size,) )
 
 	def broadcast_to(self,shape):
-		shape2 = shape+(array.size_ad,)
-		return denseAD(np.broadcast_to(array.value,shape), np.broadcast_to(array.coef,shape2) )
+		shape2 = shape+(self.size_ad,)
+		return denseAD(np.broadcast_to(self.value,shape), np.broadcast_to(self.coef,shape2) )
 
 	@property
 	def T(self):	return self if self.ndim<2 else self.transpose()
@@ -138,14 +140,8 @@ class denseAD(np.ndarray):
 	# Reductions
 	def sum(self,axis=None,out=None,**kwargs):
 		if axis is None: return self.flatten().sum(axis=0,out=out,**kwargs)
-		out = denseAD(self.value.sum(axis,**kwargs), self.value.sum(axis,**kwargs))
+		out = denseAD(self.value.sum(axis,**kwargs), self.coef.sum(axis,**kwargs))
 		return out
-
-#	def prod(self,axis=None,out=None,**kwargs):
-#		if axis is None: return self.flatten().prod(axis=0,out=out,**kwargs)
-#		result = reduce( 
-#		cprod = np.cumprod(self.value,axis=axis)
-#		cprod_rev = n
 
 	def min(self,axis=0,keepdims=False,out=None):
 		ai = np.expand_dims(np.argmin(self.value, axis=axis), axis=axis)
@@ -258,6 +254,7 @@ class denseAD(np.ndarray):
 def _add_dim(a):		return np.expand_dims(a,axis=-1)	
 def _tuple_first(a): 	return a[0] if isinstance(a,tuple) else a
 def _is_constant(a):	return isinstance(a,denseAD) and a.size_ad==0
+def _prep_nl(s): return "\n"+s if "\n" in s else s
 
 def _add_coef(a,b):
 	if a.shape[-1]==0: return b
@@ -266,8 +263,10 @@ def _add_coef(a,b):
 
 # -------- Factory method -----
 
-def identity(shape,shape_factor,constant=None,padding=(0,0)):
+def identity(shape=None,shape_factor=tuple(),constant=None,shift=(0,0)):
 	if constant is None:
+		if shape is None:
+			raise ValueError("identity error : unspecified shape or constant")
 		constant = np.full(shape,0.)
 	else:
 		if shape is not None and shape!=constant.shape: 
@@ -275,16 +274,16 @@ def identity(shape,shape_factor,constant=None,padding=(0,0)):
 		else:
 			shape=constant.shape
 
-	if shape_factor!=shape[-len(shape_factor):]:
+	if len(shape_factor)>0 and shape_factor!=shape[-len(shape_factor):]:
 		raise ValueError("identity error : incompatible shape and shape_factor")
 
 	ndim_elem = len(shape)-len(shape_factor)
 	shape_elem = shape[:ndim_elem]
 	size_elem = np.prod(shape_elem)
-	size_ad = padding[0]+size_elem+padding[1]
+	size_ad = shift[0]+size_elem+shift[1]
 	coef = np.full((size_elem,size_ad),0.)
 	for i in range(size_elem):
-		coef[i,padding[0]+i]=1.
+		coef[i,shift[0]+i]=1.
 	coef.reshape(shape_elem+(1,)*len(shape_factor)+(size_ad,))
 	np.broadcast_to(coef,shape+(size_ad,))
 	return denseAD(constant,coef)
