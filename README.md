@@ -6,7 +6,8 @@ This repository contains series of *jupyter notebooks* in the Python&reg; langua
 * Non-divergence form PDEs, including non-linear PDEs such as Monge-Ampere.
 * Divergence form anisotropic PDEs, often encountered in image processing.
 
-The notebooks can be visualized online, or executed and/or modified offline.
+The notebooks can be visualized online, [view summary online](http://nbviewer.jupyter.org/urls/rawgithub.com/Mirebeau/AdaptiveGridDiscretizations/master/Summary.ipynb
+), or executed and/or modified offline.
 For offline consultation, please download and install [anaconda](https://www.anaconda.com) or [miniconda](https://conda.io/en/latest/miniconda.html).  
 *Optionally*, you may create a dedicated conda environnement by typing the following in a terminal:
 ```console
