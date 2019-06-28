@@ -284,8 +284,8 @@ def identity(shape=None,shape_factor=tuple(),constant=None,shift=(0,0)):
 	coef = np.full((size_elem,size_ad),0.)
 	for i in range(size_elem):
 		coef[i,shift[0]+i]=1.
-	coef.reshape(shape_elem+(1,)*len(shape_factor)+(size_ad,))
-	np.broadcast_to(coef,shape+(size_ad,))
+	coef = coef.reshape(shape_elem+(1,)*len(shape_factor)+(size_ad,))
+	coef = np.broadcast_to(coef,shape+(size_ad,))
 	return denseAD(constant,coef)
 
 # ----- Operators -----

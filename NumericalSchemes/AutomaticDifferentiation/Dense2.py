@@ -30,9 +30,9 @@ class denseAD2(np.ndarray):
 			yield denseAD2(value,coef1,coef2)
 
 	def __str__(self):
-		return "denseAD2"+str((self.value,self.coef1,self.coef2))
+		return "denseAD2("+str(self.value)+","+_prep_nl(str(self.coef1))+","+_prep_nl(str(self.coef2)) +")"
 	def __repr__(self):
-		return "denseAD2"+repr((self.value,self.coef1,self.coef2))	
+		return "denseAD2("+repr(self.value)+","+_prep_nl(repr(self.coef1))+","+_prep_nl(repr(self.coef2)) +")"
 
 	# Operators
 	def __add__(self,other):
@@ -77,7 +77,7 @@ class denseAD2(np.ndarray):
 
 	# Math functions
 	def _math_helper(self,a,b,c): # Inputs : a=f(x), b=f'(x), c=f''(x), where x=self.value
-		mixed = np.expand_dims(self.coef1,axis=-1)*np.expand_dims(other.coef1,axis=-2)
+		mixed = np.expand_dims(self.coef1,axis=-1)*np.expand_dims(self.coef1,axis=-2)
 		return denseAD2(a,b*self.coef1,b*self.coef2+c*mixed)
 	def __pow__(self,n): 	return self._math_helper(self.value**n, n*self.value**(n-1), n*(n-1)*self.value**(n-2))
 	def sqrt(self):		 	return self**0.5
@@ -265,6 +265,7 @@ def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
 def _add_dim(a):		return np.expand_dims(a,axis=-1)	
 def _add_dim2(a):		return _add_dim(_add_dim(a))
 def _tuple_first(a): return a[0] if isinstance(a,tuple) else a
+def _prep_nl(s): return "\n"+s if "\n" in s else s
 
 def _add_coef(a,b):
 	if a.shape[-1]==0: return b
@@ -294,8 +295,8 @@ def identity(shape=None,shape_factor=tuple(),constant=None,shift=(0,0)):
 	coef1 = np.full((size_elem,size_ad),0.)
 	for i in range(size_elem):
 		coef1[i,shift[0]+i]=1.
-	coef1.reshape(shape_elem+(1,)*len(shape_factor)+(size_ad,))
-	np.broadcast_to(coef1,shape+(size_ad,))
+	coef1 = coef1.reshape(shape_elem+(1,)*len(shape_factor)+(size_ad,))
+	coef1 = np.broadcast_to(coef1,shape+(size_ad,))
 	coef2 = np.zeros(shape+(size_ad,size_ad))
 	return denseAD2(constant,coef1,coef2)
 
