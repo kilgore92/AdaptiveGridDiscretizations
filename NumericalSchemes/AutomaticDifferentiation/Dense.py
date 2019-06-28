@@ -208,12 +208,9 @@ class denseAD(np.ndarray):
 
 
 	# Numerical 
-	def solve(self):
-		assert 0
-		import scipy.sparse; import scipy.sparse.linalg
-		return - scipy.sparse.linalg.spsolve(
-        scipy.sparse.coo_matrix(self.triplets()).tocsr(),
-        np.array(self).flatten()).reshape(self.shape)
+	def solve(self,shape_free=None,shape_factor=None):
+		assert False
+		    return np.moveaxis(np.linalg.solve(np.moveaxis(a,(0,1),(-2,-1)),np.moveaxis(v,0,-1)),-1,0)
 
 	# Static methods
 
@@ -263,7 +260,7 @@ def _add_coef(a,b):
 
 # -------- Factory method -----
 
-def identity(shape=None,shape_factor=tuple(),constant=None,shift=(0,0)):
+def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,0)):
 	if constant is None:
 		if shape is None:
 			raise ValueError("identity error : unspecified shape or constant")
@@ -274,19 +271,26 @@ def identity(shape=None,shape_factor=tuple(),constant=None,shift=(0,0)):
 		else:
 			shape=constant.shape
 
-	if len(shape_factor)>0 and shape_factor!=shape[-len(shape_factor):]:
-		raise ValueError("identity error : incompatible shape and shape_factor")
+	if shape_free is not None:
+		assert shape_free==shape[0:len(shape_free)]
+		if shape_bound is None: 
+			shape_bound=shape[len(shape_free):]
+		else: 
+			assert shape_bound==shape[len(shape_free):]
+	if shape_bound is None: 
+		shape_bound = tuple()
+	assert len(shape_bound)==0 or shape_bound==shape[-len(shape_bound):]
 
-	ndim_elem = len(shape)-len(shape_factor)
+	ndim_elem = len(shape)-len(shape_bound)
 	shape_elem = shape[:ndim_elem]
 	size_elem = np.prod(shape_elem)
 	size_ad = shift[0]+size_elem+shift[1]
-	coef = np.full((size_elem,size_ad),0.)
+	coef1 = np.full((size_elem,size_ad),0.)
 	for i in range(size_elem):
-		coef[i,shift[0]+i]=1.
-	coef = coef.reshape(shape_elem+(1,)*len(shape_factor)+(size_ad,))
-	coef = np.broadcast_to(coef,shape+(size_ad,))
-	return denseAD(constant,coef)
+		coef1[i,shift[0]+i]=1.
+	coef1 = coef1.reshape(shape_elem+(1,)*len(shape_bound)+(size_ad,))
+	coef1 = np.broadcast_to(coef1,shape+(size_ad,))
+	return denseAD(constant,coef1)
 
 # ----- Operators -----
 
