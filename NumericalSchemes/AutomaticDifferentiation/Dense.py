@@ -203,22 +203,26 @@ class denseAD(np.ndarray):
 			if ufunc==np.multiply: return self.multiply(*inputs,**kwargs)
 			if ufunc==np.true_divide: return self.true_divide(*inputs,**kwargs)
 
-
 		return NotImplemented
 
 
 	# Numerical 
-	def solve(self,shape_free=None,shape_factor=None):
-		assert False
-		    return np.moveaxis(np.linalg.solve(np.moveaxis(a,(0,1),(-2,-1)),np.moveaxis(v,0,-1)),-1,0)
+	def solve(self,shape_free=None,shape_bound=None):
+		shape_free,shape_bound = _get_shapes(self.shape,shape_free,shape_bound)
+		assert np.prod(shape_free)==self.size_ad
+		v = np.moveaxis(np.reshape(self.value,(self.size_ad,)+shape_bound),0,-1)
+		a = np.moveaxis(np.reshape(self.coef,(self.size_ad,)+shape_bound+(self.size_ad,)),0,-2)
+		return -np.reshape(np.moveaxis(np.linalg.solve(a,v),-1,0),self.shape)
 
 	# Static methods
 
-	# Support for +=, -=, *=, /=
+	## TODO ## Debug += operators and the likes
+	# Support for +=, -=, *=, /= 
 	@staticmethod
 	def add(a,b,out=None,where=True): 
+#		print(a,b,out,where,_tuple_first(out) is a) (Now fails... ?) 
 		if out is None: return a+b #if isinstance(a,denseAD) else b+a; 
-		else: result=_tuple_first(out); result[where]=a[where]+b[where]; return result
+		else: result=_tuple_first(out); result[where]=a[where]+_getitem(b,where); return result
 
 	@staticmethod
 	def subtract(a,b,out=None,where=True):
@@ -258,7 +262,24 @@ def _add_coef(a,b):
 	elif b.shape[-1]==0: return a
 	else: return a+b
 
+def _getitem(a,where):
+	return a if where is True else a[where]
+
 # -------- Factory method -----
+
+def _get_shapes(shape,shape_free,shape_bound):
+	if shape_free is not None:
+		assert shape_free==shape[0:len(shape_free)]
+		if shape_bound is None: 
+			shape_bound=shape[len(shape_free):]
+		else: 
+			assert shape_bound==shape[len(shape_free):]
+	if shape_bound is None: 
+		shape_bound = tuple()
+	assert len(shape_bound)==0 or shape_bound==shape[-len(shape_bound):]
+	if shape_free is None:
+		shape_free = shape[:len(shape_bound)]
+	return shape_free,shape_bound
 
 def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,0)):
 	if constant is None:
@@ -270,16 +291,7 @@ def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,
 			raise ValueError("identity error : incompatible shape and constant")
 		else:
 			shape=constant.shape
-
-	if shape_free is not None:
-		assert shape_free==shape[0:len(shape_free)]
-		if shape_bound is None: 
-			shape_bound=shape[len(shape_free):]
-		else: 
-			assert shape_bound==shape[len(shape_free):]
-	if shape_bound is None: 
-		shape_bound = tuple()
-	assert len(shape_bound)==0 or shape_bound==shape[-len(shape_bound):]
+	shape_free,shape_bound = _get_shapes(shape,shape_free,shape_bound)
 
 	ndim_elem = len(shape)-len(shape_bound)
 	shape_elem = shape[:ndim_elem]
