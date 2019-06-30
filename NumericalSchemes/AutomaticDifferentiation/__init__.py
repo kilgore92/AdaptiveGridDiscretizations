@@ -17,7 +17,7 @@ def simplify_ad(a):
 def is_strict_subclass(type0,type1):
 	return issubclass(type0,type1) and type0!=type1
 
-def to_array(a,array_type=np.ndarray):
+def toarray(a,array_type=np.ndarray):
 	if isinstance(a,array_type): return a
 	return array_type(a) if is_strict_subclass(array_type,np.ndarray) else np.array(a)
 
@@ -26,9 +26,13 @@ def broadcast_to(array,shape):
 	else: return np.broadcast_to(array,shape)
 
 def where(mask,a,b): 
-	if is_ad(b): return result = b.copy(); result[mask]=a[mask]; return result
-	elif is_ad(a): result = a.copy(); result[np.logical_not(mask)]=b[np.logical_not(mask)]; return result
-	else: return np.where(mask,a,b)
+	if is_ad(a) or is_ad(b):
+		A,B,Mask = (a,b,mask) if is_ad(b) else (b,a,np.logical_not(mask))
+		result = B.copy()
+		result[Mask] = A[Mask] if isinstance(A,np.ndarray) else A
+		return result
+	else: 
+		return np.where(mask,a,b)
 
 def sort(array,axis=-1,*varargs,**kwargs):
 	if is_ad(array):
