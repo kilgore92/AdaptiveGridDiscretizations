@@ -88,26 +88,6 @@ class spAD(np.ndarray):
 	def cos(self):			return spAD(np.cos(self.value), self.coef*_add_dim(-np.sin(self.value)), self.index)
 
 	#Indexing
-
-	def replace_at(self,mask,other):
-		if isinstance(other,spAD):
-			value = np.copy(self.value)
-			value[mask] = other.value[mask]
-
-			pad_size = max(self.coef.shape[-1],other.coef.shape[-1])
-			coef = _pad_last(self.coef,pad_size)
-			coef[mask] = _pad_last(other.coef,pad_size)[mask]
-
-			index = _pad_last(self.index,pad_size)
-			index[mask] = _pad_last(other.index,pad_size)[mask]
-
-			return spAD(value,coef,index)
-		else:
-			value,coef = np.copy(self.value), np.copy(self.coef)
-			value[mask]=other[mask] if isinstance(other,np.ndarray) else other
-			coef[mask]=0.
-			return spAD(value,coef,self.index)
-
 	@property
 	def value(self): return self.view(np.ndarray)
 	@property

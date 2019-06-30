@@ -123,36 +123,6 @@ class spAD2(np.ndarray):
 	def cos(self):			cos_val = np.cos(self.value); return self._math_helper(cos_val,-np.sin(self.value),-cos_val)
 
 	#Indexing
-	def replace_at(self,mask,other):
-		if isinstance(other,spAD2):
-			value = np.copy(self.value)
-			value[mask] = other.value[mask]
-
-			pad_size = max(self.coef1.shape[-1],other.coef1.shape[-1])
-			coef1 = _pad_last(self.coef1,pad_size)
-			coef1[mask] = _pad_last(other.coef1,pad_size)[mask]
-
-			index = _pad_last(self.index,pad_size)
-			index[mask] = _pad_last(other.index,pad_size)[mask]
-
-			pad_size = max(self.coef2.shape[-1],other.coef2.shape[-1])
-			coef2 = _pad_last(self.coef2,pad_size)
-			coef2[mask] = _pad_last(other.coef2,pad_size)[mask]
-
-			index_row = _pad_last(self.index_row,pad_size)
-			index_row[mask] = _pad_last(other.index_row,pad_size)[mask]
-
-			index_col = _pad_last(self.index_col,pad_size)
-			index_col[mask] = _pad_last(other.index_col,pad_size)[mask]
-
-			return spAD2(value,coef1,index,coef2,index_row,index_col)
-		else:
-			value,coef1,coef2 = np.copy(self.value),np.copy(self.coef1),np.copy(self.coef2)
-			value[mask]=other[mask] if isinstance(other,np.ndarray) else other
-			coef1[mask]=0.
-			coef2[mask]=0.
-			return spAD2(value,coef1,self.index,coef2,self.index_row,self.index_col)
-
 	@property
 	def value(self): return self.view(np.ndarray)
 	@property

@@ -86,20 +86,6 @@ class denseAD(np.ndarray):
 	def cos(self):			return denseAD(np.cos(self.value), _add_dim(-np.sin(self.value))*self.coef)
 
 	#Indexing
-	def replace_at(self,mask,other):		
-		if isinstance(other,denseAD):	
-			if other.size_ad==0: return self.replace_at(mask,other.view(np.array))
-			elif self.size_ad==0: return other.replace_at(np.logical_not(mask),self.view(np.array))
-			value,coef = np.copy(self.value), np.copy(self.coef)
-			value[mask] = other.value[mask]
-			coef[mask] = other.coef[mask]
-			return denseAD(value,coef)
-		else:
-			value,coef = np.copy(self.value), np.copy(self.coef)
-			value[mask]=other[mask] if isinstance(other,np.ndarray) else other
-			coef[mask]=0.
-			return denseAD(value,coef)
-
 	@property
 	def value(self): return self.view(np.ndarray)
 	@property

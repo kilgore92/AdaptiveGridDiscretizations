@@ -26,8 +26,8 @@ def broadcast_to(array,shape):
 	else: return np.broadcast_to(array,shape)
 
 def where(mask,a,b): 
-	if is_ad(b): return b.replace_at(mask,a) 
-	elif is_ad(a): return a.replace_at(np.logical_not(mask),b) 
+	if is_ad(b): return result = b.copy(); result[mask]=a[mask]; return result
+	elif is_ad(a): result = a.copy(); result[np.logical_not(mask)]=b[np.logical_not(mask)]; return result
 	else: return np.where(mask,a,b)
 
 def sort(array,axis=-1,*varargs,**kwargs):

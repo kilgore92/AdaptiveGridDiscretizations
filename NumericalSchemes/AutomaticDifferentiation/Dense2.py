@@ -90,22 +90,6 @@ class denseAD2(np.ndarray):
 	def cos(self):			cos_val = np.cos(self.value); return self._math_helper(cos_val,-np.sin(self.value),-cos_val)
 
 	#Indexing
-	def replace_at(self,mask,other):
-		if isinstance(other,denseAD2):
-			if other.size_ad==0:  return self.replace_at(mask,other.view(np.array))
-			elif self.size_ad==0: return other.replace_at(np.logical_not(mask),self.view(np.array))
-			value,coef1,coef2 = np.copy(self.value),np.copy(self.coef1),np.copy(self.coef2)
-			value[mask]=other.value[mask]
-			coef1[mask]=other.coef1[mask]
-			coef2[mask]=other.coef2[mask]
-			return denseAD2(value,coef1,coef2)
-		else:
-			value,coef1,coef2 = np.copy(self.value),np.copy(self.coef1),np.copy(self.coef2)
-			value[mask]=other[mask] if isinstance(other,np.ndarray) else other
-			coef1[mask]=0.
-			coef2[mask]=0.
-			return denseAD2(value,coef1,coef2)
-
 	@property
 	def value(self): return self.view(np.ndarray)
 	@property
