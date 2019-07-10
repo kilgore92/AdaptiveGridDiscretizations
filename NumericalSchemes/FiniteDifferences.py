@@ -1,18 +1,38 @@
 import numpy as np
 import itertools
 
-def OffsetToIndex(shape,offset, mode='clip', uniform=None):
+def BoundedSlices(slices,shape):
+	if slices[-1]==Ellipsis:
+		slices=slices[:-1]+(slice(None,None,None),)*(len(shape)-len(slices)+1)
+	def BoundedSlice(s,n):
+		if not isinstance(s,slice):
+			return slice(s,s+1)
+		else:
+			return slice(s.start, n if s.stop is None else s.stop, s.step)
+	return tuple(BoundedSlice(s,n) for s,n in zip(slices,shape))
+
+def OffsetToIndex(shape,offset, mode='clip', uniform=None, where=(Ellipsis,)):
 	"""
-	Returns the value of u at current position + offset. Also returns the coefficients and indices.
+	Returns the index corresponding to position + offset, 
+	and a boolean for wether it falls inside the domain.
 	Set padding=None for periodic boundary conditions
 	"""
-	ndim = len(shape)
+	ndim = len(shape) # Domain dimension
 	assert(offset.shape[0]==ndim)
-	if uniform is None:
+	if uniform is None: # Uniform = True iff offsets are independent of the position in the domain
 		uniform = not ((offset.ndim > ndim) and (offset.shape[-ndim:]==shape))
 
-	grid = np.mgrid[tuple(slice(n) for n in shape)]
-	grid = grid.reshape( (ndim,) + (1,)*(offset.ndim-1-ndim*int(not uniform))+shape)
+	odim = (offset.ndim-1) if uniform else (offset.ndim - ndim-1) # Dimensions for distinct offsets 
+	everywhere = where==(Ellipsis,)
+
+	grid = (np.mgrid[tuple(slice(n) for n in shape)]
+		if everywhere else
+		np.squeeze(np.mgrid[BoundedSlices(where,shape)],
+		tuple(1+i for i,s in enumerate(where) if not isinstance(s,slice)) ) )
+	grid = grid.reshape( (ndim,) + (1,)*odim+grid.shape[1:])
+
+	if not everywhere and not uniform:
+		offset = offset[(slice(None),)*(1+odim)+where]
 
 	neigh = grid + (offset.reshape(offset.shape + (1,)*ndim) if uniform else offset)
 	inside = np.full(neigh.shape[1:],True) # Weither neigh falls out the domain
@@ -33,7 +53,10 @@ def TakeAtOffset(u,offset, padding=0., **kwargs):
 
 	values = u.flatten()[neighIndex]
 	if padding is not None:
-		values[np.logical_not(inside)] = padding
+		if isinstance(values,np.ndarray):
+			values[np.logical_not(inside)] = padding
+		elif not inside:
+			values = padding
 	return values
 
 def AlignedSum(u,offset,multiples,weights,**kwargs):

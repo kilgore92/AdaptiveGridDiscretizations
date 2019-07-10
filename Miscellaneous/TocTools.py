@@ -39,7 +39,7 @@ VolumeFilenames = {
 ],
 'NonDiv':[
 	"MonotoneSchemes1D","LinearMonotoneSchemes2D","NonlinearMonotoneFirst2D","NonlinearMonotoneSecond2D",
-	"MongeAmpere","OTBoundary1D"
+	"MongeAmpere","OTBoundary1D","EikonalEulerian"
 ],
 'Div':["Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
 'Algo':["TensorSelling","TensorVoronoi","Sparse"],
