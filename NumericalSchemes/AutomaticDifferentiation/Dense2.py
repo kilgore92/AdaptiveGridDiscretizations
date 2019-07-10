@@ -142,17 +142,11 @@ class denseAD2(np.ndarray):
 		out = denseAD2(self.value.sum(axis,**kwargs), self.coef1.sum(axis,**kwargs), self.coef2.sum(axis,**kwargs))
 		return out
 
-	def min(self,axis=0,keepdims=False,out=None):
-		ai = np.expand_dims(np.argmin(self.value, axis=axis), axis=axis)
-		out = np.take_along_axis(self,ai,axis=axis)
-		if not keepdims: out = out.reshape(self.shape[:axis]+self.shape[axis+1:])
-		return out
+	def min(self,*args,**kwargs):
+		return misc.min(self,*args,**kwargs)
 
-	def max(self,axis=0,keepdims=False,out=None):
-		ai = np.expand_dims(np.argmax(self.value, axis=axis), axis=axis)
-		out = np.take_along_axis(self,ai,axis=axis)
-		if not keepdims: out = out.reshape(self.shape[:axis]+self.shape[axis+1:])
-		return out
+	def max(self,*args,**kwargs):
+		return misc.max(self,*args,**kwargs)
 
 	def sort(self,*varargs,**kwargs):
 		from . import sort
@@ -212,24 +206,13 @@ class denseAD2(np.ndarray):
 
 	# Support for +=, -=, *=, /=
 	@staticmethod
-	def add(a,b,out=None,where=True): 
-		if out is None: return a+b #if isinstance(a,denseAD2) else b+a; 
-		else: result=_tuple_first(out); result[where]=a[where]+b[where]; return result
-
+	def add(*args,**kwargs): return misc.add(*args,**kwargs)
 	@staticmethod
-	def subtract(a,b,out=None,where=True):
-		if out is None: return a-b #if isinstance(a,denseAD2) else b.__rsub__(a); 
-		else: result=_tuple_first(out); result[where]=a[where]-b[where]; return result
-
+	def subtract(*args,**kwargs): return misc.subtract(*args,**kwargs)
 	@staticmethod
-	def multiply(a,b,out=None,where=True): 
-		if out is None: return a*b #if isinstance(a,denseAD2) else b*a; 
-		else: result=_tuple_first(out); result[where]=a[where]*b[where]; return result
-
+	def multiply(*args,**kwargs): return misc.multiply(*args,**kwargs)
 	@staticmethod
-	def true_divide(a,b,out=None,where=True): 
-		if out is None: return a/b #if isinstance(a,denseAD2) else b.__rtruediv__(a); 
-		else: result=_tuple_first(out); result[where]=a[where]/b[where]; return result
+	def true_divide(*args,**kwargs): return misc.true_divide(*args,**kwargs)
 
 	@staticmethod
 	def stack(elems,axis=0):
@@ -248,7 +231,6 @@ class denseAD2(np.ndarray):
 def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
 def _add_dim(a):		return np.expand_dims(a,axis=-1)	
 def _add_dim2(a):		return _add_dim(_add_dim(a))
-def _tuple_first(a): return a[0] if isinstance(a,tuple) else a
 def _prep_nl(s): return "\n"+s if "\n" in s else s
 
 def _add_coef(a,b):

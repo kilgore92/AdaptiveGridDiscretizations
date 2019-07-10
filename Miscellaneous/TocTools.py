@@ -42,7 +42,7 @@ VolumeFilenames = {
 	"MongeAmpere","OTBoundary1D","EikonalEulerian"
 ],
 'Div':["Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
-'Algo':["TensorSelling","TensorVoronoi","Sparse"],
+'Algo':["TensorSelling","TensorVoronoi","Dense","Sparse","ADBugs"],
 }
 
 RepositoryDescription = """

@@ -1,4 +1,5 @@
 import numpy as np
+from . import misc
 
 class denseAD(np.ndarray):
 	"""
@@ -129,17 +130,8 @@ class denseAD(np.ndarray):
 		out = denseAD(self.value.sum(axis,**kwargs), self.coef.sum(axis,**kwargs))
 		return out
 
-	def min(self,axis=0,keepdims=False,out=None):
-		ai = np.expand_dims(np.argmin(self.value, axis=axis), axis=axis)
-		out = np.take_along_axis(self,ai,axis=axis)
-		if not keepdims: out = out.reshape(self.shape[:axis]+self.shape[axis+1:])
-		return out
-
-	def max(self,axis=0,keepdims=False,out=None):
-		ai = np.expand_dims(np.argmax(self.value, axis=axis), axis=axis)
-		out = np.take_along_axis(self,ai,axis=axis)
-		if not keepdims: out = out.reshape(self.shape[:axis]+self.shape[axis+1:])
-		return out
+	def min(self,*args,**kwargs): return misc.min(self,*args,**kwargs)
+	def max(self,*args,**kwargs): return misc.max(self,*args,**kwargs)
 
 	def sort(self,*varargs,**kwargs):
 		from . import sort
@@ -202,28 +194,15 @@ class denseAD(np.ndarray):
 
 	# Static methods
 
-	## TODO ## Debug += operators and the likes
 	# Support for +=, -=, *=, /= 
 	@staticmethod
-	def add(a,b,out=None,where=True): 
-#		print(a,b,out,where,_tuple_first(out) is a) (Now fails... ?) 
-		if out is None: return a+b #if isinstance(a,denseAD) else b+a; 
-		else: result=_tuple_first(out); result[where]=a[where]+_getitem(b,where); return result
-
+	def add(*args,**kwargs): return misc.add(*args,**kwargs)
 	@staticmethod
-	def subtract(a,b,out=None,where=True):
-		if out is None: return a-b #if isinstance(a,denseAD) else b.__rsub__(a); 
-		else: result=_tuple_first(out); result[where]=a[where]-b[where]; return result
-
+	def subtract(*args,**kwargs): return misc.subtract(*args,**kwargs)
 	@staticmethod
-	def multiply(a,b,out=None,where=True): 
-		if out is None: return a*b #if isinstance(a,denseAD) else b*a; 
-		else: result=_tuple_first(out); result[where]=a[where]*b[where]; return result
-
+	def multiply(*args,**kwargs): return misc.multiply(*args,**kwargs)
 	@staticmethod
-	def true_divide(a,b,out=None,where=True): 
-		if out is None: return a/b #if isinstance(a,denseAD) else b.__rtruediv__(a); 
-		else: result=_tuple_first(out); result[where]=a[where]/b[where]; return result
+	def true_divide(*args,**kwargs): return misc.true_divide(*args,**kwargs)
 
 	@staticmethod
 	def stack(elems,axis=0):
@@ -239,7 +218,6 @@ class denseAD(np.ndarray):
 # -------- Some utility functions, for internal use -------
 
 def _add_dim(a):		return np.expand_dims(a,axis=-1)	
-def _tuple_first(a): 	return a[0] if isinstance(a,tuple) else a
 def _is_constant(a):	return isinstance(a,denseAD) and a.size_ad==0
 def _prep_nl(s): return "\n"+s if "\n" in s else s
 
@@ -248,8 +226,6 @@ def _add_coef(a,b):
 	elif b.shape[-1]==0: return a
 	else: return a+b
 
-def _getitem(a,where):
-	return a if where is True else a[where]
 
 # -------- Factory method -----
 
@@ -281,13 +257,14 @@ def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,
 
 	ndim_elem = len(shape)-len(shape_bound)
 	shape_elem = shape[:ndim_elem]
-	size_elem = np.prod(shape_elem)
+	size_elem = int(np.prod(shape_elem))
 	size_ad = shift[0]+size_elem+shift[1]
 	coef1 = np.full((size_elem,size_ad),0.)
 	for i in range(size_elem):
 		coef1[i,shift[0]+i]=1.
 	coef1 = coef1.reshape(shape_elem+(1,)*len(shape_bound)+(size_ad,))
-	coef1 = np.broadcast_to(coef1,shape+(size_ad,))
+	if coef1.shape[:-1]!=constant.shape: 
+		coef1 = np.broadcast_to(coef1,shape+(size_ad,))
 	return denseAD(constant,coef1)
 
 # ----- Operators -----
