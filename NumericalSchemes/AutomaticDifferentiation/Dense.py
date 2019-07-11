@@ -162,8 +162,8 @@ class denseAD(np.ndarray):
 		if method=="__call__":
 
 			# Reimplemented
-			if ufunc==np.maximum: return maximum(*inputs,**kwargs)
-			if ufunc==np.minimum: return minimum(*inputs,**kwargs)
+			if ufunc==np.maximum: return misc.maximum(*inputs,**kwargs)
+			if ufunc==np.minimum: return misc.minimum(*inputs,**kwargs)
 
 			# Math functions
 			if ufunc==np.sqrt: return self.sqrt()
@@ -244,15 +244,7 @@ def _get_shapes(shape,shape_free,shape_bound):
 	return shape_free,shape_bound
 
 def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,0)):
-	if constant is None:
-		if shape is None:
-			raise ValueError("identity error : unspecified shape or constant")
-		constant = np.full(shape,0.)
-	else:
-		if shape is not None and shape!=constant.shape: 
-			raise ValueError("identity error : incompatible shape and constant")
-		else:
-			shape=constant.shape
+	shape,constant = misc._set_shape_constant(shape,constant)
 	shape_free,shape_bound = _get_shapes(shape,shape_free,shape_bound)
 
 	ndim_elem = len(shape)-len(shape_bound)
@@ -266,19 +258,3 @@ def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,
 	if coef1.shape[:-1]!=constant.shape: 
 		coef1 = np.broadcast_to(coef1,shape+(size_ad,))
 	return denseAD(constant,coef1)
-
-# ----- Operators -----
-
-#def add(a,other,out=None):	out=self+other; return out
-
-# ----- Various functions, intended to be numpy-compatible ------
-
-
-def maximum(a,b): 	
-	from . import where
-	return where(a>b,a,b)
-def minimum(a,b): 	
-	from . import where
-	return where(a<b,a,b)
-
-

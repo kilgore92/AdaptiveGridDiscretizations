@@ -5,6 +5,21 @@ def _tuple_first(a): 	return a[0] if isinstance(a,tuple) else a
 def _getitem(a,where):
 	return a if where is True else a[where]
 
+def _set_shape_constant(shape=None,constant=None):
+	if constant is None:
+		if shape is None:
+			raise ValueError("Error : unspecified shape or constant")
+		constant = np.full(shape,0.)
+	else:
+		if not isinstance(constant,np.ndarray):
+			constant = np.array(constant)
+		if shape is not None and shape!=constant.shape: 
+			raise ValueError("Error : incompatible shape and constant")
+		else:
+			shape=constant.shape
+	return shape,constant
+
+
 # ------- Common functions -------
 
 def min(array,axis=None,keepdims=False,out=None):
@@ -42,3 +57,9 @@ def true_divide(a,b,out=None,where=True):
 	else: result=_tuple_first(out); result[where]=a[where]/_getitem(b,where); return result
 
 
+def maximum(a,b): 	
+	from . import where
+	return where(a>b,a,b)
+def minimum(a,b): 	
+	from . import where
+	return where(a<b,a,b)

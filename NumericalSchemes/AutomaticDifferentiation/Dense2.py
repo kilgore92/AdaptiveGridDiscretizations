@@ -1,4 +1,5 @@
 import numpy as np
+from . import misc
 from . import Dense
 
 class denseAD2(np.ndarray):
@@ -156,9 +157,6 @@ class denseAD2(np.ndarray):
 	# See https://docs.scipy.org/doc/numpy/reference/ufuncs.html
 	def __array_ufunc__(self,ufunc,method,*inputs,**kwargs):
 
-#		if ufunc!=np.maximum:
-#			print(self)
-#			return NotImplemented
 		# Return an np.ndarray for piecewise constant functions
 		if ufunc in [
 		# Comparison functions
@@ -180,8 +178,8 @@ class denseAD2(np.ndarray):
 		if method=="__call__":
 
 			# Reimplemented
-			if ufunc==np.maximum: return maximum(*inputs,**kwargs)
-			if ufunc==np.minimum: return minimum(*inputs,**kwargs)
+			if ufunc==np.maximum: return misc.maximum(*inputs,**kwargs)
+			if ufunc==np.minimum: return misc.minimum(*inputs,**kwargs)
 
 			# Math functions
 			if ufunc==np.sqrt: return self.sqrt()
@@ -243,19 +241,3 @@ def _add_coef(a,b):
 def identity(*args,**kwargs):
 	arr = Dense.identity(*args,**kwargs)
 	return denseAD2(arr.value,arr.coef,np.zeros(arr.shape+(arr.size_ad,arr.size_ad)))
-
-# ----- Operators -----
-
-#def add(a,other,out=None):	out=self+other; return out
-
-# ----- Various functions, intended to be numpy-compatible ------
-
-
-def maximum(a,b): 	
-	from . import where
-	return where(a>b,a,b)
-def minimum(a,b): 	
-	from . import where
-	return where(a<b,a,b)
-
-

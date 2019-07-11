@@ -1,4 +1,5 @@
 import numpy as np
+from . import misc
 
 class spAD(np.ndarray):
 	"""
@@ -167,9 +168,6 @@ class spAD(np.ndarray):
 	# See https://docs.scipy.org/doc/numpy/reference/ufuncs.html
 	def __array_ufunc__(self,ufunc,method,*inputs,**kwargs):
 
-#		if ufunc!=np.maximum:
-#			print(self)
-#			return NotImplemented
 		# Return an np.ndarray for piecewise constant functions
 		if ufunc in [
 		# Comparison functions
@@ -191,8 +189,8 @@ class spAD(np.ndarray):
 		if method=="__call__":
 
 			# Reimplemented
-			if ufunc==np.maximum: return maximum(*inputs,**kwargs)
-			if ufunc==np.minimum: return minimum(*inputs,**kwargs)
+			if ufunc==np.maximum: return misc.maximum(*inputs,**kwargs)
+			if ufunc==np.minimum: return misc.minimum(*inputs,**kwargs)
 
 			# Math functions
 			if ufunc==np.sqrt: return self.sqrt()
@@ -329,32 +327,7 @@ def _tuple_first(a): return a[0] if isinstance(a,tuple) else a
 
 # -------- Factory method -----
 
-def identity(shape=None,constant=None):
-	if shape is None:
-		if constant is None:
-			raise ValueError("identity error : shape or constant term must be specified")
-		shape = constant.shape
-	if constant is None:
-		constant = np.full(shape,0.)
+def identity(shape=None,constant=None,shift=0):
+	shape,constant = misc._set_shape_constant(shape,constant)
 	shape2 = shape+(1,)
-	return spAD(constant,np.full(shape2,1.),np.arange(np.prod(shape)).reshape(shape2))
-
-
-#def simplify_ad(array): #TODO
-#	if not isinstance(array,spAD): return array
-
-# ----- Operators -----
-
-#def add(a,other,out=None):	out=self+other; return out
-
-# ----- Various functions, intended to be numpy-compatible ------
-
-
-def maximum(a,b): 	
-	from . import where
-	return where(a>b,a,b)
-def minimum(a,b): 	
-	from . import where
-	return where(a<b,a,b)
-
-
+	return spAD(constant,np.full(shape2,1.),np.arange(shift,shift+np.prod(shape)).reshape(shape2))

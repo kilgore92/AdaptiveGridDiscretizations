@@ -1,4 +1,5 @@
 import numpy as np
+from . import misc
 from . import Sparse
 from . import Dense2
 
@@ -238,8 +239,8 @@ class spAD2(np.ndarray):
 		if method=="__call__":
 
 			# Reimplemented
-			if ufunc==np.maximum: return maximum(*inputs,**kwargs)
-			if ufunc==np.minimum: return minimum(*inputs,**kwargs)
+			if ufunc==np.maximum: return misc.maximum(*inputs,**kwargs)
+			if ufunc==np.minimum: return misc.minimum(*inputs,**kwargs)
 
 			# Math functions
 			if ufunc==np.sqrt: return self.sqrt()
@@ -323,30 +324,7 @@ def _pad_last(a,pad_total): # Always makes a deep copy
 		
 # -------- Factory method -----
 
-def identity(shape=None,constant=None,shift=0):
-	if shape is None:
-		if constant is None:
-			raise ValueError("identity error : shape or constant term must be specified")
-		shape = constant.shape
-	if constant is None:
-		constant = np.full(shape,0.)
-	shape1 = shape+(1,)
-	shape2 = shape+(0,)
-	return spAD2(constant,np.full(shape1,1.),np.arange(shift,shift+np.prod(shape)).reshape(shape1),
-		np.full(shape2,0.),np.full(shape2,0),np.full(shape2,0))
-
-# ----- Operators -----
-
-#def add(a,other,out=None):	out=self+other; return out
-
-# ----- Various functions, intended to be numpy-compatible ------
-
-
-def maximum(a,b): 	
-	from . import where
-	return where(a>b,a,b)
-def minimum(a,b): 	
-	from . import where
-	return where(a<b,a,b)
-
-
+def identity(*args,**kwargs):
+	arr = Sparse.identity(*args,**kwargs)
+	shape2 = arr.shape+(0,)
+	return spAD2(arr.value,arr.coef,arr.index,np.full(shape2,0.),np.full(shape2,0),np.full(shape2,0))
