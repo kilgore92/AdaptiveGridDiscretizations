@@ -10,17 +10,23 @@ class spAD2(np.ndarray):
 
 	# Construction
 	# See : https://docs.scipy.org/doc/numpy-1.13.0/user/basics.subclassing.html
-	def __new__(cls,value,coef1=None,index=None,coef2=None,index_row=None,index_col=None):
+	def __new__(cls,value,coef1=None,index=None,coef2=None,index_row=None,index_col=None,broadcast_ad=False):
 		if isinstance(value,spAD2):
 			assert coef1 is None and index is None and coef2 is None and index_row is None and index_col is None
 			return value
 		obj = np.asarray(value).view(spAD2)
-		shape2 = obj.shape+(0,)
-		obj.coef1 = np.full(shape2,0.) if coef1  is None else coef1
-		obj.index = np.full(shape2,0)  if index is None else index
-		obj.coef2 = np.full(shape2,0.) if coef2  is None else coef2
-		obj.index_row = np.full(shape2,0)  if index_row is None else index_row
-		obj.index_col = np.full(shape2,0)  if index_col is None else index_col
+		shape = obj.shape
+		shape2 = shape+(0,)
+		obj.coef1 = (np.full(shape2,0.) if coef1  is None else 
+			else misc._test_or_broadcast_ad(coef1,shape,broadcast_ad) )
+		obj.index = (np.full(shape2,0)  if index is None else 
+			else misc._test_or_broadcast_ad(index,shape,broadcast_ad) )
+		obj.coef2 = (np.full(shape2,0.) if coef2  is None else 
+			else misc._test_or_broadcast_ad(coef2,shape,broadcast_ad) )
+		obj.index_row = (np.full(shape2,0)  if index_row is None else 
+			else misc._test_or_broadcast_ad(index_row,shape,broadcast_ad) )
+		obj.index_col = (np.full(shape2,0)  if index_col is None else 
+			else misc._test_or_broadcast_ad(index_col,shape,broadcast_ad) )
 		return obj
 
 #	def __array_finalize__(self,obj): pass
@@ -47,7 +53,7 @@ class spAD2(np.ndarray):
 				_concatenate(self.coef1,other.coef1), _concatenate(self.index,other.index),
 				_concatenate(self.coef2,other.coef2), _concatenate(self.index_row,other.index_row), _concatenate(self.index_col,other.index_col))
 		else:
-			return spAD2(self.value+other, self.coef1, self.index, self.coef2, self.index_row, self.index_col)
+			return spAD2(self.value+other, self.coef1, self.index, self.coef2, self.index_row, self.index_col, broadcast_ad=True)
 
 	def __sub__(self,other):
 		if isinstance(other,spAD2):
@@ -55,7 +61,7 @@ class spAD2(np.ndarray):
 				_concatenate(self.coef1,-other.coef1), _concatenate(self.index,other.index),
 				_concatenate(self.coef2,-other.coef2), _concatenate(self.index_row,other.index_row), _concatenate(self.index_col,other.index_col))
 		else:
-			return spAD2(self.value-other, self.coef1, self.index, self.coef2, self.index_row, self.index_col)
+			return spAD2(self.value-other, self.coef1, self.index, self.coef2, self.index_row, self.index_col, broadcast_ad=True)
 
 	def __mul__(self,other):
 		if isinstance(other,spAD2):

@@ -8,14 +8,17 @@ class spAD(np.ndarray):
 
 	# Construction
 	# See : https://docs.scipy.org/doc/numpy-1.13.0/user/basics.subclassing.html
-	def __new__(cls,value,coef=None,index=None):
+	def __new__(cls,value,coef=None,index=None,broadcast_ad=False):
 		if isinstance(value,spAD):
 			assert coef is None and index is None
 			return value
 		obj = np.asarray(value).view(spAD)
-		shape2 = obj.shape+(0,)
-		obj.coef  = np.full(shape2,0.) if coef  is None else coef
-		obj.index = np.full(shape2,0)  if index is None else index
+		shape = obj.shape
+		shape2 = shape+(0,)
+		obj.coef  = (np.full(shape2,0.) if coef is None else 
+			else misc._test_or_broadcast_ad(coef,shape,broadcast_ad) ) 
+		obj.index = (np.full(shape2,0)  if index is None else 
+			else misc._test_or_broadcast_ad(index,shape,broadcast_ad) )
 		return obj
 
 #	def __array_finalize__(self,obj): pass
@@ -38,13 +41,13 @@ class spAD(np.ndarray):
 		if isinstance(other,spAD):
 			return spAD(self.value+other.value, _concatenate(self.coef,other.coef), _concatenate(self.index,other.index))
 		else:
-			return spAD(self.value+other, self.coef, self.index)
+			return spAD(self.value+other, self.coef, self.index, broadcast_ad=True)
 
 	def __sub__(self,other):
 		if isinstance(other,spAD):
 			return spAD(self.value-other.value, _concatenate(self.coef,-other.coef), _concatenate(self.index,other.index))
 		else:
-			return spAD(self.value-other, self.coef, self.index)
+			return spAD(self.value-other, self.coef, self.index, broadcast_ad=True)
 
 	def __mul__(self,other):
 		if isinstance(other,spAD):

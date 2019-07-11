@@ -9,15 +9,18 @@ class denseAD2(np.ndarray):
 
 	# Construction
 	# See : https://docs.scipy.org/doc/numpy-1.13.0/user/basics.subclassing.html
-	def __new__(cls,value,coef1=None,coef2=None):
+	def __new__(cls,value,coef1=None,coef2=None,broadcast_ad=False):
 		if isinstance(value,denseAD2):
 			assert coef1 is None and coef2 is None 
 			return value
 		obj = np.asarray(value).view(denseAD2)
-		shape1 = obj.shape+(0,)
-		shape2 = obj.shape+(0,0)
-		obj.coef1 = np.full(shape1,0.) if coef1  is None else coef1
-		obj.coef2 = np.full(shape2,0.) if coef2  is None else coef2
+		shape = obj.shape
+		shape1 = shape+(0,)
+		shape2 = shape+(0,0)
+		obj.coef1 = (np.full(shape1,0.) if coef1  is None else 
+			misc._test_or_broadcast(coef1,shape,broadcast_ad))
+		obj.coef2 = (np.full(shape2,0.) if coef2  is None else 
+			misc._test_or_broadcast(coef2,shape,broadcast_ad,2))
 		return obj
 
 #	def __array_finalize__(self,obj): pass
@@ -40,13 +43,13 @@ class denseAD2(np.ndarray):
 		if isinstance(other,denseAD2):
 			return denseAD2(self.value+other.value,_add_coef(self.coef1,other.coef1),_add_coef(self.coef2,other.coef2))
 		else:
-			return denseAD2(self.value+other, self.coef1, self.coef2)
+			return denseAD2(self.value+other, self.coef1, self.coef2, broadcast_ad=True)
 
 	def __sub__(self,other):
 		if isinstance(other,denseAD2):
 			return denseAD2(self.value-other.value,_add_coef(self.coef1,-other.coef1),_add_coef(self.coef2,-other.coef2))
 		else:
-			return denseAD2(self.value-other, self.coef1, self.coef2)
+			return denseAD2(self.value-other, self.coef1, self.coef2, broadcast_ad=True)
 
 	def __mul__(self,other):
 		if isinstance(other,denseAD2):

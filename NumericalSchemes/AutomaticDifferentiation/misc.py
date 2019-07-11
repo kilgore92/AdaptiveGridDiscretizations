@@ -5,6 +5,20 @@ def _tuple_first(a): 	return a[0] if isinstance(a,tuple) else a
 def _getitem(a,where):
 	return a if where is True else a[where]
 
+def _set_shape_free_bound(shape,shape_free,shape_bound):
+	if shape_free is not None:
+		assert shape_free==shape[0:len(shape_free)]
+		if shape_bound is None: 
+			shape_bound=shape[len(shape_free):]
+		else: 
+			assert shape_bound==shape[len(shape_free):]
+	if shape_bound is None: 
+		shape_bound = tuple()
+	assert len(shape_bound)==0 or shape_bound==shape[-len(shape_bound):]
+	if shape_free is None:
+		shape_free = shape[:len(shape_bound)]
+	return shape_free,shape_bound
+
 def _set_shape_constant(shape=None,constant=None):
 	if constant is None:
 		if shape is None:
@@ -19,6 +33,23 @@ def _set_shape_constant(shape=None,constant=None):
 			shape=constant.shape
 	return shape,constant
 
+def _test_or_broadcast_ad(array,shape,broadcast,ad_depth=1):
+	if broadcast:
+		if array.shape[:-ad_depth]==shape:
+			return array
+		else:
+			return np.broadcast_to(array,shape+array.shape[-ad_depth:])
+	else:
+		assert array.shape[:-ad_depth]==shape
+		return array
+
+#def _broadcast_coef(t,dense2=False):
+#	shape = t[0].shape
+#	def broadcast(array,i=1):
+#		if array.shape[:-i]==shape: return array
+#		else: return np.broadcast_to(array,shape+array.shape[-i:])
+#	if dense2: return (t[0], broadcast(t[1]), broadcast(t[2],2))
+#	else: return (t[0],)+tuple(broadcast(ti) for ti in t[1:])
 
 # ------- Common functions -------
 

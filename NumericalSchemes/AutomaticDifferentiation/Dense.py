@@ -8,13 +8,15 @@ class denseAD(np.ndarray):
 
 	# Construction
 	# See : https://docs.scipy.org/doc/numpy-1.13.0/user/basics.subclassing.html
-	def __new__(cls,value,coef=None):
+	def __new__(cls,value,coef=None,broadcast_ad=False):
 		if isinstance(value,denseAD):
 			assert coef is None
 			return value
 		obj = np.asarray(value).view(denseAD)
-		shape2 = obj.shape+(0,)
-		obj.coef  = np.full(shape2,0.) if coef  is None else coef
+		shape = obj.shape
+		shape2 = shape+(0,)
+		obj.coef  = (np.full(shape2,0.) if coef is None 
+			else misc._test_or_broadcast_ad(coef,shape,broadcast_ad) )
 		return obj
 
 #	def __array_finalize__(self,obj): pass
@@ -40,14 +42,14 @@ class denseAD(np.ndarray):
 		if isinstance(other,denseAD):
 			return denseAD(self.value+other.value, _add_coef(self.coef,other.coef))
 		else:
-			return denseAD(self.value+other, self.coef)
+			return denseAD(self.value+other, self.coef, broadcast_ad=True)
 
 	def __sub__(self,other):
 		if _is_constant(other): return self.__sub__(other.view(np.ndarray))
 		if isinstance(other,denseAD):
 			return denseAD(self.value-other.value, _add_coef(self.coef,-other.coef))
 		else:
-			return denseAD(self.value-other, self.coef)
+			return denseAD(self.value-other, self.coef, broadcast_ad=True)
 
 	def __mul__(self,other):
 		if _is_constant(other): return self.__mul__(other.view(np.ndarray))
@@ -186,7 +188,7 @@ class denseAD(np.ndarray):
 
 	# Numerical 
 	def solve(self,shape_free=None,shape_bound=None):
-		shape_free,shape_bound = _get_shapes(self.shape,shape_free,shape_bound)
+		shape_free,shape_bound = misc._set_shape_free_bound(self.shape,shape_free,shape_bound)
 		assert np.prod(shape_free)==self.size_ad
 		v = np.moveaxis(np.reshape(self.value,(self.size_ad,)+shape_bound),0,-1)
 		a = np.moveaxis(np.reshape(self.coef,(self.size_ad,)+shape_bound+(self.size_ad,)),0,-2)
@@ -229,23 +231,9 @@ def _add_coef(a,b):
 
 # -------- Factory method -----
 
-def _get_shapes(shape,shape_free,shape_bound):
-	if shape_free is not None:
-		assert shape_free==shape[0:len(shape_free)]
-		if shape_bound is None: 
-			shape_bound=shape[len(shape_free):]
-		else: 
-			assert shape_bound==shape[len(shape_free):]
-	if shape_bound is None: 
-		shape_bound = tuple()
-	assert len(shape_bound)==0 or shape_bound==shape[-len(shape_bound):]
-	if shape_free is None:
-		shape_free = shape[:len(shape_bound)]
-	return shape_free,shape_bound
-
 def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,0)):
 	shape,constant = misc._set_shape_constant(shape,constant)
-	shape_free,shape_bound = _get_shapes(shape,shape_free,shape_bound)
+	shape_free,shape_bound = misc._set_shape_free_bound(shape,shape_free,shape_bound)
 
 	ndim_elem = len(shape)-len(shape_bound)
 	shape_elem = shape[:ndim_elem]
