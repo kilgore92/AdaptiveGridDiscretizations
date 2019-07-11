@@ -17,10 +17,10 @@ class denseAD2(np.ndarray):
 		shape = obj.shape
 		shape1 = shape+(0,)
 		shape2 = shape+(0,0)
-		obj.coef1 = (np.full(shape1,0.) if coef1  is None else 
-			misc._test_or_broadcast(coef1,shape,broadcast_ad))
-		obj.coef2 = (np.full(shape2,0.) if coef2  is None else 
-			misc._test_or_broadcast(coef2,shape,broadcast_ad,2))
+		obj.coef1 = (np.full(shape1,0.) if coef1  is None 
+			else misc._test_or_broadcast_ad(coef1,shape,broadcast_ad))
+		obj.coef2 = (np.full(shape2,0.) if coef2  is None 
+			else misc._test_or_broadcast_ad(coef2,shape,broadcast_ad,2))
 		return obj
 
 #	def __array_finalize__(self,obj): pass

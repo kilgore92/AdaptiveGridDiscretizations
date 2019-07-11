@@ -16,7 +16,10 @@ def _set_shape_free_bound(shape,shape_free,shape_bound):
 		shape_bound = tuple()
 	assert len(shape_bound)==0 or shape_bound==shape[-len(shape_bound):]
 	if shape_free is None:
-		shape_free = shape[:len(shape_bound)]
+		if len(shape_bound)==0:
+			shape_free = shape
+		else:
+			shape_free = shape[:len(shape_bound)]
 	return shape_free,shape_bound
 
 def _set_shape_constant(shape=None,constant=None):

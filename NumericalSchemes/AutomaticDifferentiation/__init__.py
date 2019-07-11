@@ -46,17 +46,29 @@ def stack(elems,axis=0):
 		if is_ad(e): return type(e).stack(elems,axis)
 	return np.stack(elems,axis)
 
-def disassociate(array,shape_free=None,shape_bound=None):
+def disassociate(array,shape_free=None,shape_bound=None,singleton_axis=-1):
 	shape_free,shape_bound = misc._set_shape_free_bound(array.shape,shape_free,shape_bound)
 	size_free = np.prod(shape_free)
 	array = array.reshape((size_free,)+shape_bound)
 	result = np.zeros(size_free,object)
 	for i in range(size_free): result[i] = array[i]
-	return result.reshape(shape_free)
+	result = result.reshape(shape_free)
+	if singleton_axis is not None:
+		result=np.expand_dims(result,singleton_axis)
+	return result
 
-def associate(array):
+def associate(array,singleton_axis=-1):
+	if is_ad(array): 
+		return array.associate(singleton_axis)
 	result = stack(array.flatten(),axis=0)
-	return result.reshape(array.shape+result.shape[1:])
+	shape_free = array.shape
+	if singleton_axis is not None: 
+		assert shape_free[singleton_axis]==1
+		if singleton_axis==-1:
+			shape_free=shape_free[:-1]
+		else: 
+			shape_free=shape_free[:singleton_axis]+shape_free[(singleton_axis+1):]
+	return result.reshape(shape_free+result.shape[1:])
 
 def compose(a,b,shape_factor=None):
 	"""Compose ad types, intended for dense a and sparse b"""

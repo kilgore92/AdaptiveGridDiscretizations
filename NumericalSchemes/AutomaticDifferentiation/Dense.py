@@ -215,6 +215,16 @@ class denseAD(np.ndarray):
 		np.stack(tuple(e.value for e in elems2), axis=axis), 
 		np.stack(tuple(e.coef if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,)) for e in elems2),axis=axis))
 
+	def associate(self,singleton_axis=-1):
+		from . import associate
+		singleton_axis1 = singleton_axis if singleton_axis>=0 else (singleton_axis-1)
+		value = associate(self.value,singleton_axis)
+		coef = associate(self.coef,singleton_axis1)
+		print(coef.shape)
+		coef = np.moveaxis(coef,self.ndim if singleton_axis1 is None else (self.ndim-1),-1)
+		print(coef.shape)
+		return denseAD(value,coef)
+
 # -------- End of class denseAD -------
 
 # -------- Some utility functions, for internal use -------
