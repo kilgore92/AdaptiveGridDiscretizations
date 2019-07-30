@@ -36,9 +36,9 @@ class denseAD2(np.ndarray):
 			yield denseAD2(value,coef1,coef2)
 
 	def __str__(self):
-		return "denseAD2("+str(self.value)+","+misc._prep_nl(str(self.coef1))+","+_prep_nl(str(self.coef2)) +")"
+		return "denseAD2("+str(self.value)+","+misc._prep_nl(str(self.coef1))+","+misc._prep_nl(str(self.coef2)) +")"
 	def __repr__(self):
-		return "denseAD2("+repr(self.value)+","+misc._prep_nl(repr(self.coef1))+","+_prep_nl(repr(self.coef2)) +")"
+		return "denseAD2("+repr(self.value)+","+misc._prep_nl(repr(self.coef1))+","+misc._prep_nl(repr(self.coef2)) +")"
 
 	# Operators
 	def __add__(self,other):
