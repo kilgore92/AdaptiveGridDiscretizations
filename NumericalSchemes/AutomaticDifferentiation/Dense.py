@@ -1,6 +1,8 @@
 import numpy as np
 from . import misc
 
+_add_dim = misc._add_dim; _add_coef=misc._add_coef
+
 class denseAD(np.ndarray):
 	"""
 	A class for dense forward automatic differentiation
@@ -30,10 +32,10 @@ class denseAD(np.ndarray):
 			yield denseAD(value,coef)
 
 	def __str__(self):
-		return "denseAD("+str(self.value)+","+_prep_nl(str(self.coef))+")"
+		return "denseAD("+str(self.value)+","+misc._prep_nl(str(self.coef))+")"
 #		return "denseAD"+str((self.value,self.coef))
 	def __repr__(self):
-		return "denseAD("+repr(self.value)+","+_prep_nl(repr(self.coef))+")"
+		return "denseAD("+repr(self.value)+","+misc._prep_nl(repr(self.coef))+")"
 #		return "denseAD"+repr((self.value,self.coef))	
 
 	# Operators
@@ -88,6 +90,13 @@ class denseAD(np.ndarray):
 	def sin(self):			return denseAD(np.sin(self.value), _add_dim(np.cos(self.value))*self.coef)
 	def cos(self):			return denseAD(np.cos(self.value), _add_dim(-np.sin(self.value))*self.coef)
 
+	@staticmethod
+	def compose(a,t):
+		assert isinstance(a,denseAD) and all(isinstance(b,denseAD) for b in t)
+		b = np.moveaxis(denseAD.concatenate(t,axis=0),0,-1)
+		coef = (_add_dim(a.coef)*b.coef).sum(axis=-2)
+		return denseAD(a.value,coef)
+
 	#Indexing
 	@property
 	def value(self): return self.view(np.ndarray)
@@ -111,8 +120,8 @@ class denseAD(np.ndarray):
 		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad,)
 		return denseAD(self.value.reshape(shape,order=order),self.coef.reshape(shape2,order=order))
 
-	def flatten(self):	
-		return self.reshape( (self.size,) )
+	def flatten(self):	return self.reshape( (self.size,) )
+	def squeeze(self,axis=None): return self.reshape(self.value.squeeze(axis).shape)
 
 	def broadcast_to(self,shape):
 		shape2 = shape+(self.size_ad,)
@@ -134,6 +143,8 @@ class denseAD(np.ndarray):
 
 	def min(self,*args,**kwargs): return misc.min(self,*args,**kwargs)
 	def max(self,*args,**kwargs): return misc.max(self,*args,**kwargs)
+	def argmin(self,*args,**kwargs): return self.value.argmin(*args,**kwargs)
+	def argmax(self,*args,**kwargs): return self.value.argmax(*args,**kwargs)
 
 	def sort(self,*varargs,**kwargs):
 		from . import sort
@@ -208,36 +219,31 @@ class denseAD(np.ndarray):
 
 	@staticmethod
 	def stack(elems,axis=0):
+		return denseAD.concatenate(tuple(np.expand_dims(e,axis=axis) for e in elems),axis)
+
+	@staticmethod
+	def concatenate(elems,axis=0):
+		axis1 = axis if axis>=0 else axis-1
 		elems2 = tuple(denseAD(e) for e in elems)
 		size_ad = max(e.size_ad for e in elems2)
 		assert all((e.size_ad==size_ad or e.size_ad==0) for e in elems2)
 		return denseAD( 
-		np.stack(tuple(e.value for e in elems2), axis=axis), 
-		np.stack(tuple(e.coef if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,)) for e in elems2),axis=axis))
+		np.concatenate(tuple(e.value for e in elems2), axis=axis), 
+		np.concatenate(tuple(e.coef if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,)) for e in elems2),axis=axis1))
 
 	def associate(self,singleton_axis=-1):
 		from . import associate
 		singleton_axis1 = singleton_axis if singleton_axis>=0 else (singleton_axis-1)
 		value = associate(self.value,singleton_axis)
 		coef = associate(self.coef,singleton_axis1)
-		print(coef.shape)
 		coef = np.moveaxis(coef,self.ndim if singleton_axis1 is None else (self.ndim-1),-1)
-		print(coef.shape)
 		return denseAD(value,coef)
 
 # -------- End of class denseAD -------
 
 # -------- Some utility functions, for internal use -------
 
-def _add_dim(a):		return np.expand_dims(a,axis=-1)	
 def _is_constant(a):	return isinstance(a,denseAD) and a.size_ad==0
-def _prep_nl(s): return "\n"+s if "\n" in s else s
-
-def _add_coef(a,b):
-	if a.shape[-1]==0: return b
-	elif b.shape[-1]==0: return a
-	else: return a+b
-
 
 # -------- Factory method -----
 

@@ -2,6 +2,8 @@ import numpy as np
 from . import misc
 from . import Dense
 
+_add_dim = misc._add_dim; _add_dim2 = misc._add_dim2; _add_coef=misc._add_coef;
+
 class denseAD2(np.ndarray):
 	"""
 	A class for dense forward second order automatic differentiation
@@ -34,9 +36,9 @@ class denseAD2(np.ndarray):
 			yield denseAD2(value,coef1,coef2)
 
 	def __str__(self):
-		return "denseAD2("+str(self.value)+","+_prep_nl(str(self.coef1))+","+_prep_nl(str(self.coef2)) +")"
+		return "denseAD2("+str(self.value)+","+misc._prep_nl(str(self.coef1))+","+_prep_nl(str(self.coef2)) +")"
 	def __repr__(self):
-		return "denseAD2("+repr(self.value)+","+_prep_nl(repr(self.coef1))+","+_prep_nl(repr(self.coef2)) +")"
+		return "denseAD2("+repr(self.value)+","+misc._prep_nl(repr(self.coef1))+","+_prep_nl(repr(self.coef2)) +")"
 
 	# Operators
 	def __add__(self,other):
@@ -93,6 +95,16 @@ class denseAD2(np.ndarray):
 	def sin(self):			sin_val = np.sin(self.value); return self._math_helper(sin_val,np.cos(self.value),-sin_val)
 	def cos(self):			cos_val = np.cos(self.value); return self._math_helper(cos_val,-np.sin(self.value),-cos_val)
 
+	def compose(a,t):
+		assert isinstance(a,denseAD2) and all(isinstance(b,denseAD2) for b in t)
+		b = np.moveaxis(denseAD2.concatenate(t,axis=0),0,-1)
+		coef1 = (_add_dim(a.coef1)*b.coef1).sum(axis=-2)
+		coef2_pure = (_add_dim2(a.coef1)*b.coef2).sum(axis=-3)
+		shape_factor = b.shape[:-1]
+		mixed = b.coef1.reshape(shape_factor+(a.size_ad,1,b.size_ad,1))*b.coef1.reshape(shape_factor+(1,a.size_ad,1,b.size_ad))
+		coef2_mixed = (_add_dim2(a.coef2)*mixed).sum(axis=-3).sum(axis=-3)
+		return denseAD2(a.value,coef1,coef2_pure+coef2_mixed)
+
 	#Indexing
 	@property
 	def value(self): return self.view(np.ndarray)
@@ -123,8 +135,8 @@ class denseAD2(np.ndarray):
 		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad,self.size_ad)
 		return denseAD2(self.value.reshape(shape,order=order),self.coef1.reshape(shape1,order=order), self.coef2.reshape(shape2,order=order))
 
-	def flatten(self):	
-		return self.reshape( (self.size,) )
+	def flatten(self):	return self.reshape( (self.size,) )
+	def squeeze(self,axis=None): return self.reshape(self.value.squeeze(axis).shape)
 
 	def broadcast_to(self,shape):
 		shape1 = shape+(self.size_ad,)
@@ -146,11 +158,10 @@ class denseAD2(np.ndarray):
 		out = denseAD2(self.value.sum(axis,**kwargs), self.coef1.sum(axis,**kwargs), self.coef2.sum(axis,**kwargs))
 		return out
 
-	def min(self,*args,**kwargs):
-		return misc.min(self,*args,**kwargs)
-
-	def max(self,*args,**kwargs):
-		return misc.max(self,*args,**kwargs)
+	def min(self,*args,**kwargs): return misc.min(self,*args,**kwargs)
+	def max(self,*args,**kwargs): return misc.max(self,*args,**kwargs)
+	def argmin(self,*args,**kwargs): return self.value.argmin(*args,**kwargs)
+	def argmax(self,*args,**kwargs): return self.value.argmax(*args,**kwargs)
 
 	def sort(self,*varargs,**kwargs):
 		from . import sort
@@ -217,27 +228,24 @@ class denseAD2(np.ndarray):
 
 	@staticmethod
 	def stack(elems,axis=0):
+		return denseAD2.concatenate(tuple(np.expand_dims(e,axis=axis) for e in elems),axis)
+
+	@staticmethod
+	def concatenate(elems,axis=0):
+		axis1,axis2 = (axis,axis) if axis>=0 else (axis-1,axis-2)
 		elems2 = tuple(denseAD2(e) for e in elems)
 		size_ad = max(e.size_ad for e in elems2)
 		assert all((e.size_ad==size_ad or e.size_ad==0) for e in elems2)
-		return denseAD( 
-		np.stack(tuple(e.value for e in elems2), axis=axis), 
-		np.stack(tuple(e.coef1 if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,)) for e in elems2),axis=axis),
-		np.stack(tuple(e.coef2 if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,size_ad)) for e in elems2),axis=axis))
+		return denseAD2( 
+		np.concatenate(tuple(e.value for e in elems2), axis=axis), 
+		np.concatenate(tuple(e.coef1 if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,)) for e in elems2),axis=axis1),
+		np.concatenate(tuple(e.coef2 if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,size_ad)) for e in elems2),axis=axis2))
+
 
 # -------- End of class denseAD2 -------
 
 # -------- Some utility functions, for internal use -------
 
-def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
-def _add_dim(a):		return np.expand_dims(a,axis=-1)	
-def _add_dim2(a):		return _add_dim(_add_dim(a))
-def _prep_nl(s): return "\n"+s if "\n" in s else s
-
-def _add_coef(a,b):
-	if a.shape[-1]==0: return b
-	elif b.shape[-1]==0: return a
-	else: return a+b
 
 # -------- Factory method -----
 

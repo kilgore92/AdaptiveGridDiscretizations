@@ -1,5 +1,8 @@
 import numpy as np
 from . import misc
+from . import Dense
+
+_add_dim = misc._add_dim; _pad_last = misc._pad_last; _concatenate=misc._concatenate;
 
 class spAD(np.ndarray):
 	"""
@@ -91,6 +94,19 @@ class spAD(np.ndarray):
 	def sin(self):			return spAD(np.sin(self.value), self.coef*_add_dim(np.cos(self.value)), self.index)
 	def cos(self):			return spAD(np.cos(self.value), self.coef*_add_dim(-np.sin(self.value)), self.index)
 
+	@staticmethod
+	def compose(a,t):
+		assert isinstance(a,Dense.denseAD) and all(isinstance(b,spAD) for b in t)
+		lens = tuple(len(b) for b in t)
+		assert a.size_ad == sum(lens)
+		t = tuple(np.moveaxis(b,0,-1) for b in t)
+		a_coefs = np.split(a.coef,np.cumsum(lens[:-1]),axis=-1)
+		def FlattenLast2(arr): return arr.reshape(arr.shape[:-2]+(np.prod(arr.shape[-2:]),))
+		coef = tuple(_add_dim(c)*b.coef for c,b in zip(a_coefs,t) )
+		coef = np.concatenate( tuple(FlattenLast2(c) for c in coef), axis=-1)
+		index = np.broadcast_to(np.concatenate( tuple(FlattenLast2(b.index) for b in t), axis=-1),coef.shape)
+		return spAD(a.value,coef,index)
+
 	#Indexing
 	@property
 	def value(self): return self.view(np.ndarray)
@@ -118,8 +134,8 @@ class spAD(np.ndarray):
 		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad,)
 		return spAD(self.value.reshape(shape,order=order),self.coef.reshape(shape2,order=order), self.index.reshape(shape2,order=order))
 
-	def flatten(self):	
-		return self.reshape( (self.size,) )
+	def flatten(self):	return self.reshape( (self.size,) )
+	def squeeze(self,axis=None): return self.reshape(self.value.squeeze(axis).shape)
 
 	def broadcast_to(self,shape):
 		shape2 = shape+(self.size_ad,)
@@ -132,14 +148,6 @@ class spAD(np.ndarray):
 		if axes is None: axes = tuple(reversed(range(self.ndim)))
 		axes2 = tuple(axes) +(self.ndim,)
 		return spAD(self.value.transpose(axes),self.coef.transpose(axes2),self.index.transpose(axes2))
-
-	def triplets(self):
-		coef = self.coef.flatten()
-		row = np.broadcast_to(_add_dim(np.arange(self.size).reshape(self.shape)), self.index.shape).flatten()
-		column = self.index.flatten()
-
-		pos=coef!=0
-		return (coef[pos],(row[pos],column[pos]))
 
 	# Reductions
 	def sum(self,axis=None,out=None,**kwargs):
@@ -157,11 +165,10 @@ class spAD(np.ndarray):
 #		cprod = np.cumprod(self.value,axis=axis)
 #		cprod_rev = n
 
-	def min(self,*args,**kwargs):
-		return misc.min(self,*args,**kwargs)
-
-	def max(self,*args,**kwargs):
-		return misc.max(self,*args,**kwargs)
+	def min(self,*args,**kwargs): return misc.min(self,*args,**kwargs)
+	def max(self,*args,**kwargs): return misc.max(self,*args,**kwargs)
+	def argmin(self,*args,**kwargs): return self.value.argmin(*args,**kwargs)
+	def argmax(self,*args,**kwargs): return self.value.argmax(*args,**kwargs)
 
 	def sort(self,*varargs,**kwargs):
 		from . import sort
@@ -215,22 +222,36 @@ class spAD(np.ndarray):
 		return NotImplemented
 
 
-	# Numerical 
-	def solve(self):
-		import scipy.sparse; import scipy.sparse.linalg
-		return - scipy.sparse.linalg.spsolve(
-        scipy.sparse.coo_matrix(self.triplets()).tocsr(),
-        np.array(self).flatten()).reshape(self.shape)
-
+	# Conversion
 	def bound_ad(self):
 		return 1+np.max(self.index,initial=-1)
 	def to_dense(self,dense_size_ad=None):
 		def mvax(arr): return np.moveaxis(arr,-1,0)
-		from . import Dense
-		coef = np.zeros(self.shape+(self.bound_ad() if dense_size_ad is None else dense_size_ad,))
+		if dense_size_ad is None: dense_size_ad = self.bound_ad()
+		coef = np.zeros(self.shape+(dense_size_ad,))
 		for c,i in zip(mvax(self.coef),mvax(self.index)):
-			np.put_along_axis(coef,_add_dim(i),np.take_along_axis(coef,_add_dim(i),axis=-1)+c,axis=-1)
+			coef_new = _add_dim(c)+np.take_along_axis(coef,_add_dim(i),axis=-1)
+			np.put_along_axis(coef,_add_dim(i),coef_new,axis=-1)
 		return Dense.denseAD(self.value,coef)
+
+	#Linear algebra
+	def triplets(self):
+		coef = self.coef.flatten()
+		row = np.broadcast_to(_add_dim(np.arange(self.size).reshape(self.shape)), self.index.shape).flatten()
+		column = self.index.flatten()
+
+		pos=coef!=0
+		return (coef[pos],(row[pos],column[pos]))
+
+	def solve(self,raw=False):
+		"""
+		Assume that the spAD instance represents the variable y = x + A*delta,
+		where delta is a symbolic perturbation. 
+		Solves the system x + A*delta = 0, assuming compatible shapes.
+		"""
+		mat = self.triplets()
+		rhs = -np.array(self).flatten()
+		return (mat,rhs) if raw else misc.spsolve(mat,rhs).reshape(self.shape)
 
 	# Static methods
 
@@ -246,12 +267,18 @@ class spAD(np.ndarray):
 
 	@staticmethod
 	def stack(elems,axis=0):
+		return spAD.concatenate(tuple(np.expand_dims(e,axis=axis) for e in elems),axis)
+
+	@staticmethod
+	def concatenate(elems,axis=0):
+		axis1 = axis if axis>=0 else axis-1
 		elems2 = tuple(spAD(e) for e in elems)
 		size_ad = max(e.size_ad for e in elems2)
 		return spAD( 
-		np.stack(tuple(e.value for e in elems2), axis=axis), 
-		np.stack(tuple(_pad_last(e.coef,size_ad)  for e in elems2),axis=axis),
-		np.stack(tuple(_pad_last(e.index,size_ad) for e in elems2),axis=axis))
+		np.concatenate(tuple(e.value for e in elems2), axis=axis), 
+		np.concatenate(tuple(_pad_last(e.coef,size_ad)  for e in elems2),axis=axis1),
+		np.concatenate(tuple(_pad_last(e.index,size_ad) for e in elems2),axis=axis1))
+
 
 	# Memory optimization
 	def simplify_ad(self):
@@ -319,14 +346,6 @@ class spAD(np.ndarray):
 
 
 # -------- End of class spAD -------
-
-# -------- Some utility functions, for internal use -------
-
-def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
-def _add_dim(a):		return np.expand_dims(a,axis=-1)	
-def _pad_last(a,pad_total):
-		return np.pad(a, pad_width=((0,0),)*(a.ndim-1)+((0,pad_total-a.shape[-1]),), mode='constant', constant_values=0)
-def _tuple_first(a): return a[0] if isinstance(a,tuple) else a
 
 # -------- Factory method -----
 

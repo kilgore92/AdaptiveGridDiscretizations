@@ -4,6 +4,17 @@ import numpy as np
 def _tuple_first(a): 	return a[0] if isinstance(a,tuple) else a
 def _getitem(a,where):
 	return a if where is True else a[where]
+def _add_dim(a):		return np.expand_dims(a,axis=-1)	
+def _add_dim2(a):		return _add_dim(_add_dim(a))
+def _pad_last(a,pad_total): # Always makes a deep copy
+		return np.pad(a, pad_width=((0,0),)*(a.ndim-1)+((0,pad_total-a.shape[-1]),), mode='constant', constant_values=0)
+def _add_coef(a,b):
+	if a.shape[-1]==0: return b
+	elif b.shape[-1]==0: return a
+	else: return a+b
+def _prep_nl(s): return "\n"+s if "\n" in s else s
+def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
+
 
 def _set_shape_free_bound(shape,shape_free,shape_bound):
 	if shape_free is not None:
@@ -46,15 +57,12 @@ def _test_or_broadcast_ad(array,shape,broadcast,ad_depth=1):
 		assert array.shape[:-ad_depth]==shape
 		return array
 
-#def _broadcast_coef(t,dense2=False):
-#	shape = t[0].shape
-#	def broadcast(array,i=1):
-#		if array.shape[:-i]==shape: return array
-#		else: return np.broadcast_to(array,shape+array.shape[-i:])
-#	if dense2: return (t[0], broadcast(t[1]), broadcast(t[2],2))
-#	else: return (t[0],)+tuple(broadcast(ti) for ti in t[1:])
-
 # ------- Common functions -------
+
+def spsolve(mat,rhs):
+	import scipy.sparse; import scipy.sparse.linalg
+	return scipy.sparse.linalg.spsolve(
+	scipy.sparse.coo_matrix(mat).tocsr(),rhs)
 
 def min(array,axis=None,keepdims=False,out=None):
 	if axis is None: return array.flatten().min(axis=0,out=out)

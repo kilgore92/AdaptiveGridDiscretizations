@@ -1,8 +1,10 @@
+from . import misc
 from . import Sparse
 from . import Dense
 from . import Sparse2
 from . import Dense2
 import numpy as np
+import itertools
 
 def is_adtype(t):
 	return t in (Sparse.spAD, Dense.denseAD, Sparse2.spAD2, Dense2.denseAD2)
@@ -41,10 +43,27 @@ def sort(array,axis=-1,*varargs,**kwargs):
 	else:
 		return np.sort(array,axis=axis,*varargs,**kwargs)
 
+def min_argmin(array,axis=None):
+	if axis is None: return min_argmin(array.flatten(),axis=0)
+	ai = np.argmin(array,axis=axis)
+	return np.squeeze(np.take_along_axis(array,np.expand_dims(ai,
+		axis=axis),axis=axis),axis=axis),ai
+
+def max_argmax(array,axis=None):
+	if axis is None: return max_argmax(array.flatten(),axis=0)
+	ai = np.argmax(array,axis=axis)
+	return np.squeeze(np.take_along_axis(array,np.expand_dims(ai,
+		axis=axis),axis=axis),axis=axis),ai
+
 def stack(elems,axis=0):
 	for e in elems:
 		if is_ad(e): return type(e).stack(elems,axis)
 	return np.stack(elems,axis)
+
+def concatenate(elems,axis=0):
+	for e in elems:
+		if is_ad(e): return type(e).concatenate(elems,axis)
+	return np.concatenate(elems,axis)
 
 def disassociate(array,shape_free=None,shape_bound=None,singleton_axis=-1):
 	shape_free,shape_bound = misc._set_shape_free_bound(array.shape,shape_free,shape_bound)
@@ -70,19 +89,58 @@ def associate(array,singleton_axis=-1):
 			shape_free=shape_free[:singleton_axis]+shape_free[(singleton_axis+1):]
 	return result.reshape(shape_free+result.shape[1:])
 
-def compose(a,b,shape_factor=None):
-	"""Compose ad types, intended for dense a and sparse b"""
+def apply(f,*args,**kwargs):
+	envelope,shape_bound = (kwargs.pop(s,None) for s in ('envelope','shape_bound'))
+	if not any(is_ad(a) for a in itertools.chain(args,kwargs.values())):
+		return f(*args,**kwargs)
+	if envelope:
+		def to_np(a): return a.value if is_ad(a) else a
+		_,oracle = f(*[to_np(a) for a in args],**{key:to_np(val) for key,val in kwargs.items()})
+		result,_ = apply(f,*args,**kwargs,oracle=oracle,envelope=False,shape_bound=shape_bound)
+		return result,oracle
+	if shape_bound:
+		size_factor = np.prod(shape_bound)
+		t = tuple(b.reshape((b.size//size_factor,)+shape_bound) 
+			for b in itertools.chain(args,kwargs.values()) if is_ad(b)) # Tuple containing the original AD vars
+		lens = tuple(len(b) for b in t)
+		def to_dense(b):
+			nonlocal i
+			shift = (sum(lens[:i]),sum(lens[(i+1):]))
+			i+=1
+			if type(b) in (Sparse.spAD,Dense.denseAD): 
+				return Dense.identity(constant=b.value,shape_bound=shape_bound,shift=shift)
+			elif type(b) in (Sparse2.spAD2,Dense2.denseAD2):
+				return Dense2.identity(constant=b.value,shape_bound=shape_bound,shift=shift)
+			else:
+				return b
+		i=0
+		args2 = [to_dense(b) for b in args]
+		kwargs2 = {key:to_dense(val) for key,val in kwargs.items()}
+		result2 = f(*args2,**kwargs2)
+		return compose(result2,t,shape_bound=shape_bound)
+	return f(*args,**kwargs)
+
+def compose(a,t,shape_bound):
+	"""Compose ad types, mostly intended for dense a and sparse b"""
+	if not isinstance(t,tuple): t=(t,)
+	if isinstance(a,tuple):
+		return tuple(compose(ai,t,shape_bound) for ai in a)
+	if not(type(a) in (Dense.denseAD,Dense2.denseAD2)) or len(t)==0:
+		return a
+	return type(t[0]).compose(a,t)
+
+"""
 	if isinstance(a,Dense.denseAD) and (isinstance(b,Sparse.spAD) or all(isinstance(e,Sparse.spAD) for e in b)):
 		elem = None
-		size_factor = np.prod(shape_factor)
-		if shape_factor is None:
+		size_factor = np.prod(shape_bound)
+		if shape_bound is None:
 			if not isinstance(b,Sparse.spAD):
-				raise ValueError("Compose error : unspecified shape_factor")
+				raise ValueError("Compose error : unspecified shape_bound")
 			elem = b
 		elif isinstance(b,Sparse.spAD):
-			elem = b.reshape( (b.size//size_factor,)+shape_factor)
+			elem = b.reshape( (b.size//size_factor,)+shape_bound)
 		else:
-			elem = stack(e.reshape( (e.size//size_factor,)+shape_factor) for e in b)
+			elem = stack(e.reshape( (e.size//size_factor,)+shape_bound) for e in b)
 
 		if elem.shape[0]!=a.size_ad:
 			raise ValueError("Compose error : incompatible shapes")
@@ -92,12 +150,12 @@ def compose(a,b,shape_factor=None):
 	else:
 		raise ValueError("Only Dense-Sparse composition is implemented")
 
-def dense_eval(f,b,shape_factor):
+def dense_eval(f,b,shape_bound):
 	if isinstance(b,Sparse.spAD):
-		b_dense = Dense.identity(b.shape,shape_factor,constant=b)
-		return compose(f(b_dense),b,shape_factor=shape_factor)
+		b_dense = Dense.identity(b.shape,shape_bound,constant=b)
+		return compose(f(b_dense),b,shape_bound=shape_bound)
 	elif all(isinstance(e,Sparse.spAD) for e in b):
-		size_factor = np.prod(shape_factor)
+		size_factor = np.prod(shape_bound)
 		size_ad_all = tuple(e.size/size_factor for e in b)
 		size_ad = sum(size_ad_all)
 		size_ad_cumsum = np.cumsum(size_ad_all)
@@ -106,10 +164,12 @@ def dense_eval(f,b,shape_factor):
 		size_ad_revsum=(0,)+size_ad_revsum[:-1] 
 
 		b_dense = stack(tuple(
-			Dense.identity(e.shape,shape_factor,constant=e,padding=(padding_before,padding_after))
+			Dense.identity(e.shape,shape_bound,constant=e,padding=(padding_before,padding_after))
 				for e,padding_before,padding_after in zip(b,size_ad_cumsum,size_ad_revsum) 
 				))
-		return compose(f(b_dense),b,shape_factor=shape_factor)
+		return compose(f(b_dense),b,shape_bound=shape_bound)
 	else:
 		return f(b)
+"""
+
 
