@@ -1,10 +1,23 @@
 from . import misc
-from . import Sparse
 from . import Dense
-from . import Sparse2
+from . import Sparse
 from . import Dense2
+from . import Sparse2
+from . import Reverse
 import numpy as np
 import itertools
+
+def reload_submodules():
+	import importlib
+	import sys
+	ad = sys.modules['NumericalSchemes.AutomaticDifferentiation']
+	ad.misc = importlib.reload(ad.misc)
+	ad.Sparse = importlib.reload(ad.Sparse)
+	ad.Dense = importlib.reload(ad.Dense)
+	ad.Sparse2 = importlib.reload(ad.Sparse2)
+	ad.Dense2 = importlib.reload(ad.Dense2)
+	ad.Reverse = importlib.reload(ad.Reverse)
+
 
 def is_adtype(t):
 	return t in (Sparse.spAD, Dense.denseAD, Sparse2.spAD2, Dense2.denseAD2)
@@ -90,7 +103,7 @@ def associate(array,singleton_axis=-1):
 	return result.reshape(shape_free+result.shape[1:])
 
 def apply(f,*args,**kwargs):
-	envelope,shape_bound = (kwargs.pop(s,None) for s in ('envelope','shape_bound'))
+	envelope,shape_bound,reverse_history = (kwargs.pop(s,None) for s in ('envelope','shape_bound','reverse_history'))
 	if not any(is_ad(a) for a in itertools.chain(args,kwargs.values())):
 		return f(*args,**kwargs)
 	if envelope:
@@ -118,6 +131,8 @@ def apply(f,*args,**kwargs):
 		kwargs2 = {key:to_dense(val) for key,val in kwargs.items()}
 		result2 = f(*args2,**kwargs2)
 		return compose(result2,t,shape_bound=shape_bound)
+	if reverse_history:
+		return reverse_history.apply(f,*args,**kwargs)
 	return f(*args,**kwargs)
 
 def compose(a,t,shape_bound):

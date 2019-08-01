@@ -347,18 +347,6 @@ class spAD2(np.ndarray):
 	@staticmethod
 	def stack(elems,axis=0):
 		return spAD2.concatenate(tuple(np.expand_dims(e,axis=axis) for e in elems),axis)
-		"""
-		elems2 = tuple(spAD2(e) for e in elems)
-		size_ad1 = max(e.size_ad1 for e in elems2)
-		size_ad2 = max(e.size_ad2 for e in elems2)
-		return spAD2( 
-		np.stack(tuple(e.value for e in elems2), axis=axis), 
-		np.stack(tuple(_pad_last(e.coef1,size_ad1)  for e in elems2),axis=axis),
-		np.stack(tuple(_pad_last(e.index,size_ad1)  for e in elems2),axis=axis),
-		np.stack(tuple(_pad_last(e.coef2,size_ad2)  for e in elems2),axis=axis),
-		np.stack(tuple(_pad_last(e.index_row,size_ad2)  for e in elems2),axis=axis),
-		np.stack(tuple(_pad_last(e.index_col,size_ad2)  for e in elems2),axis=axis))
-		"""
 
 	@staticmethod
 	def concatenate(elems,axis=0):

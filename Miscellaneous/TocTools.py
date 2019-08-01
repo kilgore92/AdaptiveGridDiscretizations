@@ -35,14 +35,15 @@ VolumeFilenames = {
     "Isotropic","Riemannian","Rander","AsymmetricQuadratic",
     "Curvature","Curvature3","DeviationHorizontality",
     "HighAccuracy","Sensitivity",
-    "Illusion","Tubular","FisherRao","DubinsZermelo"
+    "Illusion","Tubular","FisherRao","DubinsZermelo",
+    "Seismic",
 ],
 'NonDiv':[
 	"MonotoneSchemes1D","LinearMonotoneSchemes2D","NonlinearMonotoneFirst2D","NonlinearMonotoneSecond2D",
 	"MongeAmpere","OTBoundary1D","EikonalEulerian"
 ],
 'Div':["Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
-'Algo':["TensorSelling","TensorVoronoi","Dense","Sparse","ADBugs"],
+'Algo':["TensorSelling","TensorVoronoi","Dense","Sparse","Reverse","ADBugs"],
 }
 
 RepositoryDescription = """

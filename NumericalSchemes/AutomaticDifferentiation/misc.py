@@ -60,9 +60,20 @@ def _test_or_broadcast_ad(array,shape,broadcast,ad_depth=1):
 # ------- Common functions -------
 
 def spsolve(mat,rhs):
+	"""
+	Solves a sparse linear system where the matrix is given as triplets.
+	"""
 	import scipy.sparse; import scipy.sparse.linalg
 	return scipy.sparse.linalg.spsolve(
 	scipy.sparse.coo_matrix(mat).tocsr(),rhs)
+
+def spapply(mat,rhs):
+	"""
+	Applies a sparse matrix, given as triplets, to an rhs.
+	"""
+	import scipy.sparse; import scipy.sparse.linalg
+	return scipy.sparse.coo_matrix(mat).tocsr()*rhs
+
 
 def min(array,axis=None,keepdims=False,out=None):
 	if axis is None: return array.flatten().min(axis=0,out=out)

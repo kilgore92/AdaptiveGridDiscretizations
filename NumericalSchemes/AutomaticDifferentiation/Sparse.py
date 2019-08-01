@@ -28,6 +28,9 @@ class spAD(np.ndarray):
 
 	def copy(self,order='C'):
 		return spAD(self.value.copy(order=order),self.coef.copy(order=order),self.index.copy(order=order))
+	def __copy__(self): return self.copy(order='K')
+	def __deepcopy__(self,*args): 
+		return spAD(self.value.__deepcopy__(*args),self.coef.__deepcopy__(*args),self.index.__deepcopy__(*args))
 
 	# Representation 
 	def __iter__(self):
