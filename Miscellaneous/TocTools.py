@@ -2,16 +2,11 @@
 import json
 from IPython.display import display, Markdown, HTML
 
-def ViewOnline(inFName,volume):
-	subdir = "" if volume is None else "Notebooks_"+volume+"/"
-	return ("[(view online)]("+
-		"http://nbviewer.jupyter.org/urls/rawgithub.com/Mirebeau/AdaptiveGridDiscretizations/master/"+
-		subdir+inFName+".ipynb"+")")
 
 def MakeLink(inFName,volume):
 	dirName = "./Notebooks_"+volume+"/"; extension = ".ipynb"
-	display(Markdown("Notebook ["+inFName+"]("+dirName+inFName+extension+") "+ViewOnline(inFName,volume)
-		+ ", from volume "+ volume + " [Summary]("+dirName+"Summary"+extension+") "+ViewOnline("Summary",volume) ))
+	display(Markdown("Notebook ["+inFName+"]("+dirName+inFName+extension+") "
+		+ ", from volume "+ volume + " [Summary]("+dirName+"Summary"+extension+") " ))
 
 def Info(volume):
 	if volume in ['NonDiv','Div','Algo']:
@@ -68,8 +63,8 @@ def displayTOC(inFName,volume):
 				listItem = "  "*count + "* [" + plainText + "](#" + link + ")"
 				contents.append(listItem)
 
-	display(Markdown("[**Summary**](Summary.ipynb) of this series of notebooks. "+ViewOnline(inFName,volume)))
-	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """ +ViewOnline("Summary",None) ))
+	display(Markdown("[**Summary**](Summary.ipynb) of this series of notebooks. "))
+	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """))
 #	display(HTML("<a id = 'table_of_contents'></a>"))
 	display(Markdown("\n# Table of contents"))
 	display(Markdown("\n".join(contents)))
@@ -99,8 +94,7 @@ def displayTOCs(volume):
 				chapter_counter+=1
 			chapter = s[3][len("## Chapter : "):].strip()
 			contents.append(" " + "* "+chapter_numerals[chapter_counter] +
-				". [" + chapter + "](" + inFName + ")" +
-				" " + ViewOnline(_inFName,volume) + "\n")
+				". [" + chapter + "](" + inFName + ")\n")
 			# Display the sub chapters
 			for c in data['cells']:
 				s = c['source']
@@ -113,7 +107,7 @@ def displayTOCs(volume):
 
 	display(Markdown(RepositoryDescription))
 	display(Markdown("# Table of contents"))
-	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """ +ViewOnline("Summary",None) ))
+	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """ ))
 	display(Markdown("\n".join(contents)))
 
 def displayTOCss():
@@ -133,8 +127,7 @@ def displayTOCss():
 			s = data['cells'][0]['source']
 			volumeTitle = s[2][len("# Volume : "):]
 			contents.append("### " + volume_numerals[volume_counter]+". "+
-				"["+volumeTitle+"]("+inFName+")"+
-				" "+ViewOnline('Summary',volume))
+				"["+volumeTitle+"]("+inFName+")")
 
 		# Display parts and chapters
 		for _inFName in VolumeFilenames[volume]:
@@ -153,8 +146,7 @@ def displayTOCss():
 					chapter_counter+=1
 				chapter = s[3][len("## Chapter : "):].strip()
 				contents.append("  " + "* "+chapter_numerals[chapter_counter] +
-					". [" + chapter + "](" + inFName + ")" +
-					" " + ViewOnline(_inFName,volume) + "\n")
+					". [" + chapter + "](" + inFName + ")\n")
 	display(Markdown("# Table of contents"))
 	display(Markdown("\n".join(contents)))
 

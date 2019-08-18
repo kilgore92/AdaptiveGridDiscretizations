@@ -109,7 +109,11 @@ def UniformGridInterpolator1D(bounds,values,mode='clip',axis=-1):
 	return interp
 
 def UniformGridInterpolator(bounds,values,mode='clip',axes=None):
-	"""Assumes 'ij' indexing by default. Use axes=(1,0) for 'xy' """
+	"""
+	bounds : np.ndarray containing the bounds for each variable. [[x[0],x[-1]],[y[0],y[-1]],[z[0],z[-1]],...]
+	values : data to be interpolated. Can be vector data.
+	Assumes 'ij' indexing by default. Use axes=(1,0) for 'xy' 
+	"""
 	ndim_interp = len(bounds)
 	if axes is None:
 		axes = tuple(range(-ndim_interp,0))
