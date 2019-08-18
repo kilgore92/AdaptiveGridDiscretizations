@@ -18,12 +18,10 @@ class reverseAD(object):
 
 	@property
 	def size_ad(self): return self._size_ad
-	
 	@property
 	def size_rev(self): return self._size_rev
 
 	# Variable creation
-
 	def identity(self,*args,**kwargs):
 		result = Sparse.identity(*args,**kwargs,shift=self.size_ad)
 		self._shapes_ad += ([self.size_ad,result.shape],)
@@ -95,6 +93,13 @@ class reverseAD(object):
 			copy.deepcopy(kwargs) if self.deepcopy_states else kwargs))
 		return output
 
+	def apply_linear_mapping(self,matrix,rhs,niter=0):
+		return self.apply(linear_mapping_with_adjoint(matrix,niter=niter),rhs)
+	def apply_linear_inverse(self,matrix,solver,rhs,niter=0):
+		return self.apply(linear_inverse_with_adjoint(matrix,solver,niter=niter),rhs)
+	def apply_identity(self,rhs):
+		return self.apply(identity_with_adjoint,rhs)
+
 	def iterate(self,func,var,*args,**kwargs):
 		"""
 		Input: function, variable to be updated, niter, nrec, optional args
@@ -163,22 +168,30 @@ def empty():
 
 # Elementary operators with adjoints
 
-def linear_solution_with_adjoint(matrix,solver):
+def linear_inverse_with_adjoint(matrix,solver,niter=1):
 	def operator(u,co_output=None):
-		nonlocal matrix,solver
+		nonlocal matrix,solver,niter
 		if co_output is None:
-			return solver(matrix,u)
+			for i in range(niter):
+				u=solver(matrix,u)
+			return u
 		else:
-			return [(solver(matrix.T,co_output),u)]
+			for i in range(niter):
+				co_output = solver(matrix.T,co_output)
+			return [(co_output,u)]
 	return operator
 
-def linear_mapping_with_adjoint(matrix):
+def linear_mapping_with_adjoint(matrix,niter=1):
 	def operator(u,co_output=None):
 		nonlocal matrix
 		if co_output is None:
-			return matrix*u
+			for i in range(niter):
+				u=matrix*u
+			return u
 		else:
-			return [(matrix.T*co_output,u)]
+			for i in range(niter):
+				co_output = matrix.T*co_output
+			return [(co_output,u)]
 	return operator
 
 def identity_with_adjoint(u,co_output=None):
