@@ -1,0 +1,171 @@
+import numpy as np
+import copy
+from . import misc
+from . import Dense
+from . import Sparse
+from . import Reverse
+from . import Sparse2
+
+class reverseAD2(object):
+	"""
+	A class for reverse second order automatic differentiation
+	"""
+
+	def __init__(self):
+		self.deepcopy_states = False
+		self._size_ad = 0
+		self._size_rev = 0
+		self._states = []
+		self._shapes_ad = tuple()
+
+	@property
+	def size_ad(self): return self._size_ad
+	@property
+	def size_rev(self): return self._size_rev
+
+	# Variable creation
+	def identity(self,*args,**kwargs):
+		"""Creates and register a new AD variable"""
+		result = Sparse2.identity(*args,**kwargs,shift=self.size_ad)
+		self._shapes_ad += ([self.size_ad,result.shape],)
+		self._size_ad += result.size
+		return result
+
+	def _identity_rev(self,*args,**kwargs):
+		"""Creates and register an AD variable with negative indices, 
+		used as placeholders in reverse AD"""
+		result = Sparse2.identity(*args,**kwargs,shift=self.size_rev)
+		self._size_rev += result.size
+		result.index = -result.index-1
+		return result
+
+	def _index_rev(self,index):
+		"""Turns the negative placeholder indices into positive ones, 
+		for sparse matrix creation."""
+		index=index.copy()
+		pos = index<0
+		index[pos] = -index[pos]-1+self.size_ad
+		return index
+
+	def apply(self,func,*args,**kwargs):
+		"""
+		Applies a function on the given args, saving adequate data
+		for reverse AD.
+		"""
+		_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2)
+		if len(corresp)==0: return f(args,kwargs)
+		_output = func(*_args,**_kwargs)
+		output,shapes = misc._apply_output_helper(self,_output)
+		self._states.append((shapes,func,
+			copy.deepcopy(args) if self.deepcopy_states else args,
+			copy.deepcopy(kwargs) if self.deepcopy_states else kwargs))
+		return output
+
+	def apply_linear_mapping(self,matrix,rhs,niter=1):
+		return self.apply(Reverse.linear_mapping_with_adjoint(matrix,niter=niter),rhs)
+	def apply_linear_inverse(self,matrix,solver,rhs,niter=1):
+		return self.apply(Reverse.linear_inverse_with_adjoint(matrix,solver,niter=niter),rhs)
+	def simplify(self,rhs):
+		return self.apply(Reverse.identity_with_adjoint,rhs)
+
+	# Adjoint evaluation pass
+	def gradient(self,a):
+		coef = Sparse.spAD(a.value,a.coef1,self._index_rev(a.index)).to_dense().coef
+		for outputshapes,func,args,kwargs in reversed(self._states):
+			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes)
+			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2)
+			co_args = func(*_args,**_kwargs,co_output=co_output)
+			for a_adjoint,a_value in co_args:
+				for a_sparse,a_value2 in corresp:
+					if a_value is a_value2:
+						val,(row,col) = a_sparse.to_first().triplets()
+						coef_contrib = misc.spapply(
+							(val,(self._index_rev(col),row)),
+							a_adjoint)
+						# Possible improvement : shift by np.min(self._index_rev(col)) to avoid adding zeros
+						coef[:coef_contrib.shape[0]] += coef_contrib
+						break
+		return coef[:self.size_ad]
+
+	def _hessian_forward_input_helper(self,args,kwargs,dir):
+		"""Replaces Sparse AD information with dense one, based on dir_hessian."""
+		from . import is_ad
+		corresp = []
+		def _make_arg(a):
+			nonlocal dir,corresp
+			if is_ad(a):
+				assert isinstance(a,Sparse2.spAD2)
+				a1=Sparse.spAD(a.value,a.coef1,self._index_rev(a.index))
+				coef = misc.spapply(a1.triplets(),dir[:a1.bound_ad()])
+				a_value = Dense.denseAD(a1.value, coef.reshape(a.shape+(1,)))
+				corresp.append((a,a_value))
+				return a_value
+			else:
+				return a
+		_args = [_make_arg(a) for a in args]
+		_kwargs = {key:_make_arg(val) for key,val in kwargs.items()}
+		return _args,_kwargs,corresp
+
+	def _hessian_forward_make_dir(self,values,shapes,dir):
+		if shapes is None: pass
+		elif isinstance(shapes,tuple): 
+			for value,shape in zip(values,shapes):
+				_hessian_forward_make_dir(values,shapes)
+		else:
+			start,shape = shapes
+			assert isinstance(values,Dense.denseAD) and values.size_ad==1
+			assert values.shape==shape
+			sstart = self.size_ad+start
+			dir[sstart:(sstart+values.size)] = values.coef.flatten()
+
+	def hessian(self,a):
+		def hess_operator(dir_hessian):
+			nonlocal self,a
+			# Forward pass : propagate the hessian direction
+			size_total = self.size_ad+self.size_rev
+			dir_hessian_forwarded = np.zeros(size_total)
+			dir_hessian_forwarded[:self.size_ad] = dir_hessian
+			denseArgs = []
+			for outputshapes,func,args,kwargs in self._states:
+				# Produce denseAD arguments containing the hessian direction
+				_args,_kwargs,corresp = self._hessian_forward_input_helper(args,kwargs,dir_hessian_forwarded)
+				denseArgs.append((_args,_kwargs,corresp))
+				# Evaluate the function 
+				output = func(*_args,**_kwargs)
+				# Collect the forwarded hessian direction
+				self._hessian_forward_make_dir(output,outputshapes,dir_hessian_forwarded)
+
+			# Reverse pass : evaluate the hessian operator
+			coef = misc.spapply((a.coef2,(self._index_rev(a.index_row),self._index_rev(a.index_col))),dir_hessian_forwarded, crop_rhs=True)
+			if coef.size<size_total:  coef = misc._pad_last(coef,size_total)
+			for (outputshapes,func,_,_),(_args,_kwargs,corresp) in zip(reversed(self._states),reversed(denseArgs)):
+				#TODO : get _args,...
+				co_output = misc._to_shapes(coef[self.size_ad:],outputshapes)
+				co_args = func(*_args,**_kwargs,co_output=co_output,dir_hessian=True)
+				for a_adjoint,a_value in co_args:
+					for a_sparse,a_value2 in corresp:
+						if a_value is a_value2:
+							# Linear contribution
+							val,(row,col) = a_sparse.to_first().triplets()
+							linear_contrib = misc.spapply(
+								(val,(self._index_rev(col),row)),
+								a_adjoint)
+							# Possible improvement : shift by np.min(self._index_rev(col)) to avoid adding zeros
+							coef[:linear_contrib.shape[0]] += linear_contrib
+
+							obj = (a_adjoint*a_sparse).sum()
+							quadratic_contrib = misc.spapply((obj.coef2,(self._index_rev(obj.index_row),self._index_rev(obj.index_col))), dir_hessian_forwarded, crop_rhs=True)
+							coef[:quadratic_contrib.shape[0]] += quadratic_contrib
+
+							break
+			return coef[:self.size_ad]
+		return hess_operator
+
+
+	def to_inputshapes(self,a):
+		return misc._to_shapes(a,self._shapes_ad)
+
+# End of class reverseAD2
+
+def empty():
+	return reverseAD2()

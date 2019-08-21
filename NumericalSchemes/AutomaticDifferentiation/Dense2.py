@@ -241,7 +241,10 @@ class denseAD2(np.ndarray):
 		np.concatenate(tuple(e.coef1 if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,)) for e in elems2),axis=axis1),
 		np.concatenate(tuple(e.coef2 if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,size_ad)) for e in elems2),axis=axis2))
 
-
+	def apply_linear_operator(self,op):
+		return denseAD2(op(self.value),
+			misc.apply_linear_operator(op,self.coef1,flatten_ndim=1),
+			misc.apply_linear_operator(op,self.coef2,flatten_ndim=2))
 # -------- End of class denseAD2 -------
 
 # -------- Some utility functions, for internal use -------

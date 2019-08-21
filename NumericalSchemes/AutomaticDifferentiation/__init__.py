@@ -1,9 +1,10 @@
 from . import misc
 from . import Dense
 from . import Sparse
+from . import Reverse
 from . import Dense2
 from . import Sparse2
-from . import Reverse
+from . import Reverse2
 import numpy as np
 import itertools
 
@@ -12,11 +13,12 @@ def reload_submodules():
 	import sys
 	ad = sys.modules['NumericalSchemes.AutomaticDifferentiation']
 	ad.misc = importlib.reload(ad.misc)
-	ad.Sparse = importlib.reload(ad.Sparse)
 	ad.Dense = importlib.reload(ad.Dense)
+	ad.Sparse = importlib.reload(ad.Sparse)
+	ad.Reverse = importlib.reload(ad.Reverse)
 	ad.Sparse2 = importlib.reload(ad.Sparse2)
 	ad.Dense2 = importlib.reload(ad.Dense2)
-	ad.Reverse = importlib.reload(ad.Reverse)
+	ad.Reverse2 = importlib.reload(ad.Reverse2)
 
 
 def is_adtype(t):
@@ -143,6 +145,18 @@ def compose(a,t,shape_bound):
 	if not(type(a) in (Dense.denseAD,Dense2.denseAD2)) or len(t)==0:
 		return a
 	return type(t[0]).compose(a,t)
+
+def apply_linear_mapping(matrix,rhs):
+	if is_ad(rhs):
+		return rhs.apply_linear_operator(lambda x: (matrix*x))
+	else:
+		return matrix*rhs
+
+def apply_linear_inverse(matrix,solver,rhs):
+	if is_ad(rhs):
+		return rhs.apply_linear_operator(lambda x: solver(matrix,x))
+	else:
+		return solver(matrix,rhs)
 
 """
 	if isinstance(a,Dense.denseAD) and (isinstance(b,Sparse.spAD) or all(isinstance(e,Sparse.spAD) for e in b)):

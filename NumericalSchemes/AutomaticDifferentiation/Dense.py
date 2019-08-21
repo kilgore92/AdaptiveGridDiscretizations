@@ -239,6 +239,9 @@ class denseAD(np.ndarray):
 		coef = np.moveaxis(coef,self.ndim if singleton_axis1 is None else (self.ndim-1),-1)
 		return denseAD(value,coef)
 
+	def apply_linear_operator(self,op):
+		return denseAD(op(self.value),misc.apply_linear_operator(op,self.coef,flatten_ndim=1))
+
 # -------- End of class denseAD -------
 
 # -------- Some utility functions, for internal use -------

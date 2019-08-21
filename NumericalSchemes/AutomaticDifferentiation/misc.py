@@ -57,6 +57,71 @@ def _test_or_broadcast_ad(array,shape,broadcast,ad_depth=1):
 		assert array.shape[:-ad_depth]==shape
 		return array
 
+# -------- For Dense and Dense2 -----
+
+def apply_linear_operator(op,rhs,flatten_ndim=0):
+	"""Applies a linear operator to an array with more than two dimensions,
+	by flattening the last dimensions"""
+	assert (rhs.ndim-flatten_ndim) in [1,2]
+	shape_tail = rhs.shape[1:]
+	op_input = rhs.reshape((rhs.shape[0],np.prod(shape_tail)))
+	op_output = op(op_input)
+	return op_output.reshape((op_output.shape[0],)+shape_tail)
+
+
+# -------- For Reverse and Reverse2 -------
+
+# Applying a function
+def _apply_output_helper(rev,a):
+	"""
+	Adds 'virtual' AD information to an output (with negative indices), 
+	in selected places.
+	"""
+	from . import is_ad
+	import numbers
+	assert not is_ad(a)
+	if isinstance(a,tuple): 
+		result = tuple(_apply_output_helper(x) for x in a)
+		return tuple(x for x,_ in result), tuple(y for _,y in result)
+	elif isinstance(a,np.ndarray) and not issubclass(a.dtype.type,numbers.Integral):
+		shape = [rev.size_rev,a.shape]
+		return rev._identity_rev(constant=a),shape
+	else:
+		return a,None
+
+def _apply_input_helper(args,kwargs,cls):
+	"""
+	Removes the AD information from some function input, and provides the correspondance.
+	"""
+	from . import is_ad
+	corresp = []
+	def _make_arg(a):
+		nonlocal corresp
+		if is_ad(a):
+			assert isinstance(a,cls)
+			a_value = np.array(a)
+			corresp.append((a,a_value))
+			return a_value
+		else:
+			return a
+	_args = [_make_arg(a) for a in args]
+	_kwargs = {key:_make_arg(val) for key,val in kwargs.items()}
+	return _args,_kwargs,corresp
+
+
+def _to_shapes(coef,shapes):
+	"""
+	Reshapes a one dimensional array into the given shapes, 
+	given as a tuple of [start,shape]
+	""" 
+	if shapes is None: 
+		return None
+	elif isinstance(shapes,tuple): 
+		return tuple(_to_shapes(coef,s) for s in shapes)
+	else:
+		start,shape = shapes
+		return coef[start : start+np.prod(shape)].reshape(shape)
+
 # ------- Common functions -------
 
 def spsolve(mat,rhs):
@@ -67,11 +132,18 @@ def spsolve(mat,rhs):
 	return scipy.sparse.linalg.spsolve(
 	scipy.sparse.coo_matrix(mat).tocsr(),rhs)
 
-def spapply(mat,rhs):
+def spapply(mat,rhs,crop_rhs=False):
 	"""
 	Applies a sparse matrix, given as triplets, to an rhs.
 	"""
 	import scipy.sparse; import scipy.sparse.linalg
+	if crop_rhs: 
+		cols = mat[1][1]
+		if len(cols)==0: 
+			return np.zeros(0)
+		size = 1+np.max(cols)
+		if rhs.shape[0]>size:
+			rhs = rhs[:size]
 	return scipy.sparse.coo_matrix(mat).tocsr()*rhs
 
 
