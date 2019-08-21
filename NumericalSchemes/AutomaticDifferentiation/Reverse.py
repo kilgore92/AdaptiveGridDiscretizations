@@ -105,7 +105,7 @@ class reverseAD(object):
 			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes)
 			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse.spAD)
 			co_args = func(*_args,**_kwargs,co_output=co_output)
-			for a_adjoint,a_value in co_args:
+			for a_value,a_adjoint in co_args:
 				for a_sparse,a_value2 in corresp:
 					if a_value is a_value2:
 						val,(row,col) = a_sparse.triplets()
@@ -127,35 +127,26 @@ def empty():
 # Elementary operators with adjoints
 
 def linear_inverse_with_adjoint(solver,matrix,niter=1):
-	def operator(u,co_output=None,dir_hessian=False):
-		nonlocal matrix,solver,niter
-		from . import apply_linear_inverse
-		if co_output is None:
-			for i in range(niter):
-				u=apply_linear_inverse(solver,matrix,u)
-			return u
-		else:
-			for i in range(niter):
-				co_output = apply_linear_inverse(solver,matrix.T,co_output)
-			return [(co_output,u)]
-	return operator
+	from . import apply_linear_inverse
+	def operator(x):	return apply_linear_inverse(solver,matrix,  x,niter=niter)
+	def adjoint(x): 	return apply_linear_inverse(solver,matrix.T,x,niter=niter)
+	def method(u,co_output=None,co_output2=None):
+		if not(co_output2 is None):		return [(u,adjoint(co_output),adjoint(co_output2))]
+		elif not(co_output is None):	return [(u,adjoint(co_output))]
+		else:	return operator(u)
+	return method
 
 def linear_mapping_with_adjoint(matrix,niter=1):
-	def operator(u,co_output=None,dir_hessian=False):
-		nonlocal matrix
-		from . import apply_linear_mapping
-		if co_output is None:
-			for i in range(niter):
-				u=apply_linear_mapping(matrix,u)
-			return u
-		else:
-			for i in range(niter):
-				co_output = apply_linear_mapping(matrix.T,co_output)
-			return [(co_output,u)]
-	return operator
+	from . import apply_linear_mapping
+	def operator(x):	return apply_linear_mapping(matrix,  x,niter=niter)
+	def adjoint(x): 	return apply_linear_mapping(matrix.T,x,niter=niter)
+	def method(u,co_output=None,co_output2=None):
+		if not(co_output2 is None):		return [(u,adjoint(co_output),adjoint(co_output2))]
+		elif not(co_output is None):	return [(u,adjoint(co_output))]
+		else:	return operator(u)
+	return method
 
-def identity_with_adjoint(u,co_output=None,dir_hessian=False):
-	if co_output is None:
-		return u
-	else:
-		return [(co_output,u)]
+def identity_with_adjoint(u,co_output=None,co_output2=None):
+	if not(co_output2 is None):		return [(u,co_output,co_output2)]
+	elif not(co_output is None):	return [(u,co_output)]
+	else:	return u

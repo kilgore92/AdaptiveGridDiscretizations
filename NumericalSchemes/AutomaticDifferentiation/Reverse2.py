@@ -75,7 +75,7 @@ class reverseAD2(object):
 			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes)
 			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2)
 			co_args = func(*_args,**_kwargs,co_output=co_output)
-			for a_adjoint,a_value in co_args:
+			for a_value,a_adjoint in co_args:
 				for a_sparse,a_value2 in corresp:
 					if a_value is a_value2:
 						val,(row,col) = a_sparse.to_first().triplets()
@@ -136,29 +136,35 @@ class reverseAD2(object):
 				self._hessian_forward_make_dir(output,outputshapes,dir_hessian_forwarded)
 
 			# Reverse pass : evaluate the hessian operator
-			coef = misc.spapply((a.coef2,(self._index_rev(a.index_row),self._index_rev(a.index_col))),dir_hessian_forwarded, crop_rhs=True)
-			if coef.size<size_total:  coef = misc._pad_last(coef,size_total)
+			# TODO : avoid the recomputation of the gradient
+			coef1 = Sparse.spAD(a.value,a.coef1,self._index_rev(a.index)).to_dense().coef
+			coef2 = misc.spapply((a.coef2,(self._index_rev(a.index_row),self._index_rev(a.index_col))),dir_hessian_forwarded, crop_rhs=True)
+			if coef1.size<size_total:  coef1 = misc._pad_last(coef1,size_total)
+			if coef2.size<size_total:  coef2 = misc._pad_last(coef2,size_total)
 			for (outputshapes,func,_,_),(_args,_kwargs,corresp) in zip(reversed(self._states),reversed(denseArgs)):
-				#TODO : get _args,...
-				co_output = misc._to_shapes(coef[self.size_ad:],outputshapes)
-				co_args = func(*_args,**_kwargs,co_output=co_output,dir_hessian=True)
-				for a_adjoint,a_value in co_args:
+				co_output1 = misc._to_shapes(coef1[self.size_ad:],outputshapes)
+				co_output2 = misc._to_shapes(coef2[self.size_ad:],outputshapes)
+				co_args = func(*_args,**_kwargs,co_output=co_output1,co_output2=co_output2)
+				for a_value,a_adjoint1,a_adjoint2 in co_args:
 					for a_sparse,a_value2 in corresp:
 						if a_value is a_value2:
-							# Linear contribution
+							# Linear contribution to the gradient
 							val,(row,col) = a_sparse.to_first().triplets()
-							linear_contrib = misc.spapply(
-								(val,(self._index_rev(col),row)),
-								a_adjoint)
-							# Possible improvement : shift by np.min(self._index_rev(col)) to avoid adding zeros
-							coef[:linear_contrib.shape[0]] += linear_contrib
+							triplets = (val,(self._index_rev(col),row))
+							coef1_contrib = misc.spapply(triplets,a_adjoint1)
+							coef1[:coef1_contrib.shape[0]] += coef1_contrib
 
-							obj = (a_adjoint*a_sparse).sum()
+							# Linear contribution to the hessian
+							linear_contrib = misc.spapply(triplets,a_adjoint2)
+							coef2[:linear_contrib.shape[0]] += linear_contrib
+
+							# Quadratic contribution to the hessian
+							obj = (a_adjoint1*a_sparse).sum()
 							quadratic_contrib = misc.spapply((obj.coef2,(self._index_rev(obj.index_row),self._index_rev(obj.index_col))), dir_hessian_forwarded, crop_rhs=True)
-							coef[:quadratic_contrib.shape[0]] += quadratic_contrib
+							coef2[:quadratic_contrib.shape[0]] += quadratic_contrib
 
 							break
-			return coef[:self.size_ad]
+			return coef2[:self.size_ad]
 		return hess_operator
 
 

@@ -146,17 +146,19 @@ def compose(a,t,shape_bound):
 		return a
 	return type(t[0]).compose(a,t)
 
-def apply_linear_mapping(matrix,rhs):
-	if is_ad(rhs):
-		return rhs.apply_linear_operator(lambda x: (matrix*x))
-	else:
-		return matrix*rhs
+def apply_linear_mapping(matrix,rhs,niter=1):
+	def step(x):
+		nonlocal matrix
+		return np.dot(matrix,x) if isinstance(matrix,np.ndarray) else (matrix*x)
+	operator = misc.recurse(step,niter)
+	return rhs.apply_linear_operator(operator) if is_ad(rhs) else operator(rhs)
 
-def apply_linear_inverse(matrix,solver,rhs):
-	if is_ad(rhs):
-		return rhs.apply_linear_operator(lambda x: solver(matrix,x))
-	else:
-		return solver(matrix,rhs)
+def apply_linear_inverse(solver,matrix,rhs,niter=1):
+	def step(x):
+		nonlocal solver,matrix
+		return solver(matrix,x)
+	operator = misc.recurse(step,niter)
+	return rhs.apply_linear_operator(operator) if is_ad(rhs) else operator(rhs)
 
 """
 	if isinstance(a,Dense.denseAD) and (isinstance(b,Sparse.spAD) or all(isinstance(e,Sparse.spAD) for e in b)):

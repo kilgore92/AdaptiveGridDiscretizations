@@ -15,7 +15,6 @@ def _add_coef(a,b):
 def _prep_nl(s): return "\n"+s if "\n" in s else s
 def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
 
-
 def _set_shape_free_bound(shape,shape_free,shape_bound):
 	if shape_free is not None:
 		assert shape_free==shape[0:len(shape_free)]
@@ -121,6 +120,16 @@ def _to_shapes(coef,shapes):
 	else:
 		start,shape = shapes
 		return coef[start : start+np.prod(shape)].reshape(shape)
+
+# ----- Functionnal -----
+
+def recurse(step,niter=1):
+	def operator(rhs):
+		nonlocal step,niter
+		for i in range(niter):
+			rhs=step(rhs)
+		return rhs
+	return operator
 
 # ------- Common functions -------
 
