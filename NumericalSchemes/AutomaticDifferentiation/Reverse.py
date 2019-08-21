@@ -8,7 +8,8 @@ class reverseAD(object):
 	A class for reverse first order automatic differentiation
 	"""
 
-	def __init__(self):
+	def __init__(self,operator_data=None):
+		self.operator_data=operator_data
 		self.deepcopy_states = False
 		self._size_ad = 0
 		self._size_rev = 0
@@ -50,8 +51,9 @@ class reverseAD(object):
 		Applies a function on the given args, saving adequate data
 		for reverse AD.
 		"""
+		if self.operator_data is "PassThrough": return func(*args,**kwargs)
 		_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse.spAD)
-		if len(corresp)==0: return f(args,kwargs)
+		if len(corresp)==0: return func(*args,**kwargs)
 		_output = func(*_args,**_kwargs)
 		output,shapes = misc._apply_output_helper(self,_output)
 		self._states.append((shapes,func,
@@ -97,7 +99,12 @@ class reverseAD(object):
 
 
 	# Adjoint evaluation pass
+
+	def to_inputshapes(self,a):
+		return misc._to_shapes(a,self._shapes_ad)
+
 	def gradient(self,a):
+		"""Computes the gradient of the scalar spAD variable a"""
 		coef = Sparse.spAD(a.value,a.coef,self._index_rev(a.index)).to_dense().coef
 		size_total = self.size_ad+self.size_rev
 		if coef.size<size_total:  coef = misc._pad_last(coef,size_total)
@@ -117,12 +124,35 @@ class reverseAD(object):
 						break
 		return coef[:self.size_ad]
 
-	def to_inputshapes(self,a):
-		return misc._to_shapes(a,self._shapes_ad)
+	def output(self,a):
+		"""Computes the gradient of the output a, times the co_state, for an operator_like reverseAD"""
+		assert not(self.operator_data is None)
+		if self.operator_data is "PassThrough":
+			return a
+		inputs,co_output = self.operator_data
+		grad = self.gradient(misc.sumprod(a,co_output))
+		return [(x,y) for (x,y) in zip(inputs,self.to_inputshapes(grad))]
+
+
+
 # End of class reverseAD
 
 def empty():
 	return reverseAD()
+
+def operator_like(inputs=None,co_output=None,co_output2=None):
+	"""
+	Operator_like reverseAD2 : 
+	- has a fixed co_output
+	"""
+	if co_output is None: return reverseAD(operator_data="PassThrough"),inputs
+	elif co_output2 is None:
+		rev = reverseAD(operator_data=(inputs,co_output))
+		_inputs = tuple(rev.identity(constant=a) for a in inputs)
+		return rev,_inputs
+	else:
+		from . import Reverse2
+		return Reverse2.operator_like(inputs,co_output,co_output2)
 
 # Elementary operators with adjoints
 

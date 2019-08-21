@@ -121,6 +121,11 @@ def _to_shapes(coef,shapes):
 		start,shape = shapes
 		return coef[start : start+np.prod(shape)].reshape(shape)
 
+def sumprod(u,v):
+	if u is None: return 0.
+	elif isinstance(u,tuple): return sum(sumprod(x,y) for (x,y) in zip(u,v))
+	else: return (u*v).sum()
+
 # ----- Functionnal -----
 
 def recurse(step,niter=1):
