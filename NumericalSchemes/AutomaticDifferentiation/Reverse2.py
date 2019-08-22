@@ -27,6 +27,7 @@ class reverseAD2(object):
 	# Variable creation
 	def identity(self,*args,**kwargs):
 		"""Creates and register a new AD variable"""
+		assert (self.operator_data is None) or kwargs.pop("operator_initialization",None)
 		result = Sparse2.identity(*args,**kwargs,shift=self.size_ad)
 		self._shapes_ad += ([self.size_ad,result.shape],)
 		self._size_ad += result.size
@@ -53,6 +54,7 @@ class reverseAD2(object):
 		Applies a function on the given args, saving adequate data
 		for reverse AD.
 		"""
+		if self.operator_data is "PassThrough": return func(*args,**kwargs)
 		_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2)
 		if len(corresp)==0: return f(args,kwargs)
 		_output = func(*_args,**_kwargs)
@@ -111,7 +113,7 @@ class reverseAD2(object):
 		if shapes is None: pass
 		elif isinstance(shapes,tuple): 
 			for value,shape in zip(values,shapes):
-				_hessian_forward_make_dir(values,shapes)
+				self._hessian_forward_make_dir(value,shape,dir)
 		else:
 			start,shape = shapes
 			assert isinstance(values,Dense.denseAD) and values.size_ad==1
@@ -146,7 +148,7 @@ class reverseAD2(object):
 			for (outputshapes,func,_,_),(_args,_kwargs,corresp) in zip(reversed(self._states),reversed(denseArgs)):
 				co_output1 = misc._to_shapes(coef1[self.size_ad:],outputshapes)
 				co_output2 = misc._to_shapes(coef2[self.size_ad:],outputshapes)
-				co_args = func(*_args,**_kwargs,co_output=co_output1,co_output2=co_output2)
+				co_args = func(*_args,**_kwargs,co_output=[co_output1,co_output2])
 				for a_value,a_adjoint1,a_adjoint2 in co_args:
 					for a_sparse,a_value2 in corresp:
 						if a_value is a_value2:
@@ -177,11 +179,11 @@ class reverseAD2(object):
 		assert not(self.operator_data is None)
 		if self.operator_data is "PassThrough":
 			return a
-		inputs,co_output,co_output2,dir_hessian = self.operator_data
-		_a = misc.sumprod(a,co_output)
+		inputs,(co_output1,co_output2),dir_hessian = self.operator_data
+		_a = misc.sumprod(a,co_output1)
 		def sumprod2(u,v):
 			if u is None: return 0.
-			elif isinstance(u,tuple): return sum(sumprod(x,y) for (x,y) in zip(u,v))
+			elif isinstance(u,tuple): return sum(sumprod2(x,y) for (x,y) in zip(u,v))
 			else: return (u.to_first()*v).sum()
 		_a2 = sumprod2(a,co_output2)
 		coef2_init = Sparse.spAD(_a2.value,_a2.coef,self._index_rev(_a2.index)).to_dense().coef
@@ -192,23 +194,28 @@ class reverseAD2(object):
 
 # End of class reverseAD2
 
-def empty():
-	return reverseAD2()
+def empty(inputs=None):
+	rev = reverseAD2()
+	if inputs is None: return rev
+	_inputs = tuple(rev.identity(constant=a) for a in inputs)
+	return rev,_inputs
 
-def operator_like(inputs=None,co_output=None,co_output2=None):
+def operator_like(inputs=None,co_output=None):
 	"""
-	Operator_like reverseAD2 : 
+	Operator_like reverseAD2 (or Reverse depending on reverse mode): 
 	- should not register new inputs (conflicts with the way dir_hessian is provided)
-	- fixed co_output and co_output2
+	- fixed co_output 
 	- gets dir_hessian from inputs
 	"""
-	if co_output is None: return reverseAD2(operator_data="PassThrough"),inputs
-	elif co_output2 is None:
+	mode = misc.reverse_mode(co_output)
+	if mode is "Forward":
+		return reverseAD2(operator_data="PassThrough"),inputs
+	elif mode is "Reverse":
 		from . import Reverse
-		return Reverse.operator_like(inputs,co_output,co_output2)
-	else:
+		return Reverse.operator_like(inputs,co_output)
+	elif mode is "Reverse2":
 		assert all(isinstance(a,Dense.denseAD) and a.size_ad==1 for a in inputs)
 		dir_hessian = np.concatenate(tuple(a.coef.flatten() for a in inputs))
-		rev = reverseAD2(operator_data=(inputs,co_output,co_output2,dir_hessian))
-		_inputs = tuple(rev.identity(constant=a.value) for a in inputs)
+		rev = reverseAD2(operator_data=(inputs,co_output,dir_hessian))
+		_inputs = tuple(rev.identity(constant=a.value,operator_initialization=True) for a in inputs)
 		return rev,_inputs

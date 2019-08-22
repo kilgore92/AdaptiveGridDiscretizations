@@ -80,7 +80,7 @@ def _apply_output_helper(rev,a):
 	import numbers
 	assert not is_ad(a)
 	if isinstance(a,tuple): 
-		result = tuple(_apply_output_helper(x) for x in a)
+		result = tuple(_apply_output_helper(rev,x) for x in a)
 		return tuple(x for x,_ in result), tuple(y for _,y in result)
 	elif isinstance(a,np.ndarray) and not issubclass(a.dtype.type,numbers.Integral):
 		shape = [rev.size_rev,a.shape]
@@ -125,6 +125,11 @@ def sumprod(u,v):
 	if u is None: return 0.
 	elif isinstance(u,tuple): return sum(sumprod(x,y) for (x,y) in zip(u,v))
 	else: return (u*v).sum()
+
+def reverse_mode(co_output):
+	if co_output is None: return "Forward"
+	elif isinstance(co_output,list): assert len(co_output)==2; return "Reverse2"
+	else: return "Reverse"
 
 # ----- Functionnal -----
 

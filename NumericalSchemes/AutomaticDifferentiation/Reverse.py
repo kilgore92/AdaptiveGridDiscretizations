@@ -137,46 +137,54 @@ class reverseAD(object):
 
 # End of class reverseAD
 
-def empty():
-	return reverseAD()
+def empty(inputs=None):
+	rev = reverseAD()
+	if inputs is None: return rev
+	_inputs = tuple(rev.identity(constant=a) for a in inputs)
+	return rev,_inputs
 
-def operator_like(inputs=None,co_output=None,co_output2=None):
+# Elementary operators with adjoints
+
+def operator_like(inputs=None,co_output=None):
 	"""
-	Operator_like reverseAD2 : 
+	Operator_like reverseAD (or reverseAD2 depending on co_output): 
 	- has a fixed co_output
 	"""
-	if co_output is None: return reverseAD(operator_data="PassThrough"),inputs
-	elif co_output2 is None:
+	mode = misc.reverse_mode(co_output)
+	if mode is "Forward": 
+		return reverseAD(operator_data="PassThrough"),inputs
+	elif mode is "Reverse":
 		rev = reverseAD(operator_data=(inputs,co_output))
 		_inputs = tuple(rev.identity(constant=a) for a in inputs)
 		return rev,_inputs
-	else:
+	elif mode is "Reverse2": 
 		from . import Reverse2
-		return Reverse2.operator_like(inputs,co_output,co_output2)
-
-# Elementary operators with adjoints
+		return Reverse2.operator_like(inputs,co_output)
 
 def linear_inverse_with_adjoint(solver,matrix,niter=1):
 	from . import apply_linear_inverse
 	def operator(x):	return apply_linear_inverse(solver,matrix,  x,niter=niter)
 	def adjoint(x): 	return apply_linear_inverse(solver,matrix.T,x,niter=niter)
-	def method(u,co_output=None,co_output2=None):
-		if not(co_output2 is None):		return [(u,adjoint(co_output),adjoint(co_output2))]
-		elif not(co_output is None):	return [(u,adjoint(co_output))]
-		else:	return operator(u)
+	def method(u,co_output=None):
+		mode = misc.reverse_mode(co_output)
+		if mode is "Forward":	return operator(u)
+		elif mode is "Reverse": return [(u,adjoint(co_output))]
+		elif mode is "Reverse2":return [(u,adjoint(co_output[0]),adjoint(co_output[1]))]
 	return method
 
 def linear_mapping_with_adjoint(matrix,niter=1):
 	from . import apply_linear_mapping
 	def operator(x):	return apply_linear_mapping(matrix,  x,niter=niter)
 	def adjoint(x): 	return apply_linear_mapping(matrix.T,x,niter=niter)
-	def method(u,co_output=None,co_output2=None):
-		if not(co_output2 is None):		return [(u,adjoint(co_output),adjoint(co_output2))]
-		elif not(co_output is None):	return [(u,adjoint(co_output))]
-		else:	return operator(u)
+	def method(u,co_output=None):
+		mode = misc.reverse_mode(co_output)
+		if mode is "Forward":	return operator(u)
+		elif mode is "Reverse": return [(u,adjoint(co_output))]
+		elif mode is "Reverse2":return [(u,adjoint(co_output[0]),adjoint(co_output[1]))]
 	return method
 
-def identity_with_adjoint(u,co_output=None,co_output2=None):
-	if not(co_output2 is None):		return [(u,co_output,co_output2)]
-	elif not(co_output is None):	return [(u,co_output)]
-	else:	return u
+def identity_with_adjoint(u,co_output=None):
+		mode = misc.reverse_mode(co_output)
+		if mode is "Forward":	return u
+		elif mode is "Reverse": return [(u,co_output)]
+		elif mode is "Reverse2":return [(u,co_output[0],co_output[1])]
