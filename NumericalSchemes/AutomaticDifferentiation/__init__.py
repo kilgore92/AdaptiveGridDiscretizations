@@ -119,6 +119,7 @@ def apply(f,*args,**kwargs):
 			for b in itertools.chain(args,kwargs.values()) if is_ad(b)) # Tuple containing the original AD vars
 		lens = tuple(len(b) for b in t)
 		def to_dense(b):
+			if not is_ad(b): return b
 			nonlocal i
 			shift = (sum(lens[:i]),sum(lens[(i+1):]))
 			i+=1
@@ -126,8 +127,6 @@ def apply(f,*args,**kwargs):
 				return Dense.identity(constant=b.value,shape_bound=shape_bound,shift=shift)
 			elif type(b) in (Sparse2.spAD2,Dense2.denseAD2):
 				return Dense2.identity(constant=b.value,shape_bound=shape_bound,shift=shift)
-			else:
-				return b
 		i=0
 		args2 = [to_dense(b) for b in args]
 		kwargs2 = {key:to_dense(val) for key,val in kwargs.items()}
