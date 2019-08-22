@@ -80,6 +80,17 @@ class denseAD(np.ndarray):
 	def __neg__(self):		return denseAD(-self.value,-self.coef)
 
 	# Math functions
+	def _math_helper(self,deriv):
+		a,b=deriv
+		return denseAD(a,_add_dim(b)*self.coef)
+
+	def sqrt(self):			return self**0.5
+	def __pow__(self,n):	return self._math_helper(misc.pow1(self.value))
+	def log(self):			return self._math_helper(misc.log1(self.value))
+	def exp(self):
+
+
+
 	def __pow__(self,n): 	return denseAD(self.value**n, _add_dim(n*self.value**(n-1))*self.coef)
 	def sqrt(self):		 	return self**0.5
 	def log(self):			return denseAD(np.log(self.value), _add_dim(1./self.value)*self.coef)
@@ -87,8 +98,13 @@ class denseAD(np.ndarray):
 	def abs(self):			return denseAD(np.abs(self.value), _add_dim(np.sign(self.value))*self.coef)
 
 	# Trigonometry
+	def sin(self):	return self._math_helper(np.sin(self.value),np.cos(self.value))
+	def cos(self):
+	"""
 	def sin(self):			return denseAD(np.sin(self.value), _add_dim(np.cos(self.value))*self.coef)
 	def cos(self):			return denseAD(np.cos(self.value), _add_dim(-np.sin(self.value))*self.coef)
+	def tan(self):	t=np.tan(self.value); return s
+	"""
 
 	@staticmethod
 	def compose(a,t):

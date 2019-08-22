@@ -97,6 +97,7 @@ class spAD(np.ndarray):
 	# Trigonometry
 	def sin(self):			return spAD(np.sin(self.value), self.coef*_add_dim(np.cos(self.value)), self.index)
 	def cos(self):			return spAD(np.cos(self.value), self.coef*_add_dim(-np.sin(self.value)), self.index)
+	
 
 	@staticmethod
 	def compose(a,t):

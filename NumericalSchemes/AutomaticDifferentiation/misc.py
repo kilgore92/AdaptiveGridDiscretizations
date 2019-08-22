@@ -207,3 +207,57 @@ def maximum(a,b):
 def minimum(a,b): 	
 	from . import where
 	return where(a<b,a,b)
+
+# Elementary functions and their derivatives
+
+def pow1(x,n):	return (x**n,n*x**(n-1))
+def pow2(x,n):	return (x**n,n*x**(n-1),(n*(n-1))*x**(n-2))
+
+def log1(x): 	return (np.log(x),1./x)
+def log2(x):	y=1./x; return (np.log(x),y,-y**2)
+
+def exp1(x): 	e=np.exp(x); return (e,e)
+def exp2(x): 	e=np.exp(x); return (e,e,e)
+
+def abs1(x):	return (np.abs(x),np.sign(x))
+def abs2(x):	return (np.abs(x),np.sign(x),np.zeros(x.shape))
+
+def sin1(x):	return (np.sin(x),np.cos(x))
+def sin2(x):	s=np.sin(x); return (s,np.cos(x),-s)
+
+def cos1(x): 	return (np.cos(x),-np.sin(x))
+def cos2(x):	c=np.cos(x); return (c,-np.sin(x),-c)
+
+def tan1(x):	t=np.tan(x); return (t,1.+t**2)
+def tan2(x):	t=np.tan(x); u=1.+t**2; return (t,u,2.*u*t)
+
+def arcsin1(x): return (np.arcsin(x),(1.-x**2)**-0.5)
+def arcsin2(x): y=1.-x**2; return (np.arcsin(x),y**-0.5,x*y**-1.5)
+
+def arccos1(c): return (np.arccos(x),-(1.-x**2)**-0.5)
+def arccos2(c): y=1.-x**2; return (np.arccos(x),-y**-0.5,-x*y**-1.5)
+
+def _arctan1(x): return (np.arctan(x),1./(1+x**2))
+def _arctan2(x): y=1./(1.+x**2); return (np.arctan(x),y,-2.*x*y**2)
+
+# No implementation of arctan2, or hypot, which have two args
+
+def sinh1(x):	return (np.sinh(x),np.cosh(x))
+def sinh2(x):	s=np.sinh(x); return (s,np.cosh(x),s)
+
+def cosh1(x):	return (np.cosh(x),np.sinh(x))
+def cosh2(x):	c=np.cosh(x); return (c,np.sinh(x),c)
+
+def tanh1(x):	t=np.tanh(x); return (t,1.-t**2)
+def tanh2(x):	t=np.tanh(x); u=1.-t**2; return (t,u,-2.*u*t)
+
+def arcsinh1(x): return (np.arcsinh(x),(1.+x**2)**-0.5)
+def arcsinh2(x): y=1.+x**2; return (np.arcsinh(x),y**-0.5,-x*y**-1.5)
+
+def arccosh1(c): return (np.arccos(x),(x**2-1.)**-0.5)
+def arccosh2(c): y=x**2-1.; return (np.arccos(x),y**-0.5,-x*y**-1.5)
+
+def _arctanh1(x): return (np.arctan(x),1./(1-x**2))
+def _arctanh2(x): y=1./(1-x**2); return (np.arctan(x),y,2.*x*y**2)
+
+
