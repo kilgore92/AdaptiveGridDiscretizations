@@ -20,10 +20,14 @@ class spAD2(np.ndarray):
 		obj = np.asarray(value).view(spAD2)
 		shape = obj.shape
 		shape2 = shape+(0,)
+		assert ((coef1 is None) and (index is None)) or (coef1.shape==index.shape)
 		obj.coef1 = (np.full(shape2,0.) if coef1  is None 
 			else misc._test_or_broadcast_ad(coef1,shape,broadcast_ad) )
 		obj.index = (np.full(shape2,0)  if index is None  
 			else misc._test_or_broadcast_ad(index,shape,broadcast_ad) )
+		
+		assert (((coef2 is None) and (index_row is None) and (index_col is None)) 
+			or ((coef2.shape==index_row.shape) and (coef2.shape==index_col.shape)))
 		obj.coef2 = (np.full(shape2,0.) if coef2  is None 
 			else misc._test_or_broadcast_ad(coef2,shape,broadcast_ad) )
 		obj.index_row = (np.full(shape2,0)  if index_row is None 

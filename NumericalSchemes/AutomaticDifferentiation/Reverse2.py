@@ -184,7 +184,7 @@ class reverseAD2(object):
 			elif isinstance(u,tuple): return sum(sumprod(x,y) for (x,y) in zip(u,v))
 			else: return (u.to_first()*v).sum()
 		_a2 = sumprod2(a,co_output2)
-		coef2_init = Sparse.spAD(_a2.value,self._index_rev(_a2.index)).to_dense().coef
+		coef2_init = Sparse.spAD(_a2.value,_a2.coef,self._index_rev(_a2.index)).to_dense().coef
 
 		hess = self.hessian(_a)
 		coef1,coef2 = hess(dir_hessian,coef2_init=coef2_init,with_grad=True)

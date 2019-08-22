@@ -18,6 +18,7 @@ class spAD(np.ndarray):
 		obj = np.asarray(value).view(spAD)
 		shape = obj.shape
 		shape2 = shape+(0,)
+		assert ((coef is None) and (index is None)) or (coef.shape==index.shape)
 		obj.coef  = (np.full(shape2,0.) if coef is None 
 			else misc._test_or_broadcast_ad(coef,shape,broadcast_ad) ) 
 		obj.index = (np.full(shape2,0)  if index is None 
