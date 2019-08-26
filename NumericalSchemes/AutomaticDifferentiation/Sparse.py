@@ -53,7 +53,8 @@ class spAD(np.ndarray):
 
 	def __sub__(self,other):
 		if isinstance(other,spAD):
-			return spAD(self.value-other.value, _concatenate(self.coef,-other.coef), _concatenate(self.index,other.index))
+			value = self.value-other.value
+			return spAD(self.value-other.value, _concatenate(self.coef,-other.coef,value.shape), _concatenate(self.index,other.index,value.shape))
 		else:
 			return spAD(self.value-other, self.coef, self.index, broadcast_ad=True)
 

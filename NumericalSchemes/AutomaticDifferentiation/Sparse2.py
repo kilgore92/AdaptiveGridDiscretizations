@@ -56,17 +56,19 @@ class spAD2(np.ndarray):
 	# Operators
 	def __add__(self,other):
 		if isinstance(other,spAD2):
-			return spAD2(self.value+other.value, 
-				_concatenate(self.coef1,other.coef1), _concatenate(self.index,other.index),
-				_concatenate(self.coef2,other.coef2), _concatenate(self.index_row,other.index_row), _concatenate(self.index_col,other.index_col))
+			value = self.value+other.value; shape = value.shape
+			return spAD2(value, 
+				_concatenate(self.coef1,other.coef1,shape), _concatenate(self.index,other.index,shape),
+				_concatenate(self.coef2,other.coef2,shape), _concatenate(self.index_row,other.index_row,shape), _concatenate(self.index_col,other.index_col,shape))
 		else:
 			return spAD2(self.value+other, self.coef1, self.index, self.coef2, self.index_row, self.index_col, broadcast_ad=True)
 
 	def __sub__(self,other):
 		if isinstance(other,spAD2):
-			return spAD2(self.value-other.value, 
-				_concatenate(self.coef1,-other.coef1), _concatenate(self.index,other.index),
-				_concatenate(self.coef2,-other.coef2), _concatenate(self.index_row,other.index_row), _concatenate(self.index_col,other.index_col))
+			value = self.value-other.value; shape = value.shape
+			return spAD2(value, 
+				_concatenate(self.coef1,-other.coef1,shape), _concatenate(self.index,other.index,shape),
+				_concatenate(self.coef2,-other.coef2,shape), _concatenate(self.index_row,other.index_row,shape), _concatenate(self.index_col,other.index_col,shape))
 		else:
 			return spAD2(self.value-other, self.coef1, self.index, self.coef2, self.index_row, self.index_col, broadcast_ad=True)
 
