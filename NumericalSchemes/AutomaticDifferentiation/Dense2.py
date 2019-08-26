@@ -82,18 +82,28 @@ class denseAD2(np.ndarray):
 	def __neg__(self):		return denseAD2(-self.value,-self.coef1,-self.coef2)
 
 	# Math functions
-	def _math_helper(self,a,b,c): # Inputs : a=f(x), b=f'(x), c=f''(x), where x=self.value
+	def _math_helper(self,deriv): # Inputs : a=f(x), b=f'(x), c=f''(x), where x=self.value
+		a,b,c=deriv
 		mixed = np.expand_dims(self.coef1,axis=-1)*np.expand_dims(self.coef1,axis=-2)
 		return denseAD2(a,_add_dim(b)*self.coef1,_add_dim2(b)*self.coef2+_add_dim2(c)*mixed)
-	def __pow__(self,n): 	return self._math_helper(self.value**n, n*self.value**(n-1), n*(n-1)*self.value**(n-2))
-	def sqrt(self):		 	return self**0.5
-	def log(self):			return self._math_helper(np.log(self.value),1./self.value,-1./self.value**2)
-	def exp(self):			exp_val = np.exp(self.value); return self._math_helper(exp_val,exp_val,exp_val)
-	def abs(self):			return self._math_helper(np.abs(self.value),np.sign(self.value), np.array(0.))
-
-	# Trigonometry
-	def sin(self):			sin_val = np.sin(self.value); return self._math_helper(sin_val,np.cos(self.value),-sin_val)
-	def cos(self):			cos_val = np.cos(self.value); return self._math_helper(cos_val,-np.sin(self.value),-cos_val)
+	
+	def sqrt(self):			return self**0.5
+	def __pow__(self,n):	return self._math_helper(misc.pow2(self.value,n))
+	def log(self):			return self._math_helper(misc.log2(self.value))
+	def exp(self):			return self._math_helper(misc.exp2(self.value))
+	def abs(self):			return self._math_helper(misc.abs2(self.value))
+	def sin(self):			return self._math_helper(misc.sin2(self.value))
+	def cos(self):			return self._math_helper(misc.cos2(self.value))
+	def tan(self):			return self._math_helper(misc.tan2(self.value))
+	def arcsin(self):		return self._math_helper(misc.arcsin2(self.value))
+	def arccos(self):		return self._math_helper(misc.arccos2(self.value))
+	def arctan(self):		return self._math_helper(misc._arctan2(self.value))
+	def sinh(self):			return self._math_helper(misc.sinh2(self.value))
+	def cosh(self):			return self._math_helper(misc.cosh2(self.value))
+	def tanh(self):			return self._math_helper(misc.tanh2(self.value))
+	def arcsinh(self):		return self._math_helper(misc.arcsinh2(self.value))
+	def arccosh(self):		return self._math_helper(misc.arccosh2(self.value))
+	def arctanh(self):		return self._math_helper(misc._arctanh2(self.value))
 
 	def compose(a,t):
 		assert isinstance(a,denseAD2) and all(isinstance(b,denseAD2) for b in t)
@@ -196,14 +206,22 @@ class denseAD2(np.ndarray):
 			if ufunc==np.minimum: return misc.minimum(*inputs,**kwargs)
 
 			# Math functions
-			if ufunc==np.sqrt: return self.sqrt()
-			if ufunc==np.log: return self.log()
-			if ufunc==np.exp: return self.exp()
-			if ufunc==np.abs: return self.abs()
-
-			# Trigonometry
-			if ufunc==np.sin: return self.sin()
-			if ufunc==np.cos: return self.cos()
+			if ufunc==np.sqrt:		return self.sqrt()
+			if ufunc==np.log:		return self.log()
+			if ufunc==np.exp:		return self.exp()
+			if ufunc==np.abs:		return self.abs()
+			if ufunc==np.sin:		return self.sin()
+			if ufunc==np.cos:		return self.cos()
+			if ufunc==np.tan:		return self.tan()
+			if ufunc==np.arcsin:	return self.arcsin()
+			if ufunc==np.arccos:	return self.arccos()
+			if ufunc==np.arctan:	return self.arctan()
+			if ufunc==np.sinh:		return self.sinh()
+			if ufunc==np.cosh:		return self.cosh()
+			if ufunc==np.tanh:		return self.tanh()
+			if ufunc==np.arcsinh:	return self.arcsinh()
+			if ufunc==np.arccosh:	return self.arccosh()
+			if ufunc==np.arctanh:	return self.arctanh()
 
 			# Operators
 			if ufunc==np.add: return self.add(*inputs,**kwargs)

@@ -88,16 +88,27 @@ class spAD(np.ndarray):
 	def __neg__(self):		return spAD(-self.value,-self.coef,self.index)
 
 	# Math functions
-	def __pow__(self,n): 	return spAD(self.value**n, _add_dim(n*self.value**(n-1))*self.coef,self.index)
-	def sqrt(self):		 	return self**0.5
-	def log(self):			return spAD(np.log(self.value), self.coef*_add_dim(1./self.value), self.index)
-	def exp(self):			return spAD(np.exp(self.value), self.coef*_add_dim(np.exp(self.value)), self.index)
-	def abs(self):			return spAD(np.abs(self.value), self.coef*_add_dim(np.sign(self.value)), self.index)
+	def _math_helper(self,deriv):
+		a,b=deriv
+		return spAD(a,_add_dim(b)*self.coef,self.index)
 
-	# Trigonometry
-	def sin(self):			return spAD(np.sin(self.value), self.coef*_add_dim(np.cos(self.value)), self.index)
-	def cos(self):			return spAD(np.cos(self.value), self.coef*_add_dim(-np.sin(self.value)), self.index)
-	
+	def sqrt(self):			return self**0.5
+	def __pow__(self,n):	return self._math_helper(misc.pow1(self.value,n))
+	def log(self):			return self._math_helper(misc.log1(self.value))
+	def exp(self):			return self._math_helper(misc.exp1(self.value))
+	def abs(self):			return self._math_helper(misc.abs1(self.value))
+	def sin(self):			return self._math_helper(misc.sin1(self.value))
+	def cos(self):			return self._math_helper(misc.cos1(self.value))
+	def tan(self):			return self._math_helper(misc.tan1(self.value))
+	def arcsin(self):		return self._math_helper(misc.arcsin1(self.value))
+	def arccos(self):		return self._math_helper(misc.arccos1(self.value))
+	def arctan(self):		return self._math_helper(misc._arctan1(self.value))
+	def sinh(self):			return self._math_helper(misc.sinh1(self.value))
+	def cosh(self):			return self._math_helper(misc.cosh1(self.value))
+	def tanh(self):			return self._math_helper(misc.tanh1(self.value))
+	def arcsinh(self):		return self._math_helper(misc.arcsinh1(self.value))
+	def arccosh(self):		return self._math_helper(misc.arccosh1(self.value))
+	def arctanh(self):		return self._math_helper(misc._arctanh1(self.value))
 
 	@staticmethod
 	def compose(a,t):
@@ -208,14 +219,22 @@ class spAD(np.ndarray):
 			if ufunc==np.minimum: return misc.minimum(*inputs,**kwargs)
 
 			# Math functions
-			if ufunc==np.sqrt: return self.sqrt()
-			if ufunc==np.log: return self.log()
-			if ufunc==np.exp: return self.exp()
-			if ufunc==np.abs: return self.abs()
-
-			# Trigonometry
-			if ufunc==np.sin: return self.sin()
-			if ufunc==np.cos: return self.cos()
+			if ufunc==np.sqrt:		return self.sqrt()
+			if ufunc==np.log:		return self.log()
+			if ufunc==np.exp:		return self.exp()
+			if ufunc==np.abs:		return self.abs()
+			if ufunc==np.sin:		return self.sin()
+			if ufunc==np.cos:		return self.cos()
+			if ufunc==np.tan:		return self.tan()
+			if ufunc==np.arcsin:	return self.arcsin()
+			if ufunc==np.arccos:	return self.arccos()
+			if ufunc==np.arctan:	return self.arctan()
+			if ufunc==np.sinh:		return self.sinh()
+			if ufunc==np.cosh:		return self.cosh()
+			if ufunc==np.tanh:		return self.tanh()
+			if ufunc==np.arcsinh:	return self.arcsinh()
+			if ufunc==np.arccosh:	return self.arccosh()
+			if ufunc==np.arctanh:	return self.arctanh()
 
 			# Operators
 			if ufunc==np.add: return self.add(*inputs,**kwargs)
