@@ -13,7 +13,12 @@ def _add_coef(a,b):
 	elif b.shape[-1]==0: return a
 	else: return a+b
 def _prep_nl(s): return "\n"+s if "\n" in s else s
-def _concatenate(a,b): 	return np.concatenate((a,b),axis=-1)
+
+def _concatenate(a,b,shape=None):
+	if shape is not None:
+		if a.shape[:-1]!=shape: a = np.broadcast_to(a,shape+a.shape[-1:])
+		if b.shape[:-1]!=shape: b = np.broadcast_to(b,shape+b.shape[-1:])
+	return np.concatenate((a,b),axis=-1)
 
 def _set_shape_free_bound(shape,shape_free,shape_bound):
 	if shape_free is not None:

@@ -4,7 +4,7 @@ from IPython.display import display, Markdown, HTML
 
 
 def MakeLink(inFName,volume):
-	dirName = "./Notebooks_"+volume+"/"; extension = ".ipynb"
+	dirName = "../Notebooks_"+volume+"/"; extension = ".ipynb"
 	display(Markdown("Notebook ["+inFName+"]("+dirName+inFName+extension+") "
 		+ ", from volume "+ volume + " [Summary]("+dirName+"Summary"+extension+") " ))
 
