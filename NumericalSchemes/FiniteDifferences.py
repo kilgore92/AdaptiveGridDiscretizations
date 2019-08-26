@@ -1,7 +1,23 @@
 import numpy as np
 import itertools
+from . import AutomaticDifferentiation as ad
+
+def as_field(u,shape):
+	"""
+	Checks if the last dimensions of u match the given shape. 
+	If not, u is extended with these additional dimensions.
+	"""
+	ndim = len(shape)
+	if u.ndim>=ndim and u.shape[-ndim:]==shape: return u
+	else: return ad.broadcast_to(u.reshape(u.shape+(1,)*ndim), u.shape+shape)
+
+# ----- Utilities for finite differences ------
 
 def BoundedSlices(slices,shape):
+	"""
+	Returns the input slices with None replace with the upper bound
+	from the given shape
+	"""
 	if slices[-1]==Ellipsis:
 		slices=slices[:-1]+(slice(None,None,None),)*(len(shape)-len(slices)+1)
 	def BoundedSlice(s,n):
@@ -63,6 +79,9 @@ def AlignedSum(u,offset,multiples,weights,**kwargs):
 	"""Returns sum along the direction offset, with specified multiples and weights"""
 	return sum(TakeAtOffset(u,mult*np.array(offset),**kwargs)*weight for mult,weight in zip(multiples,weights))
 
+
+# --------- Finite differences -------
+
 def Diff2(u,offset,gridScale=1.,**kwargs):
 	"""Second order finite difference in the specidied direction"""
 	return AlignedSum(u,offset,(1,0,-1),np.array((1,-2,1))/gridScale**2,**kwargs)
@@ -75,7 +94,7 @@ def DiffUpwind(u,offset,gridScale=1.,**kwargs):
 	"""Upwind first order finite difference in the specified direction"""
 	return AlignedSum(u,offset,(1,0),np.array((1,-1))/gridScale,**kwargs)
 
-# -----------
+# ----------- Interpolation ---------
 
 def UniformGridInterpolator1D(bounds,values,mode='clip',axis=-1):
 	"""Interpolation on a uniform grid. mode is in ('clip','wrap', ('fill',fill_value) )"""

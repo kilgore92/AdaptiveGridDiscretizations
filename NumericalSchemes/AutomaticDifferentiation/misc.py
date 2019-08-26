@@ -3,7 +3,7 @@ import numpy as np
 # ------- Ugly utilities -------
 def _tuple_first(a): 	return a[0] if isinstance(a,tuple) else a
 def _getitem(a,where):
-	return a if where is True else a[where]
+	return a if (where is True and not isinstance(a,np.ndarray)) else a[where]
 def _add_dim(a):		return np.expand_dims(a,axis=-1)	
 def _add_dim2(a):		return _add_dim(_add_dim(a))
 def _pad_last(a,pad_total): # Always makes a deep copy

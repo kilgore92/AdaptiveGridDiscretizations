@@ -5,6 +5,7 @@ from . import Reverse
 from . import Dense2
 from . import Sparse2
 from . import Reverse2
+from . import Optimization
 import numpy as np
 import itertools
 
@@ -19,6 +20,7 @@ def reload_submodules():
 	ad.Sparse2 = importlib.reload(ad.Sparse2)
 	ad.Dense2 = importlib.reload(ad.Dense2)
 	ad.Reverse2 = importlib.reload(ad.Reverse2)
+	ad.Optimization = importlib.reload(ad.Optimization)
 
 
 def is_adtype(t):
