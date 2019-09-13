@@ -1,8 +1,9 @@
+import os
 from HFMUtils.Geometry import *
 from HFMUtils.Plotting import *
-import os
-
 from HFMUtils.LibraryCall import RunDispatch
+
+
 def Run(params):
 	out = RunDispatch(params,GetBinaryDir("FileHFM"))
 	if 'log' in out: 
@@ -36,3 +37,14 @@ in the first line of a file named '"""+fileName+"""' in the current directory\n
 		print("ERROR : the path to the "+libName+" binaries is not set\n")
 		print(set_directory_msg)
 		raise
+
+
+"""
+# Not suitable in current form, due to import * 
+def reload_submodules():
+	import importlib
+	import sys
+	hfm = sys.modules['HFMUtils']
+	hfm.Geometry = importlib.reload(hfm.Geometry)
+	from hfm.Geometry import *
+"""

@@ -45,7 +45,8 @@ def GetGrid(params,dims=None):
 	else: 
 		raise ValueError('Unsupported arrayOrdering : '+ordering)
 
-def Rect(corner0,corner1,sampleBoundary=False,gridScale=None,gridScales=None,dimx=None,dims=None):
+def Rect(sides,sampleBoundary=False,gridScale=None,gridScales=None,dimx=None,dims=None):
+	corner0,corner1 = np.array(sides,dtype=float).T
 	dim = len(corner0)
 	sb=float(sampleBoundary)
 	result=dict()
