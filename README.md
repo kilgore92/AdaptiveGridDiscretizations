@@ -1,18 +1,19 @@
-# Adaptive grid discretizations
+# Adaptive Grid Discretizations using Lattice Basis Reduction (AGD-LBR)
 ## A set of tools for discretizing anisotropic PDEs on cartesian grids
 
 This repository contains series of *jupyter notebooks* in the Python&reg; language, reproducing my research in Anisotropic PDE discretizations and their applications. They encompass:
 * Anisotropic fast marching methods, for shortest path computation.
 * Non-divergence form PDEs, including non-linear PDEs such as Monge-Ampere.
 * Divergence form anisotropic PDEs, often encountered in image processing.
+* Algorithmic tools, related with lattice basis reduction methods, and automatic differentiation.
 
 The notebooks can be visualized online, [view summary online](http://nbviewer.jupyter.org/urls/rawgithub.com/Mirebeau/AdaptiveGridDiscretizations/master/Summary.ipynb
 ), or executed and/or modified offline.
 For offline consultation, please download and install [anaconda](https://www.anaconda.com) or [miniconda](https://conda.io/en/latest/miniconda.html).  
 *Optionally*, you may create a dedicated conda environnement by typing the following in a terminal:
 ```console
-conda env create --file Notebooks_FMM/hfm-jupyter-mayavi.yaml
-source activate hfm-jupyter-mayavi
+conda env create --file agd-lbr.yaml
+conda activate agd-lbr
 ```
 In order to open the book summary, type in a terminal:
 ```console

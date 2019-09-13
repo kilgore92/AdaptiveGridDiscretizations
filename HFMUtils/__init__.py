@@ -4,7 +4,10 @@ import os
 
 from HFMUtils.LibraryCall import RunDispatch
 def Run(params):
-	return RunDispatch(params,GetBinaryDir("FileHFM"))
+	out = RunDispatch(params,GetBinaryDir("FileHFM"))
+	if 'log' in out: 
+		print(out['log'])
+	return out
 
 def GetBinaryDir(libName):
 	dirName = libName + "_binary_dir"
@@ -22,6 +25,8 @@ in the first line of a file named '"""+fileName+"""' in the current directory\n
 	try:
 		with open(fileName,'r') as f:
 			binary_dir = f.readline().replace('\n','')
+			if binary_dir=="None":
+				return None
 			if not os.path.isdir(binary_dir):
 				print("ERROR : the path to the "+libName+" binaries appears to be incorrect.\n")
 				print("Current path : ", binary_dir, "\n")

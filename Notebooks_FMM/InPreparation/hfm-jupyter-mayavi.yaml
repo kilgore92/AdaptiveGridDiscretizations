@@ -1,12 +1,10 @@
 name: hfm-jupyter-mayavi
 channels:
   - conda-forge
-  - menpo
-  - mirebeau
+  - agd-lbr
 dependencies:
-  - python=3.5
-  - pyqt=4
-  - mayavi
-#  - hfm
+#  - mayavi
+  - hfm
   - matplotlib
   - notebook
+  - scipy

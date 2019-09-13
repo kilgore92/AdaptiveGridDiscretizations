@@ -1,0 +1,10 @@
+name: agd-lbr
+channels:
+  - conda-forge
+  - agd-lbr
+dependencies:
+#  - mayavi # Incompatibility found with scipy
+  - hfm
+  - matplotlib
+  - notebook
+  - scipy

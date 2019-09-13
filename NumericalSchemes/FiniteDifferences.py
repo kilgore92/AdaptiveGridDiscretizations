@@ -2,13 +2,14 @@ import numpy as np
 import itertools
 from . import AutomaticDifferentiation as ad
 
-def as_field(u,shape):
+def as_field(u,shape,conditional=True):
 	"""
 	Checks if the last dimensions of u match the given shape. 
 	If not, u is extended with these additional dimensions.
+	conditional : if False, reshaping is always done
 	"""
 	ndim = len(shape)
-	if u.ndim>=ndim and u.shape[-ndim:]==shape: return u
+	if conditional and u.ndim>=ndim and u.shape[-ndim:]==shape: return u
 	else: return ad.broadcast_to(u.reshape(u.shape+(1,)*ndim), u.shape+shape)
 
 # ----- Utilities for finite differences ------
@@ -127,34 +128,43 @@ def UniformGridInterpolator1D(bounds,values,mode='clip',axis=-1):
 		return result
 	return interp
 
-def UniformGridInterpolator(bounds,values,mode='clip',axes=None):
+def UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=False):
 	"""
 	bounds : np.ndarray containing the bounds for each variable. [[x[0],x[-1]],[y[0],y[-1]],[z[0],z[-1]],...]
 	values : data to be interpolated. Can be vector data.
 	Assumes 'ij' indexing by default. Use axes=(1,0) for 'xy' 
+	mode : 'clip', 'wrap', ou ('fill',value)
+	axes : the axes along which the interpolation is done. By default these are the *last axes* of the array.
+	cell_centered : if true, the values given correspond to the cell centers
 	"""
+
+	bounds=np.array(bounds)
 	ndim_interp = len(bounds)
 	if axes is None:
 		axes = tuple(range(-ndim_interp,0))
 	val = np.moveaxis(values,axes,range(ndim_interp))
+	dom_shape = np.array(val.shape[:ndim_interp])
 
 	fill_value = None
 	if isinstance(mode,tuple):
 		mode,fill_value = mode
 
+	if cell_centered:
+		h = (bounds[:,-1]-bounds[:,0])/dom_shape
+		bounds[:,0]  += h
+		bounds[:,-1] += (h if mode=='wrap' else -h)
+
 	def interp(position):
 		endpoint=not (mode=='wrap')
-		ndim_val = val.ndim - ndim_interp
-		shape_to_point = (ndim_interp,)+(1,)*ndim_val
-		shape = np.array(val.shape[:ndim_interp]).reshape(shape_to_point)
-		bounds0,bounds1 = (np.array(bounds)[:,i].reshape(shape_to_point) for i in (0,-1))
-		index_continuous = (shape-int(endpoint)) * (position-bounds0) / (bounds1-bounds0)
+		pos_shape = position.shape[1:]
+		bd = as_field(bounds,pos_shape)
+		index_continuous = as_field(dom_shape-int(endpoint),pos_shape)*(position-bd[:,0])/(bd[:,-1]-bd[:,0])
 		index0 = np.floor(index_continuous).astype(int)
 		index1 = np.ceil(index_continuous).astype(int)
 		index_rem = index_continuous-index0
 
-		fill_indices = False
-		for i,s in enumerate(shape.flatten()):
+		fill_indices = None
+		for i,s in enumerate(dom_shape.flatten()):
 			if mode=='wrap':
 				index0[i]=index0[i]%s
 				index1[i]=index1[i]%s
@@ -164,19 +174,13 @@ def UniformGridInterpolator(bounds,values,mode='clip',axes=None):
 				index0[i] = np.clip(index0[i],0,s-1) 
 				index1[i] = np.clip(index1[i],0,s-1)
 
-		def prod(a): 
-			result=a[0]; 
-			for ai in a[1:]: result*=ai; 
-			return result
-
-		index_rem = index_rem.reshape(index_rem.shape+(1,)*ndim_val)		 
 		result = sum( #Worryingly, priority rules of __rmul__ where not respected here ?
-			prod(tuple( (1.-r) if m else r for m,r in zip(mask,index_rem)) ) *
-			val[ tuple(np.where(mask,index0,index1)) ]
+			np.prod(tuple( (1.-r) if m else r for m,r in zip(mask,index_rem)) ) *
+			val[ tuple(np.where(as_field(np.array(mask),pos_shape),index0,index1)) ]
 			for mask in itertools.product((True,False),repeat=ndim_interp))
 
-
 		if mode=='fill': result[fill_indices] = fill_value
+
 		result = np.moveaxis(result,range(position.ndim-1),range(-position.ndim+1,0))
 		return result
 	return interp
