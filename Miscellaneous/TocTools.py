@@ -9,7 +9,7 @@ def MakeLink(inFName,volume):
 		+ ", from volume "+ volume + " [Summary]("+dirName+"Summary"+extension+") " ))
 
 def Info(volume):
-	if volume in ['NonDiv','Div','Algo']:
+	if volume in ['NonDiv','Div','Algo','Repro']:
 		return """
 **Acknowledgement.** The experiments presented in these notebooks are part of ongoing research, 
 some of it with PhD student Guillaume Bonnet, in co-direction with Frederic Bonnans.
@@ -39,6 +39,7 @@ VolumeFilenames = {
 ],
 'Div':["Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
 'Algo':["TensorSelling","TensorVoronoi","Dense","Sparse","Reverse","ADBugs"],
+'Repro':[],
 }
 
 RepositoryDescription = """

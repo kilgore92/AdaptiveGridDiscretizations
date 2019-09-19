@@ -6,7 +6,16 @@ from . import Dense
 from . import Sparse
 
 def norm_infinity(arr):
+	"""
+	L-Infinity norm (largest absolute value)
+	"""
 	return np.max(np.abs(np.array(arr)))
+
+def norm_average(arr):
+	"""
+	Averaged L1 norm (sum of absolute values divided by array size)
+	"""
+	return np.sum(np.abs(arr))/arr.size
 
 class stop_default(object):
 	"""

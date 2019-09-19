@@ -38,6 +38,7 @@ def _set_shape_free_bound(shape,shape_free,shape_bound):
 	return shape_free,shape_bound
 
 def _set_shape_constant(shape=None,constant=None):
+	if isinstance(shape,np.ndarray): shape=tuple(shape)
 	if constant is None:
 		if shape is None:
 			raise ValueError("Error : unspecified shape or constant")

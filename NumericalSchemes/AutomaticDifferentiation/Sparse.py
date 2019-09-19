@@ -279,6 +279,44 @@ class spAD(np.ndarray):
 		rhs = -np.array(self).flatten()
 		return (mat,rhs) if raw else misc.spsolve(mat,rhs).reshape(self.shape)
 
+	"""
+	def diagonal(self,identity_var=None):
+		coef = np.moveaxis(self.coef,-1,0)
+		index = np.moveaxis(self.index,-1,0)
+		diag = np.zeros(self.shape)
+		rg = (np.arange(self.size).reshape(self.shape)
+			if identity_var is None else 
+			np.squeeze(identity_var.index,axis=-1))
+		for c,i in zip(coef,index):
+			pos = i==rg
+			diag[pos]+=c[pos]
+		return diag
+	"""
+
+	def is_elliptic(self,tol=None,identity_var=None):
+		"""
+		Tests wether the variable encodes a (linear) degenerate elliptic scheme.
+		Output :
+		- sum of the coefficients at each position (must be non-negative for 
+		degenerate ellipticity, positive for strict ellipticity)
+		- maximum of off-diagonal coefficients at each position (must be non-positive)
+		Output (if tol is specified) : 
+		- min_sum >=-tol and max_off <= tol
+		Side effect warning : AD simplification, which is also possibly costly
+		"""
+		self.simplify_ad()
+		min_sum = self.coef.sum(axis=-1)
+
+		rg = (np.arange(self.size).reshape(self.shape+(1,))
+			if identity_var is None else identity_var.index)
+		coef = self.coef.copy()
+		coef[self.index==rg] = -np.inf
+		coef[coef==0.] = -np.inf
+		max_off = coef.max(axis=-1)
+
+		if tol is None: return min_sum,max_off
+		return min_sum.min()>=-tol and max_off.max()<=tol
+
 	# Static methods
 
 	# Support for +=, -=, *=, /=
