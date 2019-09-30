@@ -71,7 +71,7 @@ class stop_default(object):
 
 
 	def __call__(self,residue,niter):
-		residue_norm = norm_infinity(residue)
+		residue_norm = norm_infinity(np.array(residue))
 		self.residue_norms.append(residue_norm)
 
 		def print_state():
