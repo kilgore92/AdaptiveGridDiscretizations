@@ -5,17 +5,43 @@ import copy
 from . import Dense
 from . import Sparse
 
-def norm_infinity(arr):
+def norm(arr,ord=2,axis=None,keepdims=False,averaged=False):
+	"""
+	Returns L^p norm of array, seen as a vector, w.r.t. weights.
+	Defined as : (sum_i x[i]^p)^(1/p)
+
+	Remark : not a matrix operator norm
+	
+	Inputs:
+	 - ord : exponent p
+	 - axis : int or None, axis along which to compute the norm. 
+	 - keepdims : wether to keep singleton dimensions.
+	 - averaged : wether to introduce a normalization factor, so that norm(ones(...))=1
+
+	Compatible with automatic differentiation.
+	"""
+	if ord==np.inf:
+		return np.max(np.abs(arr),axis=axis,keepdims=keepdims)
+
+	sum_pow = np.sum(np.abs(arr)**ord,axis=axis,keepdims=keepdims)
+	
+	if averaged:
+		size = arr.size if axis is None else arr.shape[axis]
+		sum_pow/=size
+
+	return sum_pow**(1./ord)
+
+def norm_infinity(arr,*args,**kwargs):
 	"""
 	L-Infinity norm (largest absolute value)
 	"""
-	return np.max(np.abs(np.array(arr)))
+	return norm(arr,np.inf,*args,**kwargs)
 
-def norm_average(arr):
+def norm_average(arr,*args,**kwargs):
 	"""
 	Averaged L1 norm (sum of absolute values divided by array size)
 	"""
-	return np.sum(np.abs(arr))/arr.size
+	return norm(arr,1,*args,**kwargs,averaged=True)
 
 class stop_default(object):
 	"""
