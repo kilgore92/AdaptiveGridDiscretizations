@@ -74,13 +74,13 @@ class Ball(Domain):
 
 	def distance(self,x):
 		_x = self._centered(x)
-		return ad.Optimization.norm(_x,ord=2,axis=0)-radius
+		return ad.Optimization.norm(_x,ord=2,axis=0)-self.radius
 
 	def freeway(self,x,v):
 		_x = self._centered(x)
 
 		# Solve |x+hv|^2=r, which is a quadratic equation a h^2 + 2 b h + c =0
-		a = lp.dot(v,v)
+		a = lp.dot_VV(v,v)
 		b = lp.dot_VV(_x,v)
 		c = lp.dot_VV(_x,_x)-self.radius
 
@@ -93,7 +93,7 @@ class Ball(Domain):
 		result = (-b-sdelta)/a
 		result[far] = np.inf
 		neg = result<0
-		result[neg] = (-b+sdelta)/a
+		result[neg] = (-b[neg]+sdelta[neg])/a[neg]
 		neg = result<0
 		result[neg] = np.inf
 
@@ -138,19 +138,40 @@ class Box(Domain):
 		result = ad.Optimization.norm(np.maximum(_x,0.),ord=2,axis=0)
 		pos = result==0.
 		result[pos]=np.max(_x[:,pos],axis=0)
+		return result
 
 	def freeway(self,x,v):
 		_x,signs = self._centered(x,signs=True)
 		_v = v*signs
 
-		null = _v==0
-		_v[null]=np.nan
+		freeways = np.full(x.shape,np.inf)
+		mask = np.logical_or(np.logical_and(_v>0,_x<0),np.logical_and(_v<0,_x>=0))
+		freeways[mask] = -_x[mask]/_v[mask]
+		mask = np.logical_and(_v<0,_x<0)
+		_hlen = fd.as_field(self._hlen,x.shape[1:],conditional=False)
+		freeways[mask] = -(2.*_hlen[mask] + _x[mask])/_v[mask]
 
-		result = _x/_v
-		result[null] = np.inf
-		result[result<0] = np.inf
+		insides = _x<0
+		outsides = np.logical_not(insides)
+		inside = np.all(insides,axis=0)
+#		outside = np.logical_not(inside)
 
-		return np.min(result,axis=0)
+#		result = np.full(x.shape[1:],np.inf)
+#		result[inside] = np.min(freeways[:,inside],axis=0)
+
+		fwi = freeways
+		fwo = freeways.copy()
+		fwi[outsides] = np.inf
+		fwo[insides] = 0
+		fwi = np.min(fwi,axis=0)
+		fwo = np.max(fwo,axis=0)
+
+		result = np.where(fwi>=fwo,fwo,np.inf)
+		result[inside]=fwi[inside]
+
+#		result[outside] = np.max(freeways[:,outside],axis=0)
+
+		return result
 
 	@property
 	def level_is_distance_outside(self): return False
@@ -167,7 +188,7 @@ class AbsoluteComplement(Domain):
 		self.dom = dom
 
 	def contains(self,x,h=0.):
-		return npt self.dom.contains(x,h)
+		return np.logical_not(self.dom.contains(x,h))
 	def level(self,x):
 		return -self.dom.level(x)
 	def distance(self,x):
@@ -207,19 +228,30 @@ class Intersection(Domain):
 		return reduce(np.maximum,levels)
 
 	def distance(self,x):
-
-		distances = [dom.distances(x) for dom in self.doms]
+		distances = [dom.distance(x) for dom in self.doms]
 		dist = reduce(np.maximum,distances)
 
 		# Remove results expected to be invalid
-		if not smooth: dist[dist>0] = np.inf
+		#if not self.smooth: 
+		dist[dist>0] = np.inf
 
 		return dist
 
 	def freeway(self,x,v):
-		assert False # Invalid outside, to work
-		freeways = [dom.freeway(x,v) for dom in self.doms]
-		return reduce(np.minimum,freeways)
+		freeways = np.array([dom.freeway(x,v) for dom in self.doms])
+		insides = np.array([dom.contains(x) for dom in self.doms])
+		inside = np.all(insides,axis=0)
+		outside = np.logical_not(inside)
+		result = np.full(np.nan,x.shape[1:])
+
+		result[inside] = np.min(freeways[:,inside],axis=0)
+		freeways[insides] = 0.
+		result[outside] = np.max(freeways[:,outside],axis=0)
+
+		# A bit more to do if the domains are non-convex
+		assert(all(dom.is_convex or dom.is_coconvex for dom in self.doms))
+
+		return result
 
 	@property
 	def level_is_distance_inside(self):	
@@ -227,7 +259,8 @@ class Intersection(Domain):
 
 	@property
 	def level_is_distance_outside(self): 
-		return smooth and all((dom.level_is_distance_outside for dom in self.doms))
+		return False
+		#return smooth and all((dom.level_is_distance_outside for dom in self.doms))
 
 	@property
 	def is_convex(self):
@@ -265,41 +298,72 @@ class Dirichlet(object):
 		self.grid = grid
 
 	def _grid(u,grid=None):
-		if grid=None: grid=self.grid
+		if grid is None: grid=self.grid
 		dim = len(grid)
 		assert dim==0 or u.shape[-dim:]==grid.shape[1:]
 		return grid
 
-	def DiffUpwind(self,u,offsets,h,grid=None):
+	def _BoundaryLayer(u,du):
+		"""
+		Returns positions at which u is defined but du is not.
+		"""
+		return np.logical_and(np.isnan(du),np.logical_not(np.isnan(u)))
+
+	def _DiffUpwindDirichlet(self,u,offsets,grid,reth):
+		"""
+		Returns first order finite differences w.r.t. boundary value.
+		"""
+		h = self.dom.freeway(_grid,_mask)
+		x = grid+h*offsets
+		bc = self.bc(x)
+		result = (bc-u)/h
+		return (result,h) if reth else result
+
+
+	def DiffUpwind(self,u,offsets,h,grid=None,reth=False):
+		"""
+		Returns first order finite differences, uses boundary values when needed.
+		"""
 		grid=self._grid(u,grid)
 		du = fd.DiffUpwind(u,offsets,h)
-		mask = np.isnan(du)
+		mask = self._BoundaryLayer(u,du)
 
-		_grid = grid[:,mask]
-		_offsets = offsets[:,mask]
-		_h = self.dom.freeway(_grid,_mask)
-		_x = _grid+_h*_offsets
-		_bc = self.bc(_x)
-
-		_du = (_bc-u)/h
-
-		du[mask]=_du
-		return du
+		um,om,gm = u[mask], offsets[:,mask], grid[:,mask]
+		if not reth: 
+			du[mask] = self._DiffUpwindDirichlet(um,om,gm)
+			return du
+		else: 
+			hr = np.full(offsets.shape[1:],h)
+			du[mask],hr[mask] = self._DiffUpwindDirichlet(um,om,gm)
+			return du,hr
 
 	def DiffCentered(self,u,offsets,h,grid=None):
 		"""
-		Upwind differences are used at the boundary, in the direction of the boundary.
+		Falls back to upwind finite differences at the boundary.
 		"""
-		assert False
 		grid=self._grid(u,grid)
 		du = fd.DiffCentered(u,offsets,h)
-		mask = np.isnan(du)
+		mask = self._BoundaryLayer(u,du)
+		du[mask] = self.DiffUpwind(u[mask],offsets[:,mask],h,grid[:,mask])
+		return du
+
+
 
 	def Diff2(self,u,offsets,h,grid=None):
 		"""
-		Only first order at the boundary.
+		Only first order accurate at the boundary.
 		"""
-		assert False
+		grid=self._grid(u,grid)
+		d2u = fd.DiffCentered(u,offsets,h)
+		mask = self._BoundaryLayer(u,du)
+
+		um,om,gm = u[mask], offsets[:,mask], grid[:,mask]
+		du0,h0 = self.DiffUpwind(um, om,h,gm, reth=True)
+		du1,h1 = self.DiffUpwind(um,-om,h,gm, reth=True)
+
+		d2u[mask] = (du0+du1)*(2./(h0+h1))
+		return d2u
+
 
 
 		
