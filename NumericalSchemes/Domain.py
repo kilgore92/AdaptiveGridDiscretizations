@@ -54,7 +54,7 @@ class Ball(Domain):
 	"""
 
 	def __init__(self,center,radius=1.):
-		if not isinstance(center,np.ndarray): center=np.array(center)
+		center = ad.toarray(center)
 		self.center=center
 		self.radius=radius
 
@@ -257,9 +257,62 @@ def Complement(dom1,dom2):
 
 def Union(doms):
 	"""
-	Union of various domains.
+	Union of several domains.
 	"""
 	return AbsoluteComplement(Intersection([AbsoluteComplement(dom) for dom in doms]))
+
+class Band(Domain):
+	"""
+	Defines a banded domain in space, in between two parallel hyperplanes.
+	bounds[0] < <x,direction> < bounds[1]
+	"""
+
+	def __init__(self,direction,bounds):
+		self.direction = ad.toarray(direction)
+		self.bounds = ad.toarray(bounds)
+
+	def _dotdir(self,x):
+		direction = fd.as_field(self.direction,x.shape[1:],conditional=False)
+		return lp.dot_VV(x,direction)
+
+	def level(self,x):
+		xd = self._dotdir(x)
+		return np.maximum(self.bounds[0]-xd,xd-self.bounds[1])
+
+	def intervals(self,x,v):
+		xd = self._dotdir(x)
+		vd = self._dotdir(v)
+		vd = fd.as_field(vd,xd.shape)
+		a = np.full(xd.shape,-np.inf)
+		b = np.full(xd.shape, np.inf)
+
+		# Non degenerate case
+		mask = vd!=0
+		xdm,vdm = xd[mask],vd[mask]
+		a[mask] = (self.bounds[0]-xdm)/vdm
+		b[mask] = (self.bounds[1]-xdm)/vdm
+		# Handle the case where vd=0
+		inside = np.logical_and(self.bounds[0]<xd,xd<self.bounds[1])
+		a[np.logical_and(vd==0,np.logical_not(inside))]=np.inf
+
+		a,b = np.minimum(a,b),np.maximum(a,b)
+		a,b = (np.expand_dims(e,axis=0) for e in (a,b))
+		return a,b
+
+def ConvexPolygon(pts):
+	"""
+	Defines a convex polygonal domain from its vertices, given in trigonometric order.
+	"""
+	def params(p,q):
+		pq = q-p
+		npq = ad.Optimization.norm(pq,ord=2)
+		direction = np.array([pq[1],-pq[0]])/npq
+		lower_bound = np.dot(direction,p)
+		return direction,[lower_bound,np.inf]
+	pts = ad.toarray(pts)
+	assert len(pts)==2
+	return Intersection([Band(*params(p,q)) for p,q in zip(pts.T,np.roll(pts,1,axis=1).T)])
+
 
 class Dirichlet(object):
 	"""
