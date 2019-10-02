@@ -4,59 +4,49 @@ from NumericalSchemes import LinearParallel as lp
 
 import numpy as np
 from functools import reduce
+from itertools import cycle
 
 class Domain(object):
 	"""
 	This class represents a domain from which one can query 
-	a level set function and some related methods.
+	a level set function, the boundary distance in a given direction,
+	 and some related methods.
 
 	The base class represents the full space R^d.
 	"""
 
-	def contains(self,x,h=0.):
-		"""
-		Equivalent to distance(x) + h < 0
-		"""
-		if (h==0. or 
-			(h>0 and self.level_is_distance_inside) or 
-			(h<0 and self.level_is_distance_outside) ):
-			return self.level(x)+h<0
-		else:
-			return self.distance(x)+h<0
-
 	def level(self,x):
 		"""
-		Level set function, negative inside, positive outside.
+		A level set function, negative inside, positive outside.
+		Different, but equivalent up to a multiplicative constant, 
+		to the signed distance from the boundary.
 		"""
-		return self.distance(x)
+		return -np.inf
 
-	def distance(self,x):
+	def contains(self,x):
 		"""
-		Signed distance function, negative inside, positive outside.
+		Wether x lies inside the domain.
 		"""
-		return np.inf
+		return self.level(x)<0
+
+	def intervals(self,x,v):
+		"""
+		A union of disjoint intervals, sorted in increasing order, such 
+		] a[0],b[0] [ U ] a[1],b[1] [ U ... U ] a[n-1],b[n-1] [
+		such that x+h*v lies in the domain iff t lies on one of these intervals.
+		"""
+		shape = (1,)+x.shape[1:]
+		return np.full(shape,-np.inf),np.full(shape,np.inf)
+
 
 	def freeway(self,x,v):
 		"""
-		Output : Least h>0 such that x+h*v intersects the boundary.
+		Output : Least h>=0 such that x+h*v intersects the boundary.
 		"""
-		return np.inf
-
-	@property
-	def level_is_distance_inside(self):	return True
-
-	@property
-	def level_is_distance_outside(self): return True
-
-	@property
-	def level_is_distance(self):
-		return self.level_is_distance_inside and self.level_is_distance_outside
-
-	@property
-	def is_convex(self):	return True
-
-	@property
-	def is_coconvex(self):	return True		 
+		a,b = self.intervals(x,v)
+		a[a<0]=np.inf
+		b[b<0]=np.inf
+		return np.minimum(a.min(axis=0),b.min(axis=0))
 
 class Ball(Domain):
 	"""
@@ -72,36 +62,33 @@ class Ball(Domain):
 		_center = fd.as_field(self.center,x.shape[1:],conditional=False)
 		return x-_center
 
-	def distance(self,x):
+	def level(self,x):
 		_x = self._centered(x)
 		return ad.Optimization.norm(_x,ord=2,axis=0)-self.radius
 
-	def freeway(self,x,v):
-		_x = self._centered(x)
+	def intervals(self,x,v):
+		if v.shape!=x.shape: v=fd.as_field(v,x.shape[1:],conditional=False)
+		xc = self._centered(x)
+
+		begin = np.full(x.shape[1:],np.inf)
+		end = begin.copy()
 
 		# Solve |x+hv|^2=r, which is a quadratic equation a h^2 + 2 b h + c =0
 		a = lp.dot_VV(v,v)
-		b = lp.dot_VV(_x,v)
-		c = lp.dot_VV(_x,_x)-self.radius
+		b = lp.dot_VV(xc,v)
+		c = lp.dot_VV(xc,xc)-self.radius
 
 		delta = b*b-a*c
 
-		far = delta<0
-		delta[far]=0.
+		pos = np.logical_and(a>0,delta>0)
+		a,b,delta = (e[pos] for e in (a,b,delta))
+
 		sdelta = np.sqrt(delta)
+		begin[pos] = (-b-sdelta)/a
+		end[pos] = (-b+sdelta)/a
 
-		result = (-b-sdelta)/a
-		result[far] = np.inf
-		neg = result<0
-		result[neg] = (-b[neg]+sdelta[neg])/a[neg]
-		neg = result<0
-		result[neg] = np.inf
-
-		return result
-
-	@property
-	def is_coconvex(self):	return True		 
-
+		begin,end = (np.expand_dims(e,axis=0) for e in (begin,end))
+		return begin,end
 
 class Box(Domain):
 	"""
@@ -122,63 +109,44 @@ class Box(Domain):
 	def edgelengths(self): return 2.*self._hlen
 
 	def _centered(self,x,signs=False):
-		_center = fd.as_field(self._center,x.shape[1:],conditional=False)
-		_hlen = fd.as_field(self._hlen,x.shape[1:],conditional=False)
-		_xc = x-_center
-		result = np.abs(_xc)-_hlen
-		return (result,np.sign(_xc)) if signs else result
+		center = fd.as_field(self.center,x.shape[1:],conditional=False)
+		xc = x-center
+		return (np.abs(xc),np.sign(xc)) if signs else np.abs(xc)
 
 
 	def level(self,x):
-		_x = self._centered(x)
-		return np.max(_x,axis=0)
+		hlen = fd.as_field(self._hlen,x.shape[1:],conditional=False)
+		return (self._centered(x) - hlen).max(axis=0)
 
-	def distance(self,x):
-		_x = self._centered(x)
-		result = ad.Optimization.norm(np.maximum(_x,0.),ord=2,axis=0)
-		pos = result==0.
-		result[pos]=np.max(_x[:,pos],axis=0)
-		return result
+	def intervals(self,x,v):
+		shape = x.shape[1:]
+		if v.shape!=x.shape: v=fd.as_field(v,shape,conditional=False)
+		hlen = fd.as_field(self._hlen,shape,conditional=False)
+		xc,signs = self._centered(x,signs=True)
+		vc = v*signs
 
-	def freeway(self,x,v):
-		_x,signs = self._centered(x,signs=True)
-		_v = v*signs
+		a=np.full(x.shape,-np.inf)
+		b=np.full(x.shape, np.inf)
 
-		freeways = np.full(x.shape,np.inf)
-		mask = np.logical_or(np.logical_and(_v>0,_x<0),np.logical_and(_v<0,_x>=0))
-		freeways[mask] = -_x[mask]/_v[mask]
-		mask = np.logical_and(_v<0,_x<0)
-		_hlen = fd.as_field(self._hlen,x.shape[1:],conditional=False)
-		freeways[mask] = -(2.*_hlen[mask] + _x[mask])/_v[mask]
+		# Compute the interval corresponding to each axis
+		pos = vc!=0
+		hlen,xc,vc = (e[pos] for e in (hlen,xc,vc))
 
-		insides = _x<0
-		outsides = np.logical_not(insides)
-		inside = np.all(insides,axis=0)
-#		outside = np.logical_not(inside)
+		a[pos] = (-hlen-xc)/vc
+		b[pos] = ( hlen-xc)/vc
 
-#		result = np.full(x.shape[1:],np.inf)
-#		result[inside] = np.min(freeways[:,inside],axis=0)
+		# Intersect intervals corresponding to different axes
 
-		fwi = freeways
-		fwo = freeways.copy()
-		fwi[outsides] = np.inf
-		fwo[insides] = 0
-		fwi = np.min(fwi,axis=0)
-		fwo = np.max(fwo,axis=0)
+		a,b = np.minimum(a,b),np.maximum(a,b)
+		a,b = a.max(axis=0),b.min(axis=0)
+		a,b = (ad.toarray(e) for e in (a,b)) 
 
-		result = np.where(fwi>=fwo,fwo,np.inf)
-		result[inside]=fwi[inside]
-
-#		result[outside] = np.max(freeways[:,outside],axis=0)
-
-		return result
-
-	@property
-	def level_is_distance_outside(self): return False
-
-	@property
-	def is_coconvex(self):	return True	
-
+		# Normalize empty intervals
+		pos = a>b
+		a[pos]=np.inf
+		b[pos]=np.inf
+		a,b = (np.expand_dims(e,axis=0) for e in (a,b))
+		return a,b
 
 class AbsoluteComplement(Domain):
 	"""
@@ -187,101 +155,111 @@ class AbsoluteComplement(Domain):
 	def __init__(self,dom):
 		self.dom = dom
 
-	def contains(self,x,h=0.):
-		return np.logical_not(self.dom.contains(x,h))
+	def contains(self,x):
+		return np.logical_not(self.dom.contains(x))
 	def level(self,x):
 		return -self.dom.level(x)
-	def distance(self,x):
-		return -self.dom.distance(x)
 	def freeway(self,x,v):
 		return self.dom.freeway(x,v)
-
-	@property
-	def level_is_distance_inside(self):	return self.dom.level_is_distance_outside
-
-	@property
-	def level_is_distance_outside(self): return self.dom.level_is_distance_inside
-
-	@property
-	def is_convex(self):	return self.dom.is_coconvex
-
-	@property
-	def is_coconvex(self):	return self.dom.is_convex
+	def intervals(self,x,v):
+		a,b = self.dom.intervals(x,v)
+		inf = np.full((1,)+x.shape[1:],np.inf)
+		return np.concatenate((-inf,b),axis=0),np.concatenate((a,inf),axis=0)
 
 
 class Intersection(Domain):
 	"""
 	This class represents an intersection of several subdomains.
-	smooth : Describes the local behavior at the intersections of the subdomain boundaries
 	"""
-	def __init__(self,doms,smooth=False):
-
+	def __init__(self,doms):
 		self.doms=doms
-		self.smooth = smooth
 
-	def contains(self,x,h=0.):
-		_contains = [dom.contains(x,h) for dom in self.doms]
-		return reduce(np.logical_and,_contains)
+	def contains(self,x):
+		containss = [dom.contains(x) for dom in self.doms]
+		return reduce(np.logical_and,containss)
 
 	def level(self,x):
 		levels = [dom.level(x) for dom in self.doms]
 		return reduce(np.maximum,levels)
 
-	def distance(self,x):
-		distances = [dom.distance(x) for dom in self.doms]
-		dist = reduce(np.maximum,distances)
+	def intervals(self,x,v):
+		intervalss = [dom.intervals(x,v) for dom in self.doms]
+		begs = [a for a,b in intervalss]
+		ends = [b for a,b in intervalss]
 
-		# Remove results expected to be invalid
-		#if not self.smooth: 
-		dist[dist>0] = np.inf
+		# Shortcut for the convex case, quite common
+		if all(len(a)==1 for a,b in intervalss):
+			beg = reduce(np.maximum,begs)
+			end = reduce(np.minimum,ends)
+			pos = beg>end
+			beg[pos]=np.inf
+			end[pos]=np.inf
+			return beg,end
 
-		return dist
+		# General non-convex case
+		shape = x.shape[1:]
 
-	def freeway(self,x,v):
-		freeways = np.array([dom.freeway(x,v) for dom in self.doms])
-		insides = np.array([dom.contains(x) for dom in self.doms])
-		inside = np.all(insides,axis=0)
-		outside = np.logical_not(inside)
-		result = np.full(np.nan,x.shape[1:])
+		# Prepare the result
+		begr = []
+		endr = []
+		val = np.full(shape,-np.inf)
+		inds = np.full( (len(self.doms),)+x.shape[1:], 0)
+		
+		def tax(arr,ind,valid):
+			return np.squeeze(np.take_along_axis(arr[:,valid],np.expand_dims(ind[valid],axis=0),axis=0),axis=0)
 
-		result[inside] = np.min(freeways[:,inside],axis=0)
-		freeways[insides] = 0.
-		result[outside] = np.max(freeways[:,outside],axis=0)
+		counter=0
+		while True:
+			# Find the next beginning
+			unchanged=0
+			for it,(beg,end) in cycle(enumerate(zip(begs,ends))):
+				ind=ad.toarray(inds[it])
+				valid = ind<len(end)
+				pos = np.full(shape,False)
+				endiv = tax(end,ind,valid)
+				pos[valid] = np.logical_and(val[valid]>=endiv,endiv!=np.inf)
 
-		# A bit more to do if the domains are non-convex
-		assert(all(dom.is_convex or dom.is_coconvex for dom in self.doms))
+				if pos.any():	
+					unchanged=0
+				else:			
+					unchanged+=1
+					if unchanged>=len(begs):
+						break
 
-		return result
+				inds[it,pos]+=1; ind=inds[it] 
+				valid = ind<len(end)
+				val[valid] = np.maximum(val[valid],tax(beg,ind,valid))
+				val[np.logical_not(valid)]=np.inf
 
-	@property
-	def level_is_distance_inside(self):	
-		return all((dom.level_is_distance_inside for dom in self.doms))
+				counter+=1
+				assert(counter<=100)
 
-	@property
-	def level_is_distance_outside(self): 
-		return False
-		#return smooth and all((dom.level_is_distance_outside for dom in self.doms))
+			#Exit if nobody's valid
+			if (val==np.inf).all():
+				break
+			begr.append(val)
 
-	@property
-	def is_convex(self):
-		return all((dom.is_convex for dom in self.doms))
+			# Find the next end
+			val=np.full(shape,np.inf)
+			for end,ind in zip(ends,inds):
+				valid = ind<len(end)
+				val[valid] = np.minimum(val[valid],tax(end,ind,valid))
 
-	@property
-	def is_coconvex(self):
-		return smooth and all((dom.is_coconvex for dom in self.doms))
+			endr.append(val.copy())
+
+		return np.array(begr),np.array(endr)
 	
-def Complement(dom1,dom2,smooth=False):
+def Complement(dom1,dom2):
 	"""
 	Relative complement dom1 \\ dom2
 	"""
-	return Intersection((dom1,AbsoluteComplement(dom2)),smooth)
+	return Intersection((dom1,AbsoluteComplement(dom2)))
 
-def Union(doms,smooth=False):
+def Union(doms):
 	"""
 	Union of various domains.
-	smooth : Describes the local behavior at the intersections of the subdomain boundaries
 	"""
-	return AbsoluteComplement(Intersection([AbsoluteComplement(dom) for dom in doms],smooth))
+	return AbsoluteComplement(Intersection([AbsoluteComplement(dom) for dom in doms]))
 
 class Dirichlet(object):
 	"""
@@ -297,12 +275,13 @@ class Dirichlet(object):
 		self.bc = bc
 		self.grid = grid
 
-	def _grid(u,grid=None):
+	def _grid(self,u,grid=None):
 		if grid is None: grid=self.grid
 		dim = len(grid)
 		assert dim==0 or u.shape[-dim:]==grid.shape[1:]
 		return grid
 
+	@staticmethod
 	def _BoundaryLayer(u,du):
 		"""
 		Returns positions at which u is defined but du is not.
@@ -313,7 +292,7 @@ class Dirichlet(object):
 		"""
 		Returns first order finite differences w.r.t. boundary value.
 		"""
-		h = self.dom.freeway(_grid,_mask)
+		h = self.dom.freeway(grid,offsets)
 		x = grid+h*offsets
 		bc = self.bc(x)
 		result = (bc-u)/h
@@ -327,14 +306,17 @@ class Dirichlet(object):
 		grid=self._grid(u,grid)
 		du = fd.DiffUpwind(u,offsets,h)
 		mask = self._BoundaryLayer(u,du)
-
-		um,om,gm = u[mask], offsets[:,mask], grid[:,mask]
+		offsets = fd.as_field(np.array(offsets),u.shape)
+		um = ad.broadcast_to(u,offsets.shape[1:])[mask]
+		om = offsets[:,mask]
+		gm = ad.broadcast_to(grid.reshape( (len(grid),)+(1,)*(offsets.ndim-grid.ndim)+u.shape),offsets.shape)[:,mask]
+#		um,om,gm = u[mask], offsets[:,mask], grid[:,mask]
 		if not reth: 
-			du[mask] = self._DiffUpwindDirichlet(um,om,gm)
+			du[mask] = self._DiffUpwindDirichlet(um,om,gm,reth=reth)
 			return du
 		else: 
 			hr = np.full(offsets.shape[1:],h)
-			du[mask],hr[mask] = self._DiffUpwindDirichlet(um,om,gm)
+			du[mask],hr[mask] = self._DiffUpwindDirichlet(um,om,gm,reth=reth)
 			return du,hr
 
 	def DiffCentered(self,u,offsets,h,grid=None):
@@ -344,7 +326,9 @@ class Dirichlet(object):
 		grid=self._grid(u,grid)
 		du = fd.DiffCentered(u,offsets,h)
 		mask = self._BoundaryLayer(u,du)
-		du[mask] = self.DiffUpwind(u[mask],offsets[:,mask],h,grid[:,mask])
+		du1 = self.DiffUpwind(u,offsets,h,grid)
+		du[mask]=du1[mask]
+		#du[mask] = self.DiffUpwind(u[mask],offsets[:,mask],h,grid[:,mask])
 		return du
 
 
@@ -354,13 +338,17 @@ class Dirichlet(object):
 		Only first order accurate at the boundary.
 		"""
 		grid=self._grid(u,grid)
-		d2u = fd.DiffCentered(u,offsets,h)
-		mask = self._BoundaryLayer(u,du)
+		d2u = fd.Diff2(u,offsets,h)
+		mask = self._BoundaryLayer(u,d2u)
 
-		um,om,gm = u[mask], offsets[:,mask], grid[:,mask]
-		du0,h0 = self.DiffUpwind(um, om,h,gm, reth=True)
-		du1,h1 = self.DiffUpwind(um,-om,h,gm, reth=True)
+#		um,om,gm = u[mask], offsets[:,mask], grid[:,mask]
+#		du0,h0 = self.DiffUpwind(um, om,h,gm, reth=True)
+#		du1,h1 = self.DiffUpwind(um,-om,h,gm, reth=True)
 
+		du0,h0 = self.DiffUpwind(u, offsets,h,grid, reth=True)
+		du1,h1 = self.DiffUpwind(u,-np.array(offsets),h,grid, reth=True)
+
+		du0,h0,du1,h1 = (e[mask] for e in (du0,h0,du1,h1))
 		d2u[mask] = (du0+du1)*(2./(h0+h1))
 		return d2u
 
