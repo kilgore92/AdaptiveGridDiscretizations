@@ -15,11 +15,15 @@ class Domain(object):
 	The base class represents the full space R^d.
 	"""
 
+	def __init__(self):
+		s2 = np.sqrt(2.)
+		self.pattern_ball = np.stack([[1.,0.],[s2,s2],[0.,1.],[-s2,s2],
+			[-1.,0.],[-s2,-s2],[0.,-1.],[s2,-s2]],axis=1)
+
 	def level(self,x):
 		"""
-		A level set function, negative inside, positive outside.
-		Different, but equivalent up to a multiplicative constant, 
-		to the signed distance from the boundary.
+		A level set function, negative inside the domain, positive outside.
+		Guaranteed to be 1-Lipschitz.
 		"""
 		return -np.inf
 
@@ -48,12 +52,27 @@ class Domain(object):
 		b[b<0]=np.inf
 		return np.minimum(a.min(axis=0),b.min(axis=0))
 
+	def contains_ball(self,x,h):
+		if h==0.: 	return self.contains(x)
+		if h<0.:	return AbsoluteComplement(self).contains_ball(x,-h)
+		level = self.level(x)
+		inside = level<0
+
+		# Fix boundary layer
+		mask = np.logical_and(inside,level>-h) # Recall level is 1-Lipschitz
+		xm=x[:,mask]
+		ball_pattern = fd.as_field(self.pattern_ball,xm.shape[1:],conditional=False)
+		xb = np.expand_dims(xm,axis=1)+h*ball_pattern
+		inside[mask] = np.all(self.contains(xb),axis=0)
+		return inside
+
 class Ball(Domain):
 	"""
 	This class represents a ball shaped domain
 	"""
 
 	def __init__(self,center,radius=1.):
+		super(Ball,self).__init__()
 		center = ad.toarray(center)
 		self.center=center
 		self.radius=radius
@@ -96,6 +115,7 @@ class Box(Domain):
 	"""
 
 	def __init__(self,sides):
+		super(Box,self).__init__()
 		if not isinstance(sides,np.ndarray): sides=np.array(sides)
 		self._sides = sides
 		self._center = sides.sum(axis=1)/2.
@@ -153,6 +173,7 @@ class AbsoluteComplement(Domain):
 	This class represents the complement, in the entire space R^d, of an existing domain.
 	"""
 	def __init__(self,dom):
+		super(AbsoluteComplement,self).__init__()
 		self.dom = dom
 
 	def contains(self,x):
@@ -172,6 +193,7 @@ class Intersection(Domain):
 	This class represents an intersection of several subdomains.
 	"""
 	def __init__(self,doms):
+		super(Intersection,self).__init__()
 		self.doms=doms
 
 	def contains(self,x):
@@ -268,8 +290,12 @@ class Band(Domain):
 	"""
 
 	def __init__(self,direction,bounds):
-		self.direction = ad.toarray(direction)
-		self.bounds = ad.toarray(bounds)
+		super(Band,self).__init__()
+		self.direction,self.bounds = (ad.toarray(e) for e in (direction,bounds))
+		norm = ad.Optimization.norm(self.direction,ord=2)
+		if norm!=0.:
+			self.direction/=norm
+			self.bounds/=norm
 
 	def _dotdir(self,x):
 		direction = fd.as_field(self.direction,x.shape[1:],conditional=False)
@@ -305,14 +331,77 @@ def ConvexPolygon(pts):
 	"""
 	def params(p,q):
 		pq = q-p
-		npq = ad.Optimization.norm(pq,ord=2)
-		direction = np.array([pq[1],-pq[0]])/npq
+		direction = np.array([pq[1],-pq[0]])
 		lower_bound = np.dot(direction,p)
 		return direction,[lower_bound,np.inf]
 	pts = ad.toarray(pts)
 	assert len(pts)==2
 	return Intersection([Band(*params(p,q)) for p,q in zip(pts.T,np.roll(pts,1,axis=1).T)])
 
+class AffineTransform(Domain):
+	"""
+	Defines a domain which is the transformation of another domain
+	by an affine transformation, 
+		x' = mult x + shift
+	Inputs : 
+	- mult, scalar, matrix, or None (Eq 1.)
+	- shift, vector, or None (Eq null vector)
+	"""
+
+	def __init__(self,dom,mult=None,shift=None):
+		super(AffineTransform,self).__init__()
+		self.dom=dom
+		if mult is not None: mult = ad.toarray(mult)
+		if shift is not None: shift = ad.toarray(shift)
+		self._mult = mult
+		self._shift = shift
+		self._mult_inv = (None if mult is None else 
+			(ad.toarray(1./mult) if mult.ndim==0 else np.linalg.inv(mult) ) )
+		self._mult_inv_norm = (1. if self._mult_inv is None 
+			else np.linalg.norm(self._mult_inv,ord=2) )
+
+	def forward(self,x,linear=False):
+		"""
+		Forward affine transformation, from the original domain to the transformed one.
+		"""
+		x=x.copy()
+		
+		mult = self._mult
+		if mult is None: 	pass
+		elif mult.ndim==0:	x*=mult
+		else:	x=np.tensordot(mult,x,axes=(1,0))
+
+		shift = self._shift
+		if (shift is None) or linear: 	pass
+		else:	x+=fd.as_field(shift,x.shape[1:],conditional=False)
+		
+		return x
+
+	def reverse(self,x,linear=False):
+		"""
+		Reverse affine transformation, from the transformed domain to the original one.
+		"""
+		x=x.copy()
+
+		shift = self._shift
+		if (shift is None) or linear: 	pass
+		else:	x-=fd.as_field(shift,x.shape[1:],conditional=False)
+
+		mult = self._mult_inv
+		if mult is None: 	pass
+		elif mult.ndim==0:	x*=mult
+		else:	x=np.tensordot(mult,x,axes=(1,0))
+
+		return x
+
+	def contains(self,x):
+		return self.dom.contains(self.reverse(x))
+	def level(self,x):
+		return self.dom.level(self.reverse(x))/self._mult_inv_norm
+	def intervals(self,x,v):
+		return self.dom.intervals(self.reverse(x),self.reverse(v,linear=True))
+	def freeway(self,x,v):
+		return self.dom.freeway(self.reverse(x),self.reverse(v,linear=True))
 
 class Dirichlet(object):
 	"""
@@ -391,24 +480,12 @@ class Dirichlet(object):
 		Only first order accurate at the boundary.
 		"""
 		grid=self._grid(u,grid)
-		d2u = fd.Diff2(u,offsets,h)
-		mask = self._BoundaryLayer(u,d2u)
-
-#		um,om,gm = u[mask], offsets[:,mask], grid[:,mask]
-#		du0,h0 = self.DiffUpwind(um, om,h,gm, reth=True)
-#		du1,h1 = self.DiffUpwind(um,-om,h,gm, reth=True)
 
 		du0,h0 = self.DiffUpwind(u, offsets,h,grid, reth=True)
 		du1,h1 = self.DiffUpwind(u,-np.array(offsets),h,grid, reth=True)
 
-		du0,h0,du1,h1 = (e[mask] for e in (du0,h0,du1,h1))
-		d2u[mask] = (du0+du1)*(2./(h0+h1))
-		return d2u
-
-
-
+		return (du0+du1)*(2./(h0+h1))
 		
-
 
 
 #class Polygon2(Domain):
