@@ -5,8 +5,8 @@ from IPython.display import display, Markdown, HTML
 
 def MakeLink(inFName,volume):
 	dirName = "../Notebooks_"+volume+"/"; extension = ".ipynb"
-	display(Markdown("Notebook ["+inFName+"]("+dirName+inFName+extension+") "
-		+ ", from volume "+ volume + " [Summary]("+dirName+"Summary"+extension+") " ))
+	print("Notebook ["+inFName+"]("+dirName+inFName+extension+") "
+		+ ", from volume "+ volume + " [Summary]("+dirName+"Summary"+extension+") " )
 
 def Info(volume):
 	if volume in ['NonDiv','Div','Algo','Repro']:
@@ -25,6 +25,15 @@ More information on the HFM library in the manuscript:
 Copyright Jean-Marie Mirebeau, University Paris-Sud, CNRS, University Paris-Saclay
 """
 
+VolumeTitle = {
+'FMM':"Fast Marching Methods",
+'NonDiv':"Non-Divergence form PDEs",
+'Div':"Divergence form PDEs",
+'Algo':"Algorithmic tools",
+'Repro':"Reproducible research"
+}
+
+
 VolumeFilenames = {
 'FMM':[
     "Isotropic","Riemannian","Rander","AsymmetricQuadratic",
@@ -38,7 +47,7 @@ VolumeFilenames = {
 	"MongeAmpere","OTBoundary1D","EikonalEulerian"
 ],
 'Div':["Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
-'Algo':["TensorSelling","TensorVoronoi","Dense","Sparse","Reverse","ADBugs"],
+'Algo':["TensorSelling","TensorVoronoi","Dense","Sparse","Reverse","ADBugs","SubsetRd"],
 'Repro':[],
 }
 
@@ -64,12 +73,19 @@ def displayTOC(inFName,volume):
 				listItem = "  "*count + "* [" + plainText + "](#" + link + ")"
 				contents.append(listItem)
 
-	display(Markdown("[**Summary**](Summary.ipynb) of this series of notebooks. "))
-	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """))
-#	display(HTML("<a id = 'table_of_contents'></a>"))
-	display(Markdown("\n# Table of contents"))
-	display(Markdown("\n".join(contents)))
-	display(Markdown("\n\n"+Info(volume)))
+	contents = ["[**Summary**](Summary.ipynb) of volume " + VolumeTitle[volume] + ", this series of notebooks.\n",
+	"""[**Main summary**](../Summary.ipynb) of the Adaptive Grid Discretizations 
+	book of notebooks, including the other volumes.\n""",
+	"# Table of contents"] + contents + ["\n\n"+Info(volume)]
+
+	print("\n".join(contents))
+
+# 	display(Markdown("[**Summary**](Summary.ipynb) of this series of notebooks. "))
+# 	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """))
+# #	display(HTML("<a id = 'table_of_contents'></a>"))
+# 	display(Markdown("\n# Table of contents"))
+# 	display(Markdown("\n".join(contents)))
+# 	display(Markdown("\n\n"+Info(volume)))
 
 def displayTOCs(volume):
 	inFNames = VolumeFilenames[volume]

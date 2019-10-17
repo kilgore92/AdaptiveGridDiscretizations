@@ -406,29 +406,81 @@ class AffineTransform(Domain):
 class Dirichlet(object):
 	"""
 	Implements Dirichlet boundary conditions.
-	Replaces all NaN values with values obtained on the boundary along the given direction
+	When computing finite differences, values queried outside the domain interior
+	are replaced with values obtained on the boundary along the given direction.
 	"""
 
-	def __init__(self,dom,bc,grid=None):
+	def __init__(self,dom,bc):
 		"""
-		Domain, boundary conditions, default grid.
+		Domain, boundary conditions.
 		"""
 		self.dom = dom
 		self.bc = bc
+		self.grid = None
+		self.interior = None
+
+	def set_grid(self,grid,interior=None,interior_radius=None):
+		"""
+		Sets the grid, and the points regarded as interior (for use in finite differences).
+		Inputs : 
+		- grid: the cartesian grid. Ex: np.array(np.meshgrid(aX,aY,indiced='ij')) for suitable aX,aY
+		- interior (optional): the points regarded as interior to the domain. 
+		- interior_radius (optional): sets
+			interior = dom.contains_ball(interior_radius)
+		"""
 		self.grid = grid
+		if interior is not None:
+			self.interior = interior
+		else:
+			self.interior = self.dom.contains_ball(grid,interior_radius)
 
-	def _grid(self,u,grid=None):
-		if grid is None: grid=self.grid
-		dim = len(grid)
-		assert dim==0 or u.shape[-dim:]==grid.shape[1:]
-		return grid
 
-	@staticmethod
-	def _BoundaryLayer(u,du):
+	# def _grid(self,u,grid=None):
+	# 	if grid is None: grid=self.grid
+	# 	dim = len(grid)
+	# 	assert dim==0 or u.shape[-dim:]==grid.shape[1:]
+	# 	return grid
+	def as_field(u,conditional=True):
+		return fd.as_field(u,grid.shape[1:],conditional=conditional)
+
+	@property
+	def not_interior(self):
+		return np.logical_not(self.interior)
+	
+	@property
+	def grid_values(self):
+		"""
+		Returns NaN in the interior, and 0 elsewhere.
+		"""
+		result = np.zeros(grid.shape[1:])
+		result[self.interior] = np.nan
+		return result
+
+	@property
+	def Mock(self):
+		"""
+		Returns mock Dirichlet boundary conditions obtained by evaluating 
+		the boundary condition outside the interior.
+		"""
+		bc = np.full(grid.shape[1:],np.nan)
+		bc[self.not_interior] = self.bc(grid[:,not_interior])
+		return MockDirichlet(bc)
+
+	@property
+	def _ExteriorNaNs(self):
+		result = np.zeros(self.grid.shape[1:])
+		result[self.not_interior]=np.nan
+		return result
+
+	def _BoundaryLayer(self,u,du):
 		"""
 		Returns positions at which u is defined but du is not.
 		"""
-		return np.logical_and(np.isnan(du),np.logical_not(np.isnan(u)))
+		return np.logical_and.reduce([
+			np.isnan(du),
+			np.broadcast_to(self.interior,du.shape),
+			np.broadcast_to(np.logical_not(np.isnan(u)),du.shape)
+			])
 
 	def _DiffUpwindDirichlet(self,u,offsets,grid,reth):
 		"""
@@ -441,12 +493,13 @@ class Dirichlet(object):
 		return (result,h) if reth else result
 
 
-	def DiffUpwind(self,u,offsets,h,grid=None,reth=False):
+
+	def DiffUpwind(self,u,offsets,h,reth=False):
 		"""
 		Returns first order finite differences, uses boundary values when needed.
 		"""
-		grid=self._grid(u,grid)
-		du = fd.DiffUpwind(u,offsets,h)
+		grid=self.grid
+		du = fd.DiffUpwind(u+self._ExteriorNaNs,offsets,h)
 		mask = self._BoundaryLayer(u,du)
 		offsets = fd.as_field(np.array(offsets),u.shape)
 		um = ad.broadcast_to(u,offsets.shape[1:])[mask]
@@ -461,54 +514,63 @@ class Dirichlet(object):
 			du[mask],hr[mask] = self._DiffUpwindDirichlet(um,om,gm,reth=reth)
 			return du,hr
 
-	def DiffCentered(self,u,offsets,h,grid=None):
+	def DiffCentered(self,u,offsets,h):
 		"""
-		Falls back to upwind finite differences at the boundary.
+		First order finite differences, 
+		computed using the second order accurate centered scheme.
+		Falls back to upwind finite differences close to the boundary.
 		"""
-		grid=self._grid(u,grid)
-		du = fd.DiffCentered(u,offsets,h)
+		du = fd.DiffCentered(u+self._ExteriorNaNs,offsets,h)
 		mask = self._BoundaryLayer(u,du)
-		du1 = self.DiffUpwind(u,offsets,h,grid)
+		du1 = self.DiffUpwind(u,offsets,h)
 		du[mask]=du1[mask]
 		#du[mask] = self.DiffUpwind(u[mask],offsets[:,mask],h,grid[:,mask])
 		return du
 
 
 
-	def Diff2(self,u,offsets,h,grid=None):
+	def Diff2(self,u,offsets,h):
 		"""
-		Only first order accurate at the boundary.
+		Second order finite differences.
+		Second order accurate in the interior, 
+		but only first order accurate at the boundary.
 		"""
-		grid=self._grid(u,grid)
-
-		du0,h0 = self.DiffUpwind(u, offsets,h,grid, reth=True)
-		du1,h1 = self.DiffUpwind(u,-np.array(offsets),h,grid, reth=True)
+		du0,h0 = self.DiffUpwind(u, offsets,			h,reth=True)
+		du1,h1 = self.DiffUpwind(u,-np.array(offsets),	h,reth=True)
 
 		return (du0+du1)*(2./(h0+h1))
+
+class MockDirichlet(object):
+	"""
+	Implements a crude version of Dirichlet boundary conditions, 
+	where the boundary conditions are given on the full domain complement.
+
+	(No geometrical computations involved.)
+	"""
+
+	def __init__(self,bc):
+		self.bc=bc
+
+	@property
+	def interior(self):
+		return np.isnan(self.bc)
+
+	@property
+	def not_interior(self):
+		return np.logical_not(self.interior)
+
+	@property
+	def grid_values(self):
+		return self.bc
+	
+	def as_field(u,conditional=True):
+		return fd.as_field(u,bc.shape,conditional=conditional)
+
+
+	DiffUpwind = fd.DiffUpwind
+	DiffCentered = fd.DiffCentered
+	Diff2 = fd.Diff2
+
+	
+	
 		
-
-
-#class Polygon2(Domain):
-	"""
-	Two dimensional polygon
-	"""
-"""
-	def __init__(self,pts,convex=None):
-		self.pts = pts
-		if convex is None:
-			assert False
-		self.convex=convex
-
-		assert False
-		self.normals=None
-		self.shifts=None
-
-	def level(self,x):
-		normals,shifts = (fd.as_field(e,x.shape[1:],conditional=False) 
-			for e in (self.normals,self.shifts))
-
-		return np.maximum(lp.dot_VA(x,normals)+shifts)
-
-	def distance(self,x):
-"""
-

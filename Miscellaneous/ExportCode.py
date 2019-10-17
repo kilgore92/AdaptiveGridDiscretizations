@@ -25,7 +25,7 @@ def ExportCode(inFName,outFName):
 			output.append('\n\n')
 			nAlgo+=1
 	if nAlgo>0:
-		print("Exporting ", nAlgo, " code from notebook ", inFName, " in file ", outFName)
+		print("Exporting ", nAlgo, " code cells from notebook ", inFName, " in file ", outFName)
 		with open(outFName,'w+') as output_file:			
 			for c in output:
 				output_file.write(c)
@@ -36,6 +36,7 @@ if __name__ == '__main__':
 	notebook_filenames = sys.argv[1:] if len(sys.argv)>=2 else ListNotebooks()
 
 	for name in notebook_filenames:
-		ExportCode(name+'.ipynb',result_path+"/"+name+'.py')
+		filename = name if os.path.splitext(name)[1]=='.ipynb' else name+'.ipynb'
+		ExportCode(filename,result_path+"/"+name+'.py')
 
 
