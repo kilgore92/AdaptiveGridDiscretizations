@@ -410,61 +410,76 @@ class Dirichlet(object):
 	are replaced with values obtained on the boundary along the given direction.
 	"""
 
-	def __init__(self,dom,bc):
+	def __init__(self,domain,value,grid,
+		interior_radius=None,interior=None,grid_values=0.):
 		"""
 		Domain, boundary conditions.
-		"""
-		self.dom = dom
-		self.bc = bc
-		self.grid = None
-		self.interior = None
+		Inputs:
+		- domain: geometrical description of the domain 
+		- value: a scalar or map yielding the value of the boundary conditions
+		- grid: the cartesian grid. Ex: np.array(np.meshgrid(aX,aY,indexing='ij')) for suitable aX,aY
 
-	def set_grid(self,grid,interior=None,interior_radius=None):
-		"""
-		Sets the grid, and the points regarded as interior (for use in finite differences).
-		Inputs : 
-		- grid: the cartesian grid. Ex: np.array(np.meshgrid(aX,aY,indiced='ij')) for suitable aX,aY
 		- interior (optional): the points regarded as interior to the domain. 
 		- interior_radius (optional): sets
-			interior = dom.contains_ball(interior_radius)
+			interior = domain.contains_ball(interior_radius)
+
+		- grid_values (defaults to 0.): placeholder values to be used on the grid
 		"""
+		self.domain = domain
+
+		if isinstance(value,float):
+			self.value = lambda x:value
+		else:
+			self.value = value
+
 		self.grid = grid
+		self.gridscale = self._gridscale(grid)
+
 		if interior is not None:
 			self.interior = interior
 		else:
-			self.interior = self.dom.contains_ball(grid,interior_radius)
+			if interior_radius is None:
+				interior_radius = 0.5 * self.gridscale
+			self.interior = self.domain.contains_ball(grid,interior_radius)
 
+		if isinstance(grid_values,float) or isinstance(grid_values,np.ndarray):
+			self.grid_values = grid_values
+		else:
+			self.grid_values = grid_values(grid)
 
-	# def _grid(self,u,grid=None):
-	# 	if grid is None: grid=self.grid
-	# 	dim = len(grid)
-	# 	assert dim==0 or u.shape[-dim:]==grid.shape[1:]
-	# 	return grid
-	def as_field(u,conditional=True):
-		return fd.as_field(u,grid.shape[1:],conditional=conditional)
+	
+	@staticmethod
+	def _gridscale(grid):
+		dim = len(grid)
+		assert(grid.ndim==1+dim)
+		x0 = grid.__getitem__((slice(None),)+(0,)*dim)
+		x1 = grid.__getitem__((slice(None),)+(1,)*dim)
+		delta = np.abs(x1-x0)
+		hmin,hmax = np.min(delta),np.max(delta)
+		if hmax>=hmin*(1+1e-8):
+			raise ValueError("Error : gridscale is axis dependent")
+		return hmax
+
+	@property 
+	def shape(self): 
+		return self.grid.shape[1:]
+	
+	def as_field(self,arr,conditional=True):
+		return fd.as_field(arr,self.shape,conditional=conditional)
 
 	@property
 	def not_interior(self):
 		return np.logical_not(self.interior)
 	
 	@property
-	def grid_values(self):
-		"""
-		Returns NaN in the interior, and 0 elsewhere.
-		"""
-		result = np.zeros(grid.shape[1:])
-		result[self.interior] = np.nan
-		return result
-
-	@property
 	def Mock(self):
 		"""
 		Returns mock Dirichlet boundary conditions obtained by evaluating 
 		the boundary condition outside the interior.
 		"""
-		bc = np.full(grid.shape[1:],np.nan)
-		bc[self.not_interior] = self.bc(grid[:,not_interior])
-		return MockDirichlet(bc)
+		bc_values = np.full(self.grid.shape[1:],np.nan)
+		bc_values[self.not_interior] = self.value(self.grid[:,self.not_interior])
+		return MockDirichlet(bc_values,self.gridscale)
 
 	@property
 	def _ExteriorNaNs(self):
@@ -486,20 +501,21 @@ class Dirichlet(object):
 		"""
 		Returns first order finite differences w.r.t. boundary value.
 		"""
-		h = self.dom.freeway(grid,offsets)
+		h = self.domain.freeway(grid,offsets)
 		x = grid+h*offsets
-		bc = self.bc(x)
-		result = (bc-u)/h
+		xvalues = self.value(x)
+		result = (xvalues-u)/h
 		return (result,h) if reth else result
 
 
 
-	def DiffUpwind(self,u,offsets,h,reth=False):
+	def DiffUpwind(self,u,offsets,reth=False):
 		"""
 		Returns first order finite differences, uses boundary values when needed.
 		"""
+		assert(isinstance(reth,bool))
 		grid=self.grid
-		du = fd.DiffUpwind(u+self._ExteriorNaNs,offsets,h)
+		du = fd.DiffUpwind(u+self._ExteriorNaNs,offsets,self.gridscale)
 		mask = self._BoundaryLayer(u,du)
 		offsets = fd.as_field(np.array(offsets),u.shape)
 		um = ad.broadcast_to(u,offsets.shape[1:])[mask]
@@ -510,33 +526,33 @@ class Dirichlet(object):
 			du[mask] = self._DiffUpwindDirichlet(um,om,gm,reth=reth)
 			return du
 		else: 
-			hr = np.full(offsets.shape[1:],h)
+			hr = np.full(offsets.shape[1:],self.gridscale)
 			du[mask],hr[mask] = self._DiffUpwindDirichlet(um,om,gm,reth=reth)
 			return du,hr
 
-	def DiffCentered(self,u,offsets,h):
+	def DiffCentered(self,u,offsets):
 		"""
 		First order finite differences, 
 		computed using the second order accurate centered scheme.
 		Falls back to upwind finite differences close to the boundary.
 		"""
-		du = fd.DiffCentered(u+self._ExteriorNaNs,offsets,h)
+		du = fd.DiffCentered(u+self._ExteriorNaNs,offsets,self.gridscale)
 		mask = self._BoundaryLayer(u,du)
-		du1 = self.DiffUpwind(u,offsets,h)
+		du1 = self.DiffUpwind(u,offsets)
 		du[mask]=du1[mask]
 		#du[mask] = self.DiffUpwind(u[mask],offsets[:,mask],h,grid[:,mask])
 		return du
 
 
 
-	def Diff2(self,u,offsets,h):
+	def Diff2(self,u,offsets):
 		"""
 		Second order finite differences.
 		Second order accurate in the interior, 
 		but only first order accurate at the boundary.
 		"""
-		du0,h0 = self.DiffUpwind(u, offsets,			h,reth=True)
-		du1,h1 = self.DiffUpwind(u,-np.array(offsets),	h,reth=True)
+		du0,h0 = self.DiffUpwind(u, offsets,		  reth=True)
+		du1,h1 = self.DiffUpwind(u,-np.array(offsets),reth=True)
 
 		return (du0+du1)*(2./(h0+h1))
 
@@ -548,28 +564,33 @@ class MockDirichlet(object):
 	(No geometrical computations involved.)
 	"""
 
-	def __init__(self,bc):
-		self.bc=bc
+	def __init__(self,grid_values,gridscale):
+		self.grid_values=grid_values
+		self.gridscale=gridscale
 
 	@property
 	def interior(self):
-		return np.isnan(self.bc)
+		return np.isnan(self.grid_values)
 
 	@property
 	def not_interior(self):
 		return np.logical_not(self.interior)
-
-	@property
-	def grid_values(self):
-		return self.bc
 	
-	def as_field(u,conditional=True):
-		return fd.as_field(u,bc.shape,conditional=conditional)
+	@property
+	def shape(self): 
+		return self.grid_values.shape
+	
+	def as_field(self,arr,conditional=True):
+		return fd.as_field(arr,self.shape,conditional=conditional)
 
+	def DiffUpwind(self,u,offsets,*args,**kwargs): 
+		return fd.DiffUpwind(u,offsets,self.gridscale,*args,**kwargs)
 
-	DiffUpwind = fd.DiffUpwind
-	DiffCentered = fd.DiffCentered
-	Diff2 = fd.Diff2
+	def DiffCentered(self,u,offsets,*args,**kwargs): 
+		return fd.DiffCentered(u,offsets,self.gridscale,*args,**kwargs)
+
+	def Diff2(self,u,offsets,*args,**kwargs): 
+		return fd.Diff2(u,offsets,self.gridscale,*args,**kwargs)
 
 	
 	
