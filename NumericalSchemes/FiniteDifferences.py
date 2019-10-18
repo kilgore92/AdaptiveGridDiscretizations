@@ -64,7 +64,7 @@ def OffsetToIndex(shape,offset, mode='clip', uniform=None, where=(Ellipsis,)):
 	neighIndex = np.ravel_multi_index(neigh, shape, mode=mode)
 	return neighIndex, inside
 
-def TakeAtOffset(u,offset, padding=0., **kwargs):
+def TakeAtOffset(u,offset, padding=np.nan, **kwargs):
 	mode = 'wrap' if padding is None else 'clip'
 	neighIndex, inside = OffsetToIndex(u.shape,offset,mode=mode, **kwargs)
 

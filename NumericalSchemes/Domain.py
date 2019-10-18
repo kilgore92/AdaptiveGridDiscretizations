@@ -25,7 +25,7 @@ class Domain(object):
 		A level set function, negative inside the domain, positive outside.
 		Guaranteed to be 1-Lipschitz.
 		"""
-		return -np.inf
+		return np.full(x.shape[1:],-np.inf)
 
 	def contains(self,x):
 		"""
@@ -66,16 +66,18 @@ class Domain(object):
 		inside[mask] = np.all(self.contains(xb),axis=0)
 		return inside
 
+class WholeSpace(Domain):
+	pass
+
 class Ball(Domain):
 	"""
 	This class represents a ball shaped domain
 	"""
 
-	def __init__(self,center,radius=1.):
+	def __init__(self,center=(0.,0.),radius=1.):
 		super(Ball,self).__init__()
-		center = ad.toarray(center)
-		self.center=center
-		self.radius=radius
+		self.center = ad.toarray(center)
+		self.radius = radius
 
 	def _centered(self,x):
 		_center = fd.as_field(self.center,x.shape[1:],conditional=False)
@@ -114,7 +116,7 @@ class Box(Domain):
 	This class represents a box shaped domain.
 	"""
 
-	def __init__(self,sides):
+	def __init__(self,sides = ((0.,1.),(0.,1.)) ):
 		super(Box,self).__init__()
 		if not isinstance(sides,np.ndarray): sides=np.array(sides)
 		self._sides = sides
@@ -432,20 +434,20 @@ class Dirichlet(object):
 		else:
 			self.value = value
 
-		self.grid = grid
-		self.gridscale = self._gridscale(grid)
+		self.grid = ad.toarray(grid)
+		self.gridscale = self._gridscale(self.grid)
 
 		if interior is not None:
 			self.interior = interior
 		else:
 			if interior_radius is None:
 				interior_radius = 0.5 * self.gridscale
-			self.interior = self.domain.contains_ball(grid,interior_radius)
+			self.interior = self.domain.contains_ball(self.grid,interior_radius)
 
 		if isinstance(grid_values,float) or isinstance(grid_values,np.ndarray):
 			self.grid_values = grid_values
 		else:
-			self.grid_values = grid_values(grid)
+			self.grid_values = grid_values(self.grid)
 
 	
 	@staticmethod
@@ -564,9 +566,13 @@ class MockDirichlet(object):
 	(No geometrical computations involved.)
 	"""
 
-	def __init__(self,grid_values,gridscale):
+	def __init__(self,grid_values,gridscale,padding=np.nan):
+		if isinstance(grid_values,tuple):
+			grid_values = np.full(grid_values,np.nan)
 		self.grid_values=grid_values
 		self.gridscale=gridscale
+		self.padding = padding
+
 
 	@property
 	def interior(self):
@@ -583,14 +589,14 @@ class MockDirichlet(object):
 	def as_field(self,arr,conditional=True):
 		return fd.as_field(arr,self.shape,conditional=conditional)
 
-	def DiffUpwind(self,u,offsets,*args,**kwargs): 
-		return fd.DiffUpwind(u,offsets,self.gridscale,*args,**kwargs)
+	def DiffUpwind(self,u,offsets): 
+		return fd.DiffUpwind(u,offsets,self.gridscale,padding=self.padding)
 
-	def DiffCentered(self,u,offsets,*args,**kwargs): 
-		return fd.DiffCentered(u,offsets,self.gridscale,*args,**kwargs)
+	def DiffCentered(self,u,offsets): 
+		return fd.DiffCentered(u,offsets,self.gridscale,padding=self.padding)
 
-	def Diff2(self,u,offsets,*args,**kwargs): 
-		return fd.Diff2(u,offsets,self.gridscale,*args,**kwargs)
+	def Diff2(self,u,offsets,*args): 
+		return fd.Diff2(u,offsets,self.gridscale,*args,padding=self.padding)
 
 	
 	
