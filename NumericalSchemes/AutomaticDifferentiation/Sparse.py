@@ -132,21 +132,22 @@ class spAD(np.ndarray):
 	def size_ad(self):  return self.coef.shape[-1]
 
 	def __getitem__(self,key):
-		return spAD(self.value[key], self.coef[key], self.index[key])
+		ekey = misc.key_expand(key)
+		return spAD(self.value[key], self.coef[ekey], self.index[ekey])
 
 	def __setitem__(self,key,other):
+		ekey = misc.key_expand(key)
 		if isinstance(other,spAD):
 			self.value[key] = other.value
 			pad_size = max(self.coef.shape[-1],other.coef.shape[-1])
 			if pad_size>self.coef.shape[-1]:
 				self.coef = _pad_last(self.coef,pad_size)
 				self.index = _pad_last(self.index,pad_size)
-			self.coef[key] = _pad_last(other.coef,pad_size)
-			self.index[key] = _pad_last(other.index,pad_size)
+			self.coef[ekey] = _pad_last(other.coef,pad_size)
+			self.index[ekey] = _pad_last(other.index,pad_size)
 		else:
 			self.value[key] = other
-			self.coef[key]  = 0.
-#			self.index[key] = 0
+			self.coef[ekey] = 0.
 
 	def reshape(self,shape,order='C'):
 		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad,)

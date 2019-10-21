@@ -124,20 +124,22 @@ class denseAD2(np.ndarray):
 	def to_first(self): return Dense.denseAD(self.value,self.coef1)
 
 	def __getitem__(self,key):
-		return denseAD2(self.value[key], self.coef1[key], self.coef2[key])
+		ekey1,ekey2 = misc.key_expand(key,1),misc.key_expand(key,2)
+		return denseAD2(self.value[key], self.coef1[ekey1], self.coef2[ekey2])
 
 	def __setitem__(self,key,other):
+		ekey1,ekey2 = misc.key_expand(key,1),misc.key_expand(key,2)
 		if isinstance(other,denseAD2):
 			osad = other.size_ad
 			if osad==0: return self.__setitem__(key,other.view(np.ndarray))
 			elif self.size_ad==0: self.coef1=np.zeros(self.coef1.shape[:-1]+(osad,)); self.coef2=np.zeros(self.coef2.shape[:-2]+(osad,osad))
 			self.value[key] = other.value
-			self.coef1[key] = other.coef1
-			self.coef2[key] = other.coef2
+			self.coef1[ekey1] = other.coef1
+			self.coef2[ekey2] = other.coef2
 		else:
 			self.value[key] = other
-			self.coef1[key] = 0.
-			self.coef2[key] = 0.
+			self.coef1[ekey1] = 0.
+			self.coef2[ekey2] = 0.
 
 
 	def reshape(self,shape,order='C'):

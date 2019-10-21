@@ -116,17 +116,19 @@ class denseAD(np.ndarray):
 	def size_ad(self):  return self.coef.shape[-1]
 
 	def __getitem__(self,key):
-		return denseAD(self.value[key], self.coef[key])
+		ekey = misc.key_expand(key)
+		return denseAD(self.value[key], self.coef[ekey])
 
 	def __setitem__(self,key,other):
+		ekey = misc.key_expand(key)
 		if isinstance(other,denseAD):
 			if other.size_ad==0: return self.__setitem__(key,other.view(np.ndarray))
 			elif self.size_ad==0: self.coef=np.zeros(self.coef.shape[:-1]+(other.size_ad,))
 			self.value[key] = other.value
-			self.coef[key] =  other.coef
+			self.coef[ekey] =  other.coef
 		else:
 			self.value[key] = other
-			self.coef[key]  = 0.
+			self.coef[ekey] = 0.
 
 	def reshape(self,shape,order='C'):
 		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad,)

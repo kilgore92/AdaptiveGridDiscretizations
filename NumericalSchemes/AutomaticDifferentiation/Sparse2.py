@@ -180,9 +180,13 @@ class spAD2(np.ndarray):
 	def size_ad2(self):  return self.coef2.shape[-1]
 
 	def __getitem__(self,key):
-		return spAD2(self.value[key], self.coef1[key], self.index[key], self.coef2[key], self.index_row[key], self.index_col[key])
+		ekey = misc.key_expand(key)
+		return spAD2(self.value[key], 
+			self.coef1[ekey], self.index[ekey], 
+			self.coef2[ekey], self.index_row[ekey], self.index_col[ekey])
 
 	def __setitem__(self,key,other):
+		ekey = misc.key_expand(key)
 		if isinstance(other,spAD2):
 			self.value[key] = other.value
 
@@ -190,21 +194,21 @@ class spAD2(np.ndarray):
 			if pad_size>self.coef1.shape[-1]:
 				self.coef1 = _pad_last(self.coef1,pad_size)
 				self.index = _pad_last(self.index,pad_size)
-			self.coef1[key] = _pad_last(other.coef1,pad_size)
-			self.index[key] = _pad_last(other.index,pad_size)
+			self.coef1[ekey] = _pad_last(other.coef1,pad_size)
+			self.index[ekey] = _pad_last(other.index,pad_size)
 
 			pad_size = max(self.coef2.shape[-1],other.coef2.shape[-1])
 			if pad_size>self.coef2.shape[-1]:
 				self.coef2 = _pad_last(self.coef2,pad_size)
 				self.index_row = _pad_last(self.index_row,pad_size)
 				self.index_col = _pad_last(self.index_col,pad_size)
-			self.coef2[key] = _pad_last(other.coef2,pad_size)
-			self.index_row[key] = _pad_last(other.index_row,pad_size)
-			self.index_col[key] = _pad_last(other.index_col,pad_size)
+			self.coef2[ekey] = _pad_last(other.coef2,pad_size)
+			self.index_row[ekey] = _pad_last(other.index_row,pad_size)
+			self.index_col[ekey] = _pad_last(other.index_col,pad_size)
 		else:
 			self.value[key] = other
-			self.coef1[key] = 0.
-			self.coef2[key] = 0.
+			self.coef1[ekey] = 0.
+			self.coef2[ekey] = 0.
 
 	def reshape(self,shape,order='C'):
 		shape1 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad1,)

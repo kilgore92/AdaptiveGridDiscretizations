@@ -6,6 +6,14 @@ def _getitem(a,where):
 	return a if (where is True and not isinstance(a,np.ndarray)) else a[where]
 def _add_dim(a):		return np.expand_dims(a,axis=-1)	
 def _add_dim2(a):		return _add_dim(_add_dim(a))
+
+def key_expand(key,depth=1): 
+	"""Modifies a key to access an array with more dimensions. Needed if ellipsis is used."""
+	if isinstance(key,tuple):
+		if any(a is ... for a in key):
+			return key + (slice(None),)*depth
+	return key
+
 def _pad_last(a,pad_total): # Always makes a deep copy
 		return np.pad(a, pad_width=((0,0),)*(a.ndim-1)+((0,pad_total-a.shape[-1]),), mode='constant', constant_values=0)
 def _add_coef(a,b):

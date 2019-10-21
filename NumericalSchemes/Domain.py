@@ -10,9 +10,7 @@ class Domain(object):
 	"""
 	This class represents a domain from which one can query 
 	a level set function, the boundary distance in a given direction,
-	 and some related methods.
-
-	The base class represents the full space R^d.
+	and some related methods.
 	"""
 
 	def __init__(self):
@@ -25,7 +23,7 @@ class Domain(object):
 		A level set function, negative inside the domain, positive outside.
 		Guaranteed to be 1-Lipschitz.
 		"""
-		return np.full(x.shape[1:],-np.inf)
+		raise ValueError("""Domain level set function must be specialized""")
 
 	def contains(self,x):
 		"""
@@ -39,9 +37,7 @@ class Domain(object):
 		] a[0],b[0] [ U ] a[1],b[1] [ U ... U ] a[n-1],b[n-1] [
 		such that x+h*v lies in the domain iff t lies on one of these intervals.
 		"""
-		shape = (1,)+x.shape[1:]
-		return np.full(shape,-np.inf),np.full(shape,np.inf)
-
+		raise ValueError("""Domain intervals function must be specialized""")
 
 	def freeway(self,x,v):
 		"""
@@ -67,7 +63,15 @@ class Domain(object):
 		return inside
 
 class WholeSpace(Domain):
-	pass
+	"""
+	This class represents the full space R^d.
+	"""
+	def level(self,x):
+		return np.full(x.shape[1:],-np.inf)
+
+	def intervals(self,x,v):
+		shape = (1,)+x.shape[1:]
+		return np.full(shape,-np.inf),np.full(shape,np.inf)
 
 class Ball(Domain):
 	"""
