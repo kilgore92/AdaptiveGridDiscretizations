@@ -60,6 +60,7 @@ Often encountered in seismic traveltime tomography.
 	equivalent, for pressure waves, to the Riemannian metric defined by m squared.
 	Shear waves are infinitely slow.
 	"""
+		assert(len(m)==2)
 		a,b,c=m[0,0],m[1,1],m[0,1]
 		return np.array( [ [a*a, a*b,a*c], [a*b, b*b, b*c], [a*c, b*c, c*c] ] )
 

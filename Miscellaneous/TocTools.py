@@ -79,6 +79,7 @@ def displayTOC(inFName,volume):
 	"# Table of contents"] + contents + ["\n\n"+Info(volume)]
 
 	print("\n".join(contents))
+	#assert(False)
 
 # 	display(Markdown("[**Summary**](Summary.ipynb) of this series of notebooks. "))
 # 	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """))
