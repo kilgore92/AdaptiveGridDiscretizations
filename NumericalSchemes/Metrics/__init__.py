@@ -2,6 +2,7 @@ from .isotropic import Isotropic
 from .riemann 	import Riemann
 from .rander 	import Rander
 from .asym_quad import AsymQuad
+from .hooke 	import Hooke
 
 def reload_submodules():
 	from importlib import reload
@@ -23,3 +24,7 @@ def reload_submodules():
 	global AsymQuad
 	metrics.asym_quad = reload(metrics.asym_quad)
 	AsymQuad = asym_quad.AsymQuad
+
+	global Hooke
+	metrics.hooke = reload(metrics.hooke)
+	Hooke = hooke.Hooke
