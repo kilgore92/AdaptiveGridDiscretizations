@@ -1,6 +1,9 @@
+import numpy as np
 from .base import Base
 from .riemann import Riemann
+from . import misc
 from .. import LinearParallel as lp
+from .. import AutomaticDifferentiation as ad
 
 class Rander(Base):
 	"""
@@ -10,16 +13,12 @@ Inputs :
 - w : Vector, obeying <w,m^(-1).w> < 1
 """
 	def __init__(self,m,w):
-		self.m=m
-		self.w=w
+		m,w = (ad.toarray(e) for e in (m,w))
+		self.m,self.w =misc.common_field((m,w),(2,1))
 
 	def norm(self,v):
-		v,m,w = misc.common_field((v,self.m,w),(1,2,1))
-		return np.sqrt(lp.dot_VAV(v,m,v))+lp.dot_VV(v,w)
-
-	def is_definite(self):
-		return np.logical_and(Riemann(self.m).is_definite(),
-			lp.dot_VV(lp.solve_AV(self.m,self.w),self.w) <1.)
+		v,m,w = misc.common_field((ad.toarray(v),self.m,self.w),(1,2,1))
+		return np.sqrt(lp.dot_VAV(v,m,v))+lp.dot_VV(w,v)
 
 
 	def dual(self):
@@ -29,13 +28,21 @@ to a Rander norm, which turns out to have a similar algebraic form.
 The dual norm is defined as 
 	F'(x) = sup{ <x,y>; F(y)<=1 }
 """
-		s = lp.inverse(m-lp.outer_self(w))
-		omega = lp.dot_AV(s,w)
-		return Rander((1+lp.dot_VV(w,omega))*s, omega)
+		s = lp.inverse(self.m-lp.outer_self(self.w))
+		omega = lp.dot_AV(s,self.w)
+		return Rander((1+lp.dot_VV(self.w,omega))*s, omega)
 
 	@property
 	def ndim(self): return len(self.m)
 	
+	def is_definite(self):
+		return np.logical_and(Riemann(self.m).is_definite(),
+			lp.dot_VV(lp.solve_AV(self.m,self.w),self.w) <1.)
+
+	def anisotropy_bound(self):
+		r = np.sqrt(lp.dot_VV(lp.solve_AV(self.m,self.w),self.w))
+		return ((1.+r)/(1.-r))*Riemann(self.m).anisotropy_bound()
+
 	def inv_transform(self,a):
 		return Rander(Riemann(self.m).inv_transform(a),lp.dot_VA(w,a))
 

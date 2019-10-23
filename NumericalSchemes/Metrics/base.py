@@ -20,9 +20,6 @@ class Base(object):
 		"""
 		v_ad = ad.Dense.identity(constant=v,shape_free=(len(v),))
 		return np.moveaxis(self.norm(v_ad).coef,-1,0)
-
-	def is_definite(self):
-		raise ValueError("is_definite is not implemented for this norm")
 	
 	def dual(self):
 		raise ValueError("dual is not implemented for this norm")
@@ -30,6 +27,27 @@ class Base(object):
 	@property
 	def ndim(self):
 		raise ValueError("ndim is not implemented for this norm")
+
+# ---- Well posedness related methods -----
+	def is_definite(self):
+		"""
+		Wether norm(u)=0 implies u=0. 
+		"""
+		raise ValueError("is_definite is not implemented for this norm")
+
+	def anisotropy(self):
+		"""
+		Sharp upper bound on norm(u)/norm(v), 
+		for any unit vectors u and v.
+		"""
+		raise ValueError("anisotropy is not implemented for this norm")
+
+	def anisotropy_bound(self):
+		"""
+		Upper bound on norm(u)/norm(v), 
+		for any unit vectors u and v.
+		"""
+		return self.anisotropy()
 # ---- Causality and acuteness related methods ----
 
 	def cos_asym(self,u,v):
@@ -38,16 +56,26 @@ class Base(object):
 		asymmetric variant defined as 
 		<grad F(u), v> / F(v)
 		"""
+		u,v=(ad.toarray(e) for e in (u,v))
 		return lp.dot_VV(self.gradient(u),v)/self.norm(v)
 
 	def cos(self,u,v):
 		"""
 		Generalized cosine defined by the metric.
 		"""
+		u,v=(ad.toarray(e) for e in (u,v))
 		gu,gv=self.gradient(u),self.gradient(v)
 		guu,guv = lp.dot_VV(gu,u),lp.dot_VV(gu,v)
 		gvu,gvv = lp.dot_VV(gv,u),lp.dot_VV(gv,v)
-		return np.minimum(guv/guu,gvu/guu)
+		return np.minimum(guv/gvv,gvu/guu)
+
+	def angle(self,u,v):
+		c = ad.toarray(self.cos(u,v))
+		mask=c < -1.
+		c[mask]=0.
+		result = ad.toarray(np.arccos(c))
+		result[mask]=np.inf
+		return result
 
 # ---- Geometric transformations ----
 

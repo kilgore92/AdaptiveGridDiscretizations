@@ -22,6 +22,9 @@ class Isotropic(Base):
 	def is_definite(self):
 		return self.cost>0.
 
+	def anisotropy(self):
+		return 1.
+
 	@property
 	def ndim(self): 
 		if self.cost.ndim>0:

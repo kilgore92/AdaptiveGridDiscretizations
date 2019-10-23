@@ -1,29 +1,37 @@
+import numpy as np
 from .base import Base
 from .riemann import Riemann
 from .rander import Rander
+from . import misc
 from .. import LinearParallel as lp
+from .. import AutomaticDifferentiation as ad
 
 class AsymQuad(Base):
 
 	def __init__(self,m,w):
-		self.m=m
-		self.w=w
+		m,w = (ad.toarray(e) for e in (m,w))
+		self.m,self.w =misc.common_field((m,w),(2,1))
 
 	def norm(self,v):
-		v,m,w = misc.common_field((v,self.m,w),(1,2,1))
-		return np.sqrt(lp.dot_VAV(v,m,v) + np.max(lp.dot_VV(m,w),0.)**2)
-
-	def is_definite(self):
-		return Riemann(self.m).is_definite()
+		v,m,w = misc.common_field((ad.toarray(v),self.m,self.w),(1,2,1))
+		return np.sqrt(lp.dot_VAV(v,m,v) + np.maximum(lp.dot_VV(w,v),0.)**2)
 
 	def dual(self):
-		M = lp.inverse(self.m+lp.outer_self(w))
-		wInv = lp.solve_AV(m,w)
-		W = -wInv/np.sqrt(1.+lp.dot_VV(w,wInv))
+		M = lp.inverse(self.m+lp.outer_self(self.w))
+		wInv = lp.solve_AV(self.m,self.w)
+		W = -wInv/np.sqrt(1.+lp.dot_VV(self.w,wInv))
 		return AsymQuad(M,W)
 
 	@property
 	def ndim(self): return len(self.m)
+
+	def is_definite(self):
+		return Riemann(self.m).is_definite()
+
+	def anisotropy(self):
+		eMax = Riemann(self.m+lp.outer_self(self.w)).eigvals().max(axis=0)
+		eMin = Riemann(self.m).eigvals().min(axis=0)
+		return np.sqrt(eMax/eMin)
 
 	def inv_transform(self,a):
 		return AsymQuad(Riemann(self.m).inv_transform(a),lp.dot_VA(w,a))
@@ -35,3 +43,14 @@ class AsymQuad(Base):
 	def expand(cls,arr):
 		rd = Rander.expand(arr)
 		return cls(rd.m,rd.w)
+
+	@classmethod
+	def needle(cls,u,cost_parallel,cost_orthogonal):
+		"""
+		Defines a one-sided needle like metric, 
+		if cost-parallel >= cost_orthogonal.
+
+		Undefined behavior if if cost-parallel < cost_orthogonal.
+		"""
+		riem,_u = Riemann.needle(u,cost_parallel,cost_orthogonal,ret_u=True)
+		return cls(riem.m,-(cost_orthogonal-cost_parallel)*_u)

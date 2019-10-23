@@ -47,7 +47,10 @@ VolumeFilenames = {
 	"MongeAmpere","OTBoundary1D","EikonalEulerian"
 ],
 'Div':["Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
-'Algo':["TensorSelling","TensorVoronoi","Dense","Sparse","Reverse","ADBugs","SubsetRd"],
+'Algo':["TensorSelling","TensorVoronoi",
+"SternBrocot",
+"Dense","Sparse","Reverse","ADBugs",
+"SubsetRd"],
 'Repro':[],
 }
 
@@ -78,8 +81,8 @@ def displayTOC(inFName,volume):
 	book of notebooks, including the other volumes.\n""",
 	"# Table of contents"] + contents + ["\n\n"+Info(volume)]
 
-	print("\n".join(contents))
-	#assert(False)
+	return "\n".join(contents)
+	
 
 # 	display(Markdown("[**Summary**](Summary.ipynb) of this series of notebooks. "))
 # 	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """))
@@ -88,7 +91,7 @@ def displayTOC(inFName,volume):
 # 	display(Markdown("\n".join(contents)))
 # 	display(Markdown("\n\n"+Info(volume)))
 
-def displayTOCs(volume):
+def displayTOCs(volume,subdir=""):
 	inFNames = VolumeFilenames[volume]
 	contents = []
 	part = ""
@@ -98,7 +101,7 @@ def displayTOCs(volume):
 	chapter_numerals = ["I","II","III","IV","V","VI","VII","VIII","IX","X"]
 	for _inFName in inFNames:
 		inFName = _inFName+".ipynb"
-		with open(inFName) as data_file:
+		with open(subdir+inFName) as data_file:
 			data = json.load(data_file)
 			# Display the chapter
 			s=data['cells'][0]['source']
@@ -112,7 +115,7 @@ def displayTOCs(volume):
 				chapter_counter+=1
 			chapter = s[3][len("## Chapter : "):].strip()
 			contents.append(" " + "* "+chapter_numerals[chapter_counter] +
-				". [" + chapter + "](" + inFName + ")\n")
+				". [" + chapter + "](" + inFName + ")")
 			# Display the sub chapters
 			for c in data['cells']:
 				s = c['source']
@@ -120,13 +123,16 @@ def displayTOCs(volume):
 					continue
 				line1 = s[0].strip()
 				if line1.startswith('##') and line1[3].isdigit() and int(line1[3])!=0:
-					contents.append(" "*2 + line1[len("## "):]+"\n")
+					contents.append(" "*2 + line1[len("## "):])
 			contents.append("\n")
 
-	display(Markdown(RepositoryDescription))
-	display(Markdown("# Table of contents"))
-	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """ ))
-	display(Markdown("\n".join(contents)))
+	contents = [RepositoryDescription,"# Table of contents",
+		"[**Main summary**](../Summary.ipynb), including the other volumes of this work. "]+contents;
+	return "\n".join(contents)
+#	display(Markdown(RepositoryDescription))
+#	display(Markdown("# Table of contents"))
+#	display(Markdown("""[**Main summary**](../Summary.ipynb), including the other volumes of this work. """ ))
+#	display(Markdown("\n".join(contents)))
 
 def displayTOCss():
 	extension = '.ipynb'
@@ -164,9 +170,13 @@ def displayTOCss():
 					chapter_counter+=1
 				chapter = s[3][len("## Chapter : "):].strip()
 				contents.append("  " + "* "+chapter_numerals[chapter_counter] +
-					". [" + chapter + "](" + inFName + ")\n")
-	display(Markdown("# Table of contents"))
-	display(Markdown("\n".join(contents)))
+					". [" + chapter + "](" + inFName + ")")
+		contents.append("")
+
+	contents = ["# Table of contents"]+contents
+	return "\n".join(contents)
+#	display(Markdown("# Table of contents"))
+#	display(Markdown("\n".join(contents)))
 
 
 
