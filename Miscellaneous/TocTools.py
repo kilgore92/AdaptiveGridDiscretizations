@@ -48,7 +48,7 @@ VolumeFilenames = {
 ],
 'Div':["Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
 'Algo':["TensorSelling","TensorVoronoi",
-"SternBrocot",
+"SternBrocot","VoronoiVectors",
 "Dense","Sparse","Reverse","ADBugs",
 "SubsetRd"],
 'Repro':[],
