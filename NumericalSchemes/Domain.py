@@ -156,10 +156,14 @@ class Box(Domain):
 
 		# Compute the interval corresponding to each axis
 		pos = vc!=0
-		hlen,xc,vc = (e[pos] for e in (hlen,xc,vc))
+		hlen_,xc_,vc_ = (e[pos] for e in (hlen,xc,vc))
 
-		a[pos] = (-hlen-xc)/vc
-		b[pos] = ( hlen-xc)/vc
+		a[pos] = (-hlen_-xc_)/vc_
+		b[pos] = ( hlen_-xc_)/vc_
+
+		# Deal with offsets parallel to axes
+		pos = np.logical_and(vc==0.,np.abs(xc)>hlen)
+		a[pos] = np.inf 
 
 		# Intersect intervals corresponding to different axes
 
@@ -354,12 +358,18 @@ class AffineTransform(Domain):
 	- shift, vector, or None (Eq null vector)
 	"""
 
-	def __init__(self,dom,mult=None,shift=None):
+	def __init__(self,dom,mult=None,shift=None,center=None):
 		super(AffineTransform,self).__init__()
 		self.dom=dom
 		if mult is not None: mult = ad.toarray(mult)
-		if shift is not None: shift = ad.toarray(shift)
 		self._mult = mult
+
+		if shift is not None: shift = ad.toarray(shift)
+		if center is not None:
+			center=ad.toarray(center)
+			shift2=center-self.forward(center,linear=True)
+			shift = shift2 if shift is None else shift+shift2
+
 		self._shift = shift
 		self._mult_inv = (None if mult is None else 
 			(ad.toarray(1./mult) if mult.ndim==0 else np.linalg.inv(mult) ) )
@@ -371,15 +381,15 @@ class AffineTransform(Domain):
 		Forward affine transformation, from the original domain to the transformed one.
 		"""
 		x=x.copy()
-		
+		shape = x.shape[1:]
+
 		mult = self._mult
 		if mult is None: 	pass
 		elif mult.ndim==0:	x*=mult
-		else:	x=np.tensordot(mult,x,axes=(1,0))
+		else: x=lp.dot_AV(fd.as_field(mult,shape,conditional=False),x)
 
-		shift = self._shift
-		if (shift is None) or linear: 	pass
-		else:	x+=fd.as_field(shift,x.shape[1:],conditional=False)
+		if not linear and self._shift is not None:
+			x+=fd.as_field(shift,shape,conditional=False)
 		
 		return x
 
@@ -388,15 +398,16 @@ class AffineTransform(Domain):
 		Reverse affine transformation, from the transformed domain to the original one.
 		"""
 		x=x.copy()
+		shape = x.shape[1:]
 
 		shift = self._shift
 		if (shift is None) or linear: 	pass
-		else:	x-=fd.as_field(shift,x.shape[1:],conditional=False)
+		else:	x-=fd.as_field(shift,shape,conditional=False)
 
 		mult = self._mult_inv
 		if mult is None: 	pass
 		elif mult.ndim==0:	x*=mult
-		else:	x=np.tensordot(mult,x,axes=(1,0))
+		else: x = lp.dot_AV(fd.as_field(mult,shape,conditional=False),x)
 
 		return x
 

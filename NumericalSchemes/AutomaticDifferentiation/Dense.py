@@ -115,6 +115,8 @@ class denseAD(np.ndarray):
 	@property
 	def size_ad(self):  return self.coef.shape[-1]
 
+	def gradient(self): return np.moveaxis(self.coef1,-1,0)
+
 	def __getitem__(self,key):
 		ekey = misc.key_expand(key)
 		return denseAD(self.value[key], self.coef[ekey])

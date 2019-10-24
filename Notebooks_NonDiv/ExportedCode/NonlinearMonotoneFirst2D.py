@@ -2,24 +2,24 @@
 
 from NumericalSchemes import Selling
 from NumericalSchemes import LinearParallel as lp
-from NumericalSchemes import FiniteDifferences as fd
 from NumericalSchemes import AutomaticDifferentiation as ad
+from NumericalSchemes import Domain
 
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg;
 import itertools
 
-def Gradient(u,A,h,padding=0.,decomp=None):
+def Gradient(u,A,bc,decomp=None):
     """
     Approximates grad u(x), using finite differences along the axes of A.
     """
     coefs,offsets = Selling.Decomposition(A) if decomp is None else decomp
-    du = fd.DiffCentered(u,offsets,h,padding=padding)
-    AGrad = lp.dot_AV(offsets.astype(float),(coefs*du))
-    return lp.solve_AV(A,AGrad)
+    du = bc.DiffCentered(u,offsets) 
+    AGrad = lp.dot_AV(offsets.astype(float),(coefs*du)) # Approximates A * grad u
+    return lp.solve_AV(A,AGrad) # Approximates A^{-1} (A * grad u) = grad u
 
-def SchemeLaxFriedrichs(u,A,F,bc,h,padding=0.):
+def SchemeLaxFriedrichs(u,A,F,bc):
     """
     Discretization of - Tr(A(x) hess u(x)) + F(grad u(x)) - 1 = 0,
     with Dirichlet boundary conditions. The scheme is second order,
@@ -27,21 +27,21 @@ def SchemeLaxFriedrichs(u,A,F,bc,h,padding=0.):
     """
     # Compute the tensor decomposition
     coefs,offsets = Selling.Decomposition(A)
-    A,coefs,offsets = (fd.as_field(e,u.shape) for e in (A,coefs,offsets))
+    A,coefs,offsets = (bc.as_field(e) for e in (A,coefs,offsets))
     
     # Obtain the first and second order finite differences
-    grad = Gradient(u,A,h,padding=padding,decomp=(coefs,offsets))
-    d2u = fd.Diff2(u,offsets,h,padding=padding)    
+    grad = Gradient(u,A,bc,decomp=(coefs,offsets))
+    d2u = bc.Diff2(u,offsets)    
     
     # Numerical scheme in interior    
     residue = -lp.dot_VV(coefs,d2u) + F(grad) -1.
     
-    # Boundary conditions
-    return ad.where(np.isnan(bc),residue,u-bc)
+    # Placeholders outside domain
+    return ad.where(bc.interior,residue,u-bc.grid_values)
 
 # Specialization for the quadratic non-linearity
-def SchemeLaxFriedrichs_Quad(u,A,omega,D,bc,h,padding=0.):
-    omega,D = (fd.as_field(e,u.shape) for e in (omega,D))
+def SchemeLaxFriedrichs_Quad(u,A,omega,D,bc):
+    omega,D = (bc.as_field(e) for e in (omega,D))
     def F(g): return lp.dot_VAV(g-omega,D,g-omega)
-    return SchemeLaxFriedrichs(u,A,F,bc,h,padding=padding)
+    return SchemeLaxFriedrichs(u,A,F,bc)
 

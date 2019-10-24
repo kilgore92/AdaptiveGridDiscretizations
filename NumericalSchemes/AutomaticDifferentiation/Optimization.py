@@ -54,7 +54,8 @@ class stop_default(object):
 	"""	
 	def __init__(
 		self,residue_tol=1e-8,niter_max=50,raise_on_abort=True,
-		niter_print=itertools.chain(range(1,6),range(6,16,2),itertools.count(16,4))
+		niter_print=itertools.chain(range(1,6),range(6,16,2),itertools.count(16,4)),
+		verbosity=3
 		):
 		self.residue_tol	=residue_tol
 		self.niter_max 		=niter_max
@@ -63,6 +64,7 @@ class stop_default(object):
 		self.niter_print_next = next(self.niter_print_iter) # Next iteration to print
 		self.niter_print_last = None # Last iteration printed
 		self.residue_norms = []
+		self.verbosity=verbosity
 
 	def abort(self):
 		if self.raise_on_abort:
@@ -77,7 +79,7 @@ class stop_default(object):
 		def print_state():
 			if niter!=self.niter_print_last:
 				self.niter_print_last = niter
-				print("Iteration:",niter," Residue norm:",residue_norm)
+				if self.verbosity>=3: print("Iteration:",niter," Residue norm:",residue_norm)
 
 
 		if niter>=self.niter_print_next:
@@ -87,17 +89,17 @@ class stop_default(object):
 		
 		if residue_norm<self.residue_tol:
 			print_state()
-			print("Target residue reached. Terminating.")
+			if self.verbosity>=2: print("Target residue reached. Terminating.")
 			return True
 
 		if np.isnan(residue_norm):
 			print_state()
-			print("Residue has NaNs. Aborting.")
+			if self.verbosity>=1: print("Residue has NaNs. Aborting.")
 			return self.abort()
 		
 		if niter>=self.niter_max:
 			print_state()
-			print("Max iterations exceeded. Aborting.")
+			if self.verbosity>=1: print("Max iterations exceeded. Aborting.")
 			return self.abort()
 
 		return False		

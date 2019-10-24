@@ -122,6 +122,8 @@ class denseAD2(np.ndarray):
 	def size_ad(self):  return self.coef1.shape[-1]
 
 	def to_first(self): return Dense.denseAD(self.value,self.coef1)
+	def gradient(self): return np.moveaxis(self.coef1,-1,0)
+	def hessian(self): return np.moveaxis(self.coef2,(-2,-1),(0,1))
 
 	def __getitem__(self,key):
 		ekey1,ekey2 = misc.key_expand(key,1),misc.key_expand(key,2)
