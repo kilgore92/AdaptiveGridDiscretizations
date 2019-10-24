@@ -173,6 +173,7 @@ def SuperbasesForConditioning2(cond):
     u=np.array( (1,0) )
     l = [np.array( (-1,0) ),np.array( (0,1) )]
     m = []
+    superbases =[]
 
     def angle(u,v): return np.arctan2(u[0]*v[1]-u[1]*v[0], u[0]*v[0]+u[1]*v[1])
 
@@ -184,8 +185,11 @@ def SuperbasesForConditioning2(cond):
             l.pop()
         else:
             l.append(u+v)
+            superbases.append((u,v,-u-v))
 
-    return np.array( [(e,-f,f-e) for e,f in zip(m,m[1:]+[np.array((-1,0))] )] ).transpose((2,1,0))
+
+    return np.array(superbases).transpose((2,1,0))
+    #np.array( [(e,-f,f-e) for e,f in zip(m,m[1:]+[np.array((-1,0))] )] ).transpose((2,1,0))
 
 
 # ------- Three dimensional variant -------
