@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 newton_root = ad.Optimization.newton_root
 stop    = ad.Optimization.stop_default
 damping = ad.Optimization.damping_default 
+norm = ad.Optimization.norm
 
 def SchemeNonMonotone(u,f,bc):
     # Compute the hessian matrix of u
@@ -120,15 +121,21 @@ def SchemeUniform(u,SB,f,bc):
     
     # Generate the parameters for the low dimensional optimization problem
     Q = 0.5*np.array([[0,1,1],[1,0,1],[1,1,0]])
-    dim = 2
-    l = -d2u/(dim * f**(1/dim))
+    l = -d2u
     m = lp.dot_VV(SB,SB)
-
+    
     # Evaluate the numerical scheme
     m = bc.as_field(m)
     from NumericalSchemes.FiniteDifferences import as_field
     Q = as_field(Q,m.shape[1:])
+    
+    dim = 2
+    alpha = dim * f**(1/dim)
+    mask= (alpha==0)
+
+    Q = Q* np.where(mask,1.,alpha**2)
     residue = ConstrainedMaximize(Q,l,m).max(axis=0)
+    residue[mask] = np.max(l/m,axis=0).max(axis=0)[mask]
     
     # Boundary conditions
     return ad.where(bc.interior,residue,u-bc.grid_values)
@@ -144,18 +151,23 @@ def SchemeUniform_OptInner(u,SB,f,bc,oracle=None):
     # Generate the parameters for the low dimensional optimization problem
     Q = 0.5*np.array([[0,1,1],[1,0,1],[1,1,0]])
     dim = 2
-    l = -d2u/(dim * f**(1/dim))
+    l = -d2u
     m = lp.dot_VV(SB,SB)
-
     
     m = bc.as_field(m)
     from NumericalSchemes.FiniteDifferences import as_field
     Q = as_field(Q,m.shape[1:])
     
+    dim = 2
+    alpha = dim * f**(1/dim)
+    mask= (alpha==0)
+
+    Q = Q* np.where(mask,1.,alpha**2)
     # Evaluate the non-linear functional using dense-sparse composition
-    result = ad.apply(ConstrainedMaximize, Q,l,m, shape_bound=u.shape)
+    residue = ad.apply(ConstrainedMaximize,Q,l,m,shape_bound=u.shape).copy()
+    residue[:,mask] = np.max(l/m,axis=0)[:,mask]
     
-    return ad.max_argmax(result,axis=0)
+    return ad.max_argmax(residue,axis=0)
 
 def SchemeUniform_Opt(u,SB,f,bc):
     
@@ -163,4 +175,10 @@ def SchemeUniform_Opt(u,SB,f,bc):
     residue,_ = ad.apply(SchemeUniform_OptInner, u,bc.as_field(SB),f,bc, envelope=True)
     
     return ad.where(bc.interior,residue,u-bc.grid_values)
+
+def Hessian_ad(u,x):
+    x_ad = ad.Dense2.identity(constant=x,shape_free=(2,))
+    return u(x_ad).hessian()
+def MongeAmpere_ad(u,x):
+    return lp.det(Hessian_ad(u,x))
 
