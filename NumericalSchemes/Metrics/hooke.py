@@ -1,5 +1,6 @@
 import numpy as np
 from .base import Base
+from . import misc
 from .riemann import Riemann
 from .. import LinearParallel as lp
 
@@ -21,11 +22,11 @@ Often encountered in seismic traveltime tomography.
 		else: raise ValueError("Incorrect hooke tensor")
 
 	def flatten(self):
-		return Riemann(m).flatten()
+		return misc.flatten_symmetric_matrix(self.hooke)
 
 	@classmethod
 	def expand(cls,arr):
-		return cls(Riemann.expand(arr).m)
+		return cls(misc.expand_symmetric_matrix(arr))
 
 	def extract_xz_3(self):
 		"""

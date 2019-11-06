@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import importlib
 
 from . import Geometry
 from HFMUtils.Plotting import *
@@ -10,18 +11,29 @@ def Run(params):
 	"""
 	Runs the HFM library on the input parameters, returns output and prints log.
 	"""
-	out = RunDispatch(params,GetBinaryDir("FileHFM"))
+	out = RunDispatch(params,GetBinaryDir("FileHFM","HFMpy"))
 	if 'log' in out: 
 		print(out['log'])
 	return out
 
-def GetBinaryDir(libName):
-	dirName = libName + "_binary_dir"
-	if dirName in globals(): return globals()[dirName]
+def GetBinaryDir(execName,libName):
+	"""
+	This function is used due to the special way the HamiltonFastMarching library is used:
+	- as a bunch of command line executables, whose name begins with FileHFM.
+	- as a python library, named HFMpy
+
+	The function will look for a file named "FileHFM_binary_dir.txt" (or a global variable named FileHFM_binary_dir)
+	- if it exists, the first line is read
+	  - if the first line is None -> use the HFMpy library
+	  - otherwise, check that the first line is a valid directory -> should contain the FileHFM executables
+	- if file cannot be read -> use the HFMpy library
+	"""
+	dirName = execName + "_binary_dir"
+	if dirName in globals(): return globals()[dirName] # try reading the global variable
 	fileName = dirName + ".txt"
-	pathExample = "path/to/"+libName+"/bin"
+	pathExample = "path/to/"+execName+"/bin"
 	set_directory_msg = """
-IMPORTANT : Please set the path to the """ + libName + """ compiled binaries, as follows : \n
+You can set the path to the """ + execName + """ compiled binaries, as follows : \n
 >>> """+__name__+"."+ dirName+ """ = '""" +pathExample+ """'\n
 \n
 In order to do this automatically in the future, please set this path 
@@ -29,17 +41,21 @@ in the first line of a file named '"""+fileName+"""' in the current directory\n
 >>> with open('"""+fileName+"""','w+') as file: file.write('"""+pathExample+"""')
 """
 	try:
+		# Try reading the file
 		with open(fileName,'r') as f:
 			binary_dir = f.readline().replace('\n','')
 			if binary_dir=="None":
 				return None
 			if not os.path.isdir(binary_dir):
-				print("ERROR : the path to the "+libName+" binaries appears to be incorrect.\n")
+				print("ERROR : the path to the "+execName+" binaries appears to be incorrect.\n")
 				print("Current path : ", binary_dir, "\n")
 				print(set_directory_msg)
 			return binary_dir
 	except OSError as e:
-		print("ERROR : the path to the "+libName+" binaries is not set\n")
+		# Try importing the library
+		if importlib.util.find_spec(libName) is not None:
+			return None
+		print("ERROR : the " + libName + " library is not found, and the path to the "+execName+" binaries is not set \n")
 		print(set_directory_msg)
 		raise
 

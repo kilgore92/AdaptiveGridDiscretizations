@@ -133,7 +133,7 @@ class Base(object):
 	def expand(cls,arr):
 		raise ValueError("Expansion not implemented for this norm")
 
-	def to_hfm(self):
+	def to_HFM(self):
 		"""
 Formats a metric for the HFM library. 
 This may include flattening some symmetric matrices, 
@@ -142,7 +142,7 @@ concatenating with vector fields, and moving the first axis last.
 		return np.moveaxis(self.flatten(),0,-1)
 
 	@classmethod
-	def from_hfm(cls,arr):
+	def from_HFM(cls,arr):
 		return cls.expand(np.moveaxis(arr,-1,0))
 
 """ 

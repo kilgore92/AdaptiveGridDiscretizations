@@ -1,6 +1,6 @@
 None
-/Users/mirebeau/bin/HamiltonFastMarching/FileHFM/Debug
 /Users/mirebeau/bin/HamiltonFastMarching/FileHFM/Release
+/Users/mirebeau/bin/HamiltonFastMarching/FileHFM/Debug
 
 
 !! Important !! : If you do Not use the conda package, but instead built FileHFM from the sources, then replace the first line of this file with the path to the FileHFM executable(s).

@@ -37,10 +37,7 @@ class Riemann(Base):
 
 	@classmethod
 	def expand(cls,arr):
-		m = misc.expand_symmetric_matrix(arr)
-		d=len(m)
-		assert(len(arr)==(d*(d+1))//2)
-		return cls(m)
+		return cls(misc.expand_symmetric_matrix(arr))
 
 	@classmethod
 	def needle(cls,u,cost_parallel,cost_orthogonal,ret_u=False):

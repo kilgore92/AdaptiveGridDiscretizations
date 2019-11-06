@@ -48,9 +48,9 @@ class Isotropic(Base):
 	@classmethod
 	def expand(cls,arr):	return cls(arr)
 
-	def to_hfm(self):		return self.cost
+	def to_HFM(self):		return self.cost
 	@classmethod
-	def from_hfm(cls,arr):	return cls(arr)
+	def from_HFM(cls,arr):	return cls(arr)
 
 
 	# TODO : upwind gradient from HFM AD info (with grid)

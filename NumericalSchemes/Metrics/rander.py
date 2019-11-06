@@ -51,7 +51,7 @@ The dual norm is defined as
 	
 	@classmethod
 	def expand(cls,arr):
-		m = misc.expand_symmetric_matrix(arr)
+		m = misc.expand_symmetric_matrix(arr,extra_length=True)
 		d=len(m)
 		d_sym = (d*(d+1))//2
 		assert(len(arr)==d_sym+d)
