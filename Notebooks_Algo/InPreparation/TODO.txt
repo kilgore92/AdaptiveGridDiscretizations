@@ -1,14 +1,5 @@
-- Better name for ad.toarray ? E.g. 'safe' ? ad.to_array ?
 - Put toc on website
-- Notebook Known bugs in Algo for AD
 - Rework Sparse, to illustrate e.g. 1D laplacian construction and TV Minimization.
 
-- DenseAD 
- - Put in misc.py the repeated fcts
- - Work out recursive AD and illustrate
- - Work out += operator and the likes. Try to do in a unified way.
- - Make AD composition and evaluation work
-
 - NonDiv
- - Do a Python implementation of the FMM (and sweeping) for pedagogical purposes.
  - Optimal transportation with correct bc

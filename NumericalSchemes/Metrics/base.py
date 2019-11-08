@@ -100,29 +100,11 @@ class Base(object):
 		"""
 		return self.transform(r)
 
-	def rotate_by(self,theta,axis=None):
+	def rotate_by(self,*args,**kwargs):
 		"""
-		Rotation of the norm.
-		Dimension 2 : by a given angle.
-		Dimension 3 : by a given angle, along a given axis.
-		Three dimensional rotation matrix, with given axis and angle.
-		Adapted from https://stackoverflow.com/a/6802723
+		Rotation of the norm, based on rotation parameters : angle (and axis in 3D).
 		"""
-		if axis is None:
-			c,s=np.cos(theta),np.sin(theta)
-			return self.rotate(np.array([[c,-s],[s,c]]))
-		else:
-			axis = np.asarray(axis)
-			axis = axis / np.linalg.norm(axis,axis=0)
-			a = np.cos(theta / 2.0)
-			b, c, d = -axis * np.sin(theta / 2.0)
-			aa, bb, cc, dd = a * a, b * b, c * c, d * d
-			bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
-			return np.array([[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
-	                 		[2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
-	                 		[2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
-#	return scipy.linalg.expm(np.cross(np.eye(3), axis/scipy.linalg.norm(axis)*theta)) # Alternative
-
+		return self.rotate(lp.rotation(*args,**kwargs))
 
 # ---- Import and export ----
 

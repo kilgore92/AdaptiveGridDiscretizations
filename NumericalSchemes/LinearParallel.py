@@ -8,6 +8,29 @@ def identity(shape):
 		a[i,i]=1.
 	return a
 
+def rotation(theta,axis=None):
+	"""
+Dimension 2 : by a given angle.
+Dimension 3 : by a given angle, along a given axis.
+Three dimensional rotation matrix, with given axis and angle.
+Adapted from https://stackoverflow.com/a/6802723
+"""
+	if axis is None:
+		c,s=np.cos(theta),np.sin(theta)
+		return np.array([[c,-s],[s,c]])
+	else:
+		axis = np.asarray(axis)
+		axis = axis / np.linalg.norm(axis,axis=0)
+		a = np.cos(theta / 2.0)
+		b, c, d = -axis * np.sin(theta / 2.0)
+		aa, bb, cc, dd = a * a, b * b, c * c, d * d
+		bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+		return np.array([
+			[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
+			[2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+			[2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
+#	return scipy.linalg.expm(np.cross(np.eye(3), axis/scipy.linalg.norm(axis)*theta)) # Alternative
+
 # Dot product (vector-vector, matrix-vector and matrix-matrix) in parallel
 def dot_VV(v,w):
 	if v.shape[0]!=w.shape[0]: raise ValueError('dot_VV : Incompatible shapes')
@@ -120,5 +143,4 @@ def inverse(a):
 
 def solve_AV(a,v):
 	if ad.is_ad(v): return dot_AV(inverse(a),v) # Inefficient, but compatible with ndarray subclasses
-	return np.moveaxis(np.linalg.solve(np.moveaxis(a,(0,1),(-2,-1)),np.moveaxis(v,0,-1)),-1,0)	
-		
+	return np.moveaxis(np.linalg.solve(np.moveaxis(a,(0,1),(-2,-1)),np.moveaxis(v,0,-1)),-1,0)			

@@ -202,7 +202,7 @@ class Intersection(Domain):
 	"""
 	This class represents an intersection of several subdomains.
 	"""
-	def __init__(self,doms):
+	def __init__(self,*doms):
 		super(Intersection,self).__init__()
 		self.doms=doms
 
@@ -285,13 +285,13 @@ def Complement(dom1,dom2):
 	"""
 	Relative complement dom1 \\ dom2
 	"""
-	return Intersection((dom1,AbsoluteComplement(dom2)))
+	return Intersection(dom1,AbsoluteComplement(dom2))
 
-def Union(doms):
+def Union(*doms):
 	"""
 	Union of several domains.
 	"""
-	return AbsoluteComplement(Intersection([AbsoluteComplement(dom) for dom in doms]))
+	return AbsoluteComplement(Intersection(*[AbsoluteComplement(dom) for dom in doms]))
 
 class Band(Domain):
 	"""
@@ -456,7 +456,8 @@ class Dirichlet(object):
 			self.interior = interior
 		else:
 			if interior_radius is None:
-				interior_radius = 0.5 * self.gridscale
+#				interior_radius = 0.5 * self.gridscale
+				interior_radius = self.gridscale * 1e-8 # Tiny value, for numerical stability. Ideally 0.
 			self.interior = self.domain.contains_ball(self.grid,interior_radius)
 
 		if isinstance(grid_values,float) or isinstance(grid_values,np.ndarray):
