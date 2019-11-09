@@ -45,6 +45,10 @@ class AsymQuad(Base):
 		rd = Rander.expand(arr)
 		return cls(rd.m,rd.w)
 
+	def model_HFM(self):
+		return "AsymmetricQuadratic"+str(self.ndim)
+
+
 	@classmethod
 	def needle(cls,u,cost_parallel,cost_orthogonal):
 		"""
@@ -55,3 +59,9 @@ class AsymQuad(Base):
 		"""
 		riem,_u = Riemann.needle(u,cost_parallel,cost_orthogonal,ret_u=True)
 		return cls(riem.m,-(cost_orthogonal-cost_parallel)*_u)
+
+	@classmethod
+	def from_cast(cls,metric): 
+		if isinstance(metric,cls):	return metric
+		riemann = Riemann.from_cast(metric)
+		return cls(riemann.m,(0,)*riemann.ndim)

@@ -2,6 +2,7 @@ import numpy as np
 
 from . import misc
 from .base import Base
+from .isotropic import Isotropic
 from .. import LinearParallel as lp
 from .. import AutomaticDifferentiation as ad
 from .. import FiniteDifferences as fd
@@ -39,6 +40,9 @@ class Riemann(Base):
 	def expand(cls,arr):
 		return cls(misc.expand_symmetric_matrix(arr))
 
+	def model_HFM(self):
+		return "Riemann"+str(self.ndim)
+
 	@classmethod
 	def needle(cls,u,cost_parallel,cost_orthogonal,ret_u=False):
 		"""
@@ -66,3 +70,16 @@ class Riemann(Base):
 
 		m = (cost_parallel**2-cost_orthogonal**2) * lp.outer_self(u) + cost_orthogonal**2 * ident
 		return (cls(m),u) if ret_u else cls(m)
+
+	@classmethod
+	def from_diagonal(cls,*args):
+		z = np.zeros_like(args[0])
+		ndim = len(args)
+		arr = np.array([[z if i!=j else args[i] for i in range(ndim)] for j in range(ndim)])
+		return cls(arr)
+
+	@classmethod
+	def from_cast(cls,metric):
+		if isinstance(metric,cls): return metric
+		isotropic = Isotropic.from_cast(metric)
+		return Riemann.from_diagonal( (isotropic.cost,)*isotropic.ndim )

@@ -3,21 +3,17 @@ import numpy as np
 import importlib
 
 from .LibraryCall import RunDispatch
-from .run_processed import RunProcessed
+from .run_refined import RunRefined
 
 
-def Run(hfmIn,raw=None,**kwargs):
+def Run(hfmIn,refined=None,**kwargs):
 	"""
 	Raw version : Runs the HFM library on the input parameters, returns output and prints log.
-	Refined version : Applied preprocessing and post processing, see RunProcessed.
+	Refined version : Applies preprocessing and post processing, see RunRefined.
 	"""
-	if raw is None: raw = len(kwargs)==0
+	if refined is None: refined = len(kwargs)>0
 	binDir = GetBinaryDir("FileHFM","HFMpy")
-	if raw:	hfmOut = RunDispatch(hfmIn,binDir)
-	else:	hfmOut = RunProcessed(hfmIn,binDir,**kwargs)
-	if 'log' in hfmOut and hfmOut['log']!='': 
-		print(hfmOut['log'])
-	return hfmOut
+	return RunRefined(hfmIn,binDir,**kwargs) if refined else RunDispatch(hfmIn,binDir)
 
 def VoronoiDecomposition(arr):
 	"""
@@ -40,9 +36,9 @@ def reload_submodules():
 	hfm.LibraryCall = reload(hfm.LibraryCall)
 	RunDispatch =  LibraryCall.RunDispatch
 
-	global RunProcessed
-	hfm.run_processed = reload(hfm.run_processed)
-	RunProcessed =  run_processed.RunProcessed
+	global RunRefined
+	hfm.run_refined = reload(hfm.run_refined)
+	RunRefined =  run_refined.RunRefined
 
 def GetBinaryDir(execName,libName):
 	"""

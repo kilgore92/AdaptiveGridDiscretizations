@@ -27,7 +27,7 @@ def PostProcess(key,value,refined_out,raw_in):
 	else:
 		refined_out[key]=value
 
-def RunProcessed(hfmIn,binDir,tupleIn=tuple(),tupleOut=None):
+def RunRefined(hfmIn,binDir,tupleIn=tuple(),tupleOut=None):
 	"""
 	Calls the HFM library, with pre-processed and post-processing of data.
 

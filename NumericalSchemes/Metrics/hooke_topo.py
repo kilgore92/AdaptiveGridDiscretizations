@@ -26,6 +26,12 @@ A norm defined by a Hooke tensor, and the gradient of a height map, which accoun
 		height_grad = arr[-d:]
 		return cls(hooke,height_grad)
 
+	@classmethod
+	def from_cast(cls,metric): 
+		if isinstance(metric,cls):	return metric
+		hooke = Hooke.from_cast(metric)
+		return cls.from_Riemann(hooke.hooke,(0,)*hooke.ndim)
+
 
 
 

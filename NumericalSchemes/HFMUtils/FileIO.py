@@ -66,7 +66,10 @@ def WriteCallRead(inputData,executable,binary_dir=None,
     if retcode!=0:  print('Returned with exit code ', retcode)
     
     outputData = RawToRules(outputPrefix) # Import outputData
-    if logFile: outputData['log'] = open(logFile).read()
+    if logFile: 
+        log = open(logFile).read()
+        outputData['log'] = log
+        if log!='': print(log)
     outputData['retcode']=retcode;
     if binary_dir:  os.chdir(cwd)
         

@@ -70,7 +70,11 @@ Often encountered in seismic traveltime tomography.
 		a,b,c=m[0,0],m[1,1],m[0,1]
 		return Hooke(np.array( [ [a*a, a*b,a*c], [a*b, b*b, b*c], [a*c, b*c, c*c] ] ))
 
-
+	@classmethod
+	def from_cast(cls,metric): 
+		if isinstance(metric,cls):	return metric
+		riemann = Riemann.from_cast(metric)
+		return cls.from_Riemann(riemann.m)
 
 	def rotate(self,r):
 		hooke,r = common_field((self.hooke,r),(2,2))

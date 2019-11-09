@@ -123,6 +123,9 @@ concatenating with vector fields, and moving the first axis last.
 """
 		return np.moveaxis(self.flatten(),0,-1)
 
+	def model_HFM(self):
+		raise ValueError("HFM name is not specified for this norm")
+
 	@classmethod
 	def from_HFM(cls,arr):
 		return cls.expand(np.moveaxis(arr,-1,0))

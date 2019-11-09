@@ -52,5 +52,12 @@ class Isotropic(Base):
 	@classmethod
 	def from_HFM(cls,arr):	return cls(arr)
 
+	def model_HFM(self):
+		return "Isotropic"+str(self.ndim)
+
+	@classmethod
+	def from_cast(cls,metric):
+		if isinstance(metric,cls): return metric
+		raise ValueError("Isotropic.from_cast error : cannot cast an isotropic metric from ",type(metric))
 
 	# TODO : upwind gradient from HFM AD info (with grid)

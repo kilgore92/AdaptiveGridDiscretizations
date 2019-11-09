@@ -60,6 +60,15 @@ The dual norm is defined as
 		w=arr[d_sym:]
 		return cls(m,w)
 
+	def model_HFM(self):
+		return "Rander"+str(self.ndim)
+
+	@classmethod
+	def from_cast(cls,metric): 
+		if isinstance(metric,cls):	return metric
+		riemann = Riemann.from_cast(metric)
+		return cls(riemann.m,(0,)*riemann.ndim)
+
 	@classmethod
 	def from_Zermelo(cls,metric,drift):
 		"""
