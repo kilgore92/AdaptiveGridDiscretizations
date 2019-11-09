@@ -3,21 +3,26 @@ import numpy as np
 import importlib
 
 from .LibraryCall import RunDispatch
+from .run_processed import RunProcessed
 
 
-def Run(params):
+def Run(hfmIn,raw=None,**kwargs):
 	"""
-	Runs the HFM library on the input parameters, returns output and prints log.
+	Raw version : Runs the HFM library on the input parameters, returns output and prints log.
+	Refined version : Applied preprocessing and post processing, see RunProcessed.
 	"""
-	out = RunDispatch(params,GetBinaryDir("FileHFM","HFMpy"))
-	if 'log' in out and out['log']!='': 
-		print(out['log'])
-	return out
+	if raw is None: raw = len(kwargs)==0
+	binDir = GetBinaryDir("FileHFM","HFMpy")
+	if raw:	hfmOut = RunDispatch(hfmIn,binDir)
+	else:	hfmOut = RunProcessed(hfmIn,binDir,**kwargs)
+	if 'log' in hfmOut and hfmOut['log']!='': 
+		print(hfmOut['log'])
+	return hfmOut
 
 def VoronoiDecomposition(arr):
 	"""
-Call the FileVDQ library to decompose the provided quadratic form(s).
-"""
+	Call the FileVDQ library to decompose the provided quadratic form(s).
+	"""
 	from ..Metrics import misc
 	from . import FileIO
 	bin_dir = GetBinaryDir("FileVDQ",None)
@@ -25,6 +30,19 @@ Call the FileVDQ library to decompose the provided quadratic form(s).
 	vdqOut = FileIO.WriteCallRead(vdqIn, "FileVDQ", bin_dir)
 	return np.moveaxis(vdqOut['weights'],-1,0),np.moveaxis(vdqOut['offsets'],[-1,-2],[0,1])
 
+
+def reload_submodules():
+	from importlib import reload
+	import sys
+	hfm = sys.modules['NumericalSchemes.HFMUtils']
+
+	global RunDispatch
+	hfm.LibraryCall = reload(hfm.LibraryCall)
+	RunDispatch =  LibraryCall.RunDispatch
+
+	global RunProcessed
+	hfm.run_processed = reload(hfm.run_processed)
+	RunProcessed =  run_processed.RunProcessed
 
 def GetBinaryDir(execName,libName):
 	"""
@@ -69,21 +87,10 @@ in the first line of a file named '"""+fileName+"""' in the current directory\n
 		print(set_directory_msg)
 		raise
 
-
-"""
-# Not suitable in current form, due to import * 
-def reload_submodules():
-	import importlib
-	import sys
-	hfm = sys.modules['HFMUtils']
-	hfm.Geometry = importlib.reload(hfm.Geometry)
-	from hfm.Geometry import *
-"""
-
 # ----- Basic utilities for HFM input and output -----
 
 def GetGeodesics(output,suffix=''): 
-	if suffix != '': suffix='_'+suffix
+	if suffix != '' and not suffix.startswith('_'): suffix='_'+suffix
 	return np.vsplit(output['geodesicPoints'+suffix],
 					 output['geodesicLengths'+suffix].cumsum()[:-1].astype(int))
 
