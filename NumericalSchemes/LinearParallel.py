@@ -1,5 +1,6 @@
 import numpy as np
 from . import AutomaticDifferentiation as ad
+from . import FiniteDifferences as fd
 
 def identity(shape):
 	dim = len(shape)
@@ -19,15 +20,16 @@ Adapted from https://stackoverflow.com/a/6802723
 		c,s=np.cos(theta),np.sin(theta)
 		return np.array([[c,-s],[s,c]])
 	else:
-		axis = np.asarray(axis)
+		theta,axis = (ad.toarray(e) for e in (theta,axis))
 		axis = axis / np.linalg.norm(axis,axis=0)
+		theta,axis=fd.common_field((theta,axis),(0,1))
 		a = np.cos(theta / 2.0)
 		b, c, d = -axis * np.sin(theta / 2.0)
 		aa, bb, cc, dd = a * a, b * b, c * c, d * d
-		bc, ad, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
+		bc, ad_, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
 		return np.array([
-			[aa + bb - cc - dd, 2 * (bc + ad), 2 * (bd - ac)],
-			[2 * (bc - ad), aa + cc - bb - dd, 2 * (cd + ab)],
+			[aa + bb - cc - dd, 2 * (bc + ad_), 2 * (bd - ac)],
+			[2 * (bc - ad_), aa + cc - bb - dd, 2 * (cd + ab)],
 			[2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 #	return scipy.linalg.expm(np.cross(np.eye(3), axis/scipy.linalg.norm(axis)*theta)) # Alternative
 

@@ -1,8 +1,8 @@
 import numpy as np
 import os
 
-from HFMUtils import FileIO
-from HFMUtils import GetBinaryDir
+from . import FileIO
+from . import GetBinaryDir
 
 def FlattenSymmetricMatrix(a):
 	"""

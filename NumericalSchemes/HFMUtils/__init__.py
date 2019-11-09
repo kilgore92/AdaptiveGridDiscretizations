@@ -2,9 +2,7 @@ import os
 import numpy as np
 import importlib
 
-from . import Geometry
-from HFMUtils.Plotting import *
-from HFMUtils.LibraryCall import RunDispatch
+from .LibraryCall import RunDispatch
 
 
 def Run(params):
@@ -12,7 +10,7 @@ def Run(params):
 	Runs the HFM library on the input parameters, returns output and prints log.
 	"""
 	out = RunDispatch(params,GetBinaryDir("FileHFM","HFMpy"))
-	if 'log' in out: 
+	if 'log' in out and out['log']!='': 
 		print(out['log'])
 	return out
 

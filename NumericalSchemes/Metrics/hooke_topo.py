@@ -2,14 +2,17 @@ import numpy as np
 from .base import Base
 from .hooke import Hooke
 from . import misc
+from .. import AutomaticDifferentiation as ad
+from ..FiniteDifferences import common_field
+
 
 class HookeTopo(Base):
 	"""
 A norm defined by a Hooke tensor, and the gradient of a height map, which accounts for topographic information.
 """
 	def __init__(self,hooke,height_grad):
-		self.hooke = hooke
-		self.height_grad = np.array(height_grad)
+		hooke,height_grad = (ad.toarray(e) for e in (hooke,height_grad))
+		self.hooke,self.height_grad =common_field((hooke,height_grad),(2,1))
 
 	def flatten(self):
 		return np.concatenate( (misc.flatten_symmetric_matrix(self.hooke),self.height_grad), axis=0)

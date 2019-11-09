@@ -24,7 +24,8 @@ def savefig(fig,fileName,dirName=None,**kwargs):
 	if path.isdir(dirName):
 		fig.savefig(path.join(dirName,fileName),**kwargs) 
 	else:
-		raise OSError(2, 'No such directory', dirName)
+		print("savefig error: No such directory", dirName)
+#		raise OSError(2, 'No such directory', dirName)
 
 savefig.dirName = None
 savefig.bbox_inches = 'tight'

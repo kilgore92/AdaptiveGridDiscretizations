@@ -12,6 +12,23 @@ def as_field(u,shape,conditional=True):
 	if conditional and u.ndim>=ndim and u.shape[-ndim:]==shape: return u
 	else: return ad.broadcast_to(u.reshape(u.shape+(1,)*ndim), u.shape+shape)
 
+def common_field(arrays,depths):
+	common_shape=None
+	to_field=[]
+	for arr,d in zip(arrays,depths):
+		shape = arr.shape[d:]
+		to_field.append(shape is tuple())
+		if shape is not tuple():
+			if common_shape is not None:
+				assert(shape==common_shape)
+			else:
+				common_shape=shape
+	if common_shape is None:
+		return arrays
+	else:
+		return (as_field(arr,common_shape,conditional=False) if b else arr 
+			for arr,b in zip(arrays,to_field))
+
 # ----- Utilities for finite differences ------
 
 def BoundedSlices(slices,shape):

@@ -51,8 +51,8 @@ def RunDispatch(params,bin_dir):
 		hfm.run()
 		return GetOutput(hfm)
 	else:
-		import HFMUtils.FileIO
+		from . import FileIO
 		execName = 'FileHFM_'+modelName
-		return HFMUtils.FileIO.WriteCallRead(params, execName, bin_dir)
+		return FileIO.WriteCallRead(params, execName, bin_dir)
 
 

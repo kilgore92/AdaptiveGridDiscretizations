@@ -346,7 +346,7 @@ def ConvexPolygon(pts):
 		return direction,[lower_bound,np.inf]
 	pts = ad.toarray(pts)
 	assert len(pts)==2
-	return Intersection([Band(*params(p,q)) for p,q in zip(pts.T,np.roll(pts,1,axis=1).T)])
+	return Intersection(*[Band(*params(p,q)) for p,q in zip(pts.T,np.roll(pts,1,axis=1).T)])
 
 class AffineTransform(Domain):
 	"""

@@ -1,8 +1,13 @@
 import numpy as np
+import itertools
+
 from .base import Base
 from . import misc
 from .riemann import Riemann
 from .. import LinearParallel as lp
+from ..FiniteDifferences import common_field
+
+
 
 class Hooke(Base):
 	"""
@@ -28,18 +33,18 @@ Often encountered in seismic traveltime tomography.
 	def expand(cls,arr):
 		return cls(misc.expand_symmetric_matrix(arr))
 
-	def extract_xz_3(self):
+	def extract_xz(self):
 		"""
 	Extract a two dimensional Hooke tensor from a three dimensional one, 
 	corresponding to a slice through the X and Z axes.
 	"""
 		assert(self.ndim==3)
 		h=self.hooke
-		return np.array([ 
+		return Hooke(np.array([ 
 			[h[0,0], h[0,2], h[0,4] ],
 			[h[2,0], h[2,2], h[2,4] ],
 			[h[4,0], h[4,2], h[4,4] ]
-			])
+			]))
 
 	@classmethod
 	def from_VTI_2(cls,Vp,Vs,eps,delta):
@@ -63,11 +68,12 @@ Often encountered in seismic traveltime tomography.
 	"""
 		assert(len(m)==2)
 		a,b,c=m[0,0],m[1,1],m[0,1]
-		return np.array( [ [a*a, a*b,a*c], [a*b, b*b, b*c], [a*c, b*c, c*c] ] )
+		return Hooke(np.array( [ [a*a, a*b,a*c], [a*b, b*b, b*c], [a*c, b*c, c*c] ] ))
 
 
 
 	def rotate(self,r):
+		hooke,r = common_field((self.hooke,r),(2,2))
 		Voigt2 = np.array([[0,2],[2,1]])
 		Voigt2i = np.array([[0,0],[1,1],[0,1]])
 
@@ -76,50 +82,52 @@ Often encountered in seismic traveltime tomography.
 
 		Voigt,Voigti = (Voigt2,Voigt2i) if self.ndim==2 else (Voigt3,Voigt3i)
 
-		return np.sum(np.array([ [ [
-			h[Voigt[i,j],Voigt[k,l]]*r[i,ii]*r[j,jj]*r[k,kk]*r[l,ll]
-			for (i,j,k,l) in itertools.product(range(2),repeat=4)]
+		return Hooke(np.sum(np.array([ [ [
+			hooke[Voigt[i,j],Voigt[k,l]]*r[ii,i]*r[jj,j]*r[kk,k]*r[ll,l]
+			for (i,j,k,l) in itertools.product(range(self.ndim),repeat=4)]
 			for (ii,jj) in Voigti] 
 			for (kk,ll) in Voigti]
-			), axis=2)
+			), axis=2))
 
 
 	@classmethod
-	def from_orthorombic_3(cls,a,b,c,d,e,f,g,h,i):
+	def from_orthorombic(cls,a,b,c,d,e,f,g,h,i):
 		z=0.*a
-		return np.array([
+		return cls(np.array([
 		[a,b,c,z,z,z],
 		[b,d,e,z,z,z],
 		[c,e,f,z,z,z],
 		[z,z,z,g,z,z],
 		[z,z,z,z,h,z],
 		[z,z,z,z,z,i]
-		])
+		]))
 
 	@classmethod
-	def from_tetragonal_3(cls,a,b,c,d,e,f):
-		return cls.from_orthorombic_3(a,b,c,a,c,d,e,e,f)
+	def from_tetragonal(cls,a,b,c,d,e,f):
+		return cls.from_orthorombic(a,b,c,a,c,d,e,e,f)
 
 	@classmethod
-	def from_hexagonal_3(cls,a,b,c,d,e):
-		return cls.from_tetragonal_3(a,b,c,d,e,(a-b)/2)
+	def from_hexagonal(cls,a,b,c,d,e):
+		return cls.from_tetragonal(a,b,c,d,e,(a-b)/2)
 
 # Densities in gram per cubic centimeter
 
 	@classmethod
-	@property
-	def mica_3(cls):
-		mica_rho = 2.79
-		return cls.from_hexagonal_3(178.,42.4,14.5,54.9,12.2),mica_rho
+	def mica(cls,density=False):
+		metric = cls.from_hexagonal(178.,42.4,14.5,54.9,12.2)
+		rho = 2.79
+		return (metric,rho) if density else metric
 
 	@classmethod
-	@property
-	def stishovite_3(cls):
-		stishovite_rho = 4.29
-		return cls.from_tetragonal_3(453,211,203,776,252,302),stishovite_rho
+	def stishovite(cls,density=False):
+		metric = cls.from_tetragonal(453,211,203,776,252,302)
+		rho = 4.29
+		return (metric,rho) if density else metric
 
 	@classmethod
-	@property
-	def olivine_3(cls):
+	def olivine(cls,density=False):
+		metric = cls.from_orthorombic(323.7,66.4,71.6,197.6,75.6,235.1,64.6,78.7,79.0)
 		olivine_rho = 3.311
-		return cls.from_orthorombic_3(323.7,66.4,71.6,197.6,75.6,235.1,64.6,78.7,79.0),olivine_rho
+		return (metric,rho) if density else metric
+
+

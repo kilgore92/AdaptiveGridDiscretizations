@@ -12,7 +12,7 @@ class Riemann(Base):
 		self.m=m
 
 	def norm(self,v):
-		v,m = misc.common_field((v,self.m),(1,2))
+		v,m = fd.common_field((v,self.m),(1,2))
 		return np.sqrt(lp.dot_VAV(v,m,v))
 
 	def dual(self):
@@ -30,7 +30,7 @@ class Riemann(Base):
 		return np.sqrt(ev.max(axis=0)/ev.min(axis=0))
 
 	def inv_transform(self,a):
-		return Riemann(lp.dot_AA(lp.transpose(a),lp.dot_AA(m,a)))
+		return Riemann(lp.dot_AA(lp.transpose(a),lp.dot_AA(self.m,a)))
 
 	def flatten(self):
 		return misc.flatten_symmetric_matrix(self.m)
@@ -55,12 +55,12 @@ class Riemann(Base):
 		- ret_u : wether to return the (normalized) vector u
 		"""
 		u,cost_parallel,cost_orthogonal = (ad.toarray(e) for e in (u,cost_parallel,cost_orthogonal))
-		u,cost_parallel,cost_orthogonal = misc.common_field((u.copy(),cost_parallel,cost_orthogonal),(1,0,0))
+		u,cost_parallel,cost_orthogonal = fd.common_field((u.copy(),cost_parallel,cost_orthogonal),(1,0,0))
 		
 		# Eigenvector normalization
 		nu = ad.Optimization.norm(u,ord=2,axis=0)
 		mask = nu>0
-		u[mask] /= nu[mask]
+		u[:,mask] /= nu[mask]
 
 		ident = fd.as_field(np.eye(len(u)),cost_parallel.shape,conditional=False)
 

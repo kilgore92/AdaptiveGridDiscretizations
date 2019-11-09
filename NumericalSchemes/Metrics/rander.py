@@ -4,6 +4,8 @@ from .riemann import Riemann
 from . import misc
 from .. import LinearParallel as lp
 from .. import AutomaticDifferentiation as ad
+from ..FiniteDifferences import common_field
+
 
 class Rander(Base):
 	"""
@@ -14,10 +16,10 @@ Inputs :
 """
 	def __init__(self,m,w):
 		m,w = (ad.toarray(e) for e in (m,w))
-		self.m,self.w =misc.common_field((m,w),(2,1))
+		self.m,self.w =common_field((m,w),(2,1))
 
 	def norm(self,v):
-		v,m,w = misc.common_field((ad.toarray(v),self.m,self.w),(1,2,1))
+		v,m,w = common_field((ad.toarray(v),self.m,self.w),(1,2,1))
 		return np.sqrt(lp.dot_VAV(v,m,v))+lp.dot_VV(w,v)
 
 
@@ -47,7 +49,7 @@ The dual norm is defined as
 		return Rander(Riemann(self.m).inv_transform(a),lp.dot_VA(w,a))
 
 	def flatten(self):
-		return np.concatenate((misc.flatten_symmetric_matrix(m),w),axis=0)
+		return np.concatenate((misc.flatten_symmetric_matrix(self.m),self.w),axis=0)
 	
 	@classmethod
 	def expand(cls,arr):

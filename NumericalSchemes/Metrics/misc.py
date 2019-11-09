@@ -22,21 +22,5 @@ def expand_symmetric_matrix(arr,d=None,extra_length=False):
 		return (i*(i+1))//2+j
 	return np.array([ [ arr[index(i,j)] for i in range(d)] for j in range(d) ])
 
-def common_field(arrays,depths):
-	common_shape=None
-	to_field=[]
-	for arr,d in zip(arrays,depths):
-		shape = arr.shape[d:]
-		to_field.append(shape is tuple())
-		if shape is not tuple():
-			if common_shape is not None:
-				assert(shape==common_shape)
-			else:
-				common_shape=shape
-	if common_shape is None:
-		return arrays
-	else:
-		return (fd.as_field(arr,common_shape,conditional=False) if b else arr 
-			for arr,b in zip(arrays,to_field))
 
 
