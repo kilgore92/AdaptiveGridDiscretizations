@@ -2,37 +2,6 @@
 import numpy as np
 import numbers
 
-# ---------------- Independent from HFM code ------------------
-
-def FlattenSymmetricMatrix(m):
-	"""
-	Input : a square (symmetric) matrix.
-	Output : a vector containing the lower triangular entries
-	"""
-	d=m.shape[0]
-	assert(d==m.shape[1])
-	return np.array([ m[i,j] for i in range(d) for j in range(i+1)])
-
-# --------------------- Format data for HFM library --------------------
-
-def HFMRiemannianMetric(m):
-	"""
-Formats a Riemannian metric for the HFM library.
-This includes flattening the symmetric matrix, and 
-moving the first axis last.
-"""
-	return np.moveaxis(FlattenSymmetricMatrix(m),0,-1)
-
-def HFMRanderMetric(m,w):
-	"""
-Formats a Rander metric for the HFM library. 
-This includes flattening the symmetric matrix, 
-concatenating with the vector field, and moving the first axis last.
-"""
-	return np.moveaxis(np.concatenate((FlattenSymmetricMatrix(m),w),axis=0),0,-1)
-
-
-
 # ---------------- Array ordering for import/export ----------
 
 # Maybe this would be better located in the c++ code, IO interface. 
