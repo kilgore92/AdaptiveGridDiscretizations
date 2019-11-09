@@ -51,7 +51,7 @@ in the first line of a file named '"""+fileName+"""' in the current directory\n
 			return binary_dir
 	except OSError as e:
 		# Try importing the library
-		if importlib.util.find_spec(libName) is not None:
+		if libName is not None and importlib.util.find_spec(libName) is not None:
 			return None
 		print("ERROR : the " + libName + " library is not found, and the path to the "+execName+" binaries is not set \n")
 		print(set_directory_msg)

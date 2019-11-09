@@ -27,7 +27,7 @@ def Decomposition(a):
 	"""
 		Call the FileVDQ library to decompose the provided quadratic form(s).
 	"""
-	bin_dir = GetBinaryDir("FileVDQ")
+	bin_dir = GetBinaryDir("FileVDQ",None)
 	vdqIn ={'tensors':np.moveaxis(FlattenSymmetricMatrix(a),0,-1)}
 	vdqOut = FileIO.WriteCallRead(vdqIn, "FileVDQ", bin_dir)
 	return np.moveaxis(vdqOut['weights'],-1,0),np.moveaxis(vdqOut['offsets'],[-1,-2],[0,1])
