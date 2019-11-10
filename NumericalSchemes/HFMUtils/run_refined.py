@@ -1,5 +1,5 @@
 import numpy as np
-from .LibraryCall import RunDispatch
+from .LibraryCall import RunDispatch,GetBinaryDir
 from ..Metrics.base import Base as MetricsBase
 
 
@@ -13,8 +13,6 @@ def PreProcess(key,value,raw_out):
 	else:
 		raw_out[key] = value
 
-
-
 def PostProcess(key,value,refined_out,raw_in):
 	"""
 	copies key,val from raw to refined, with adequate treatment
@@ -27,7 +25,7 @@ def PostProcess(key,value,refined_out,raw_in):
 	else:
 		refined_out[key]=value
 
-def RunRefined(hfmIn,binDir,tupleIn=tuple(),tupleOut=None):
+def RunRefined(hfmIn,tupleIn=tuple(),tupleOut=None):
 	"""
 	Calls the HFM library, with pre-processed and post-processing of data.
 
@@ -37,6 +35,10 @@ def RunRefined(hfmIn,binDir,tupleIn=tuple(),tupleOut=None):
 		take precedence over similar keys hfmIn
 	- tupleOut : (key_1, ..., key_n) corresponding to results 
 		(value_1,...,value_n) to be return in a tuple
+
+	#TODO : 
+	- geometryFirst (default : all but seeds)
+	- Handling of AD information, forward and reverse
 	"""
 
 	hfmIn_raw = {}
@@ -54,7 +56,8 @@ def RunRefined(hfmIn,binDir,tupleIn=tuple(),tupleOut=None):
 		if key not in tupleInKeys:
 			PreProcess(key,value,hfmIn_raw)
 
-	hfmOut_raw = RunDispatch(hfmIn_raw,binDir)
+	hfmOut_raw = RunDispatch(hfmIn_raw,GetBinaryDir("FileHFM","HFMpy"))
+
 	hfmOut = {'raw':hfmOut_raw}
 
 	# Post process

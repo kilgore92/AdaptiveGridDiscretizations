@@ -2,6 +2,8 @@ import numpy as np
 import numbers
 import importlib
 import ast
+import os
+
 
 def SetInput(hfm,params):
 	for key,val in params.items():
@@ -54,5 +56,49 @@ def RunDispatch(params,bin_dir):
 		from . import FileIO
 		execName = 'FileHFM_'+modelName
 		return FileIO.WriteCallRead(params, execName, bin_dir)
+
+
+def GetBinaryDir(execName,libName):
+	"""
+	This function is used due to the special way the HamiltonFastMarching library is used:
+	- as a bunch of command line executables, whose name begins with FileHFM.
+	- as a python library, named HFMpy
+
+	The function will look for a file named "FileHFM_binary_dir.txt" (or a global variable named FileHFM_binary_dir)
+	- if it exists, the first line is read
+	  - if the first line is None -> use the HFMpy library
+	  - otherwise, check that the first line is a valid directory -> should contain the FileHFM executables
+	- if file cannot be read -> use the HFMpy library
+	"""
+	dirName = execName + "_binary_dir"
+	if dirName in globals(): return globals()[dirName] # try reading the global variable
+	fileName = dirName + ".txt"
+	pathExample = "path/to/"+execName+"/bin"
+	set_directory_msg = """
+You can set the path to the """ + execName + """ compiled binaries, as follows : \n
+>>> """+__name__+"."+ dirName+ """ = '""" +pathExample+ """'\n
+\n
+In order to do this automatically in the future, please set this path 
+in the first line of a file named '"""+fileName+"""' in the current directory\n
+>>> with open('"""+fileName+"""','w+') as file: file.write('"""+pathExample+"""')
+"""
+	try:
+		# Try reading the file
+		with open(fileName,'r') as f:
+			binary_dir = f.readline().replace('\n','')
+			if binary_dir=="None":
+				return None
+			if not os.path.isdir(binary_dir):
+				print("ERROR : the path to the "+execName+" binaries appears to be incorrect.\n")
+				print("Current path : ", binary_dir, "\n")
+				print(set_directory_msg)
+			return binary_dir
+	except OSError as e:
+		# Try importing the library
+		if libName is not None and importlib.util.find_spec(libName) is not None:
+			return None
+		print("ERROR : the " + libName + " library is not found, and the path to the "+execName+" binaries is not set \n")
+		print(set_directory_msg)
+		raise
 
 

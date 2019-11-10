@@ -1,19 +1,15 @@
-import os
 import numpy as np
 import importlib
 
-from .LibraryCall import RunDispatch
+from .LibraryCall import RunDispatch,GetBinaryDir
 from .run_refined import RunRefined
 
 
-def Run(hfmIn,refined=None,**kwargs):
+def Run(hfmIn):
 	"""
-	Raw version : Runs the HFM library on the input parameters, returns output and prints log.
-	Refined version : Applies preprocessing and post processing, see RunRefined.
+	Raw call to the HFM library on the input parameters, returns output and prints log.
 	"""
-	if refined is None: refined = len(kwargs)>0
-	binDir = GetBinaryDir("FileHFM","HFMpy")
-	return RunRefined(hfmIn,binDir,**kwargs) if refined else RunDispatch(hfmIn,binDir)
+	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
 
 def VoronoiDecomposition(arr):
 	"""
@@ -40,48 +36,6 @@ def reload_submodules():
 	hfm.run_refined = reload(hfm.run_refined)
 	RunRefined =  run_refined.RunRefined
 
-def GetBinaryDir(execName,libName):
-	"""
-	This function is used due to the special way the HamiltonFastMarching library is used:
-	- as a bunch of command line executables, whose name begins with FileHFM.
-	- as a python library, named HFMpy
-
-	The function will look for a file named "FileHFM_binary_dir.txt" (or a global variable named FileHFM_binary_dir)
-	- if it exists, the first line is read
-	  - if the first line is None -> use the HFMpy library
-	  - otherwise, check that the first line is a valid directory -> should contain the FileHFM executables
-	- if file cannot be read -> use the HFMpy library
-	"""
-	dirName = execName + "_binary_dir"
-	if dirName in globals(): return globals()[dirName] # try reading the global variable
-	fileName = dirName + ".txt"
-	pathExample = "path/to/"+execName+"/bin"
-	set_directory_msg = """
-You can set the path to the """ + execName + """ compiled binaries, as follows : \n
->>> """+__name__+"."+ dirName+ """ = '""" +pathExample+ """'\n
-\n
-In order to do this automatically in the future, please set this path 
-in the first line of a file named '"""+fileName+"""' in the current directory\n
->>> with open('"""+fileName+"""','w+') as file: file.write('"""+pathExample+"""')
-"""
-	try:
-		# Try reading the file
-		with open(fileName,'r') as f:
-			binary_dir = f.readline().replace('\n','')
-			if binary_dir=="None":
-				return None
-			if not os.path.isdir(binary_dir):
-				print("ERROR : the path to the "+execName+" binaries appears to be incorrect.\n")
-				print("Current path : ", binary_dir, "\n")
-				print(set_directory_msg)
-			return binary_dir
-	except OSError as e:
-		# Try importing the library
-		if libName is not None and importlib.util.find_spec(libName) is not None:
-			return None
-		print("ERROR : the " + libName + " library is not found, and the path to the "+execName+" binaries is not set \n")
-		print(set_directory_msg)
-		raise
 
 # ----- Basic utilities for HFM input and output -----
 
