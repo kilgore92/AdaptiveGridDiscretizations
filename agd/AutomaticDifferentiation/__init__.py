@@ -12,7 +12,7 @@ import itertools
 def reload_submodules():
 	import importlib
 	import sys
-	ad = sys.modules['NumericalSchemes.AutomaticDifferentiation']
+	ad = sys.modules['agd.AutomaticDifferentiation']
 	ad.misc = importlib.reload(ad.misc)
 	ad.Dense = importlib.reload(ad.Dense)
 	ad.Sparse = importlib.reload(ad.Sparse)

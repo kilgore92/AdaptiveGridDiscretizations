@@ -1,4 +1,4 @@
-name: agd-lbr_dev
+name: agd-hfm_dev
 channels:
   - conda-forge
 dependencies:
