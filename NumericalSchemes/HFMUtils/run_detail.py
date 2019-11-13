@@ -3,6 +3,10 @@ from .LibraryCall import RunDispatch,GetBinaryDir
 from ..Metrics.base import Base as MetricsBase
 
 
+def RunRaw(hfmIn):
+	"""Raw call to the HFM library"""
+	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
+
 def PreProcess(key,value,raw_out):
 	"""
 	copies key,val from refined to raw, with adequate treatment
@@ -25,9 +29,9 @@ def PostProcess(key,value,refined_out,raw_in):
 	else:
 		refined_out[key]=value
 
-def RunRefined(hfmIn,tupleIn=tuple(),tupleOut=None):
+def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None):
 	"""
-	Calls the HFM library, with pre-processed and post-processing of data.
+	Calls the HFM library, with pre-processing and post-processing of data.
 
 	tupleIn and tupleOut are intended to make the inputs and outputs 
 	visible to reverse automatic differentiation
@@ -35,12 +39,11 @@ def RunRefined(hfmIn,tupleIn=tuple(),tupleOut=None):
 		take precedence over similar keys hfmIn
 	- tupleOut : (key_1, ..., key_n) corresponding to results 
 		(value_1,...,value_n) to be return in a tuple
-
-	#TODO : 
-	- geometryFirst (default : all but seeds)
-	- Handling of AD information, forward and reverse
 	"""
-
+	
+	#TODO : 
+	#	- geometryFirst (default : all but seeds)
+	#	- Handling of AD information, forward and reverse
 	hfmIn_raw = {}
 
 	# Pre-process tuple arguments

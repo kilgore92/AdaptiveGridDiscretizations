@@ -1,19 +1,28 @@
 import numpy as np
 import importlib
 
-from .LibraryCall import RunDispatch,GetBinaryDir
-from .run_refined import RunRefined
+
+from .LibraryCall import GetBinaryDir
+from .run_detail import RunRaw,RunSmart
 
 
-def Run(hfmIn):
+def Run(hfmIn,smart=False,**kwargs):
 	"""
-	Raw call to the HFM library on the input parameters, returns output and prints log.
+	Calls to the HFM library, returns output and prints log.
+
+	Parameters
+	----------
+	smart : bool  
+		Choose between a smart and raw run
+	**kwargs
+		Passed to RunRaw or RunSmart
 	"""
-	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
+	return RunSmart(hfmIn,**kwargs) if smart else RunRaw(hfmIn,**kwargs)
 
 def VoronoiDecomposition(arr):
 	"""
-	Call the FileVDQ library to decompose the provided quadratic form(s).
+	Calls the FileVDQ library to decompose the provided quadratic form(s),
+	as based on Voronoi's first reduction of quadratic forms.
 	"""
 	from ..Metrics import misc
 	from . import FileIO
