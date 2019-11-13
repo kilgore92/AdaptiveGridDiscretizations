@@ -1,4 +1,0 @@
-None
-/Users/mirebeau/bin/HamiltonFastMarching/FileHFM/Release
-
-!! Important !! : replace the first line of this file with the path to the FileHFM executable
