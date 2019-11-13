@@ -60,7 +60,7 @@ RepositoryDescription = """
 """
 
 def displayTOC(inFName,volume):
-	with open(inFName+".ipynb") as data_file:
+	with open(inFName+".ipynb", encoding='utf8') as data_file:
 		data = json.load(data_file)
 	contents = []
 	for c in data['cells']:
@@ -101,7 +101,7 @@ def displayTOCs(volume,subdir=""):
 	chapter_numerals = ["I","II","III","IV","V","VI","VII","VIII","IX","X"]
 	for _inFName in inFNames:
 		inFName = _inFName+".ipynb"
-		with open(subdir+inFName) as data_file:
+		with open(subdir+inFName, encoding='utf8') as data_file:
 			data = json.load(data_file)
 			# Display the chapter
 			s=data['cells'][0]['source']
@@ -146,7 +146,7 @@ def displayTOCss():
 		part_counter = 0
 
 		inFName = dirName+'Summary'+extension
-		with open(inFName) as data_file:
+		with open(inFName, encoding='utf8') as data_file:
 			data = json.load(data_file)
 			s = data['cells'][0]['source']
 			volumeTitle = s[2][len("# Volume : "):]
@@ -156,7 +156,7 @@ def displayTOCss():
 		# Display parts and chapters
 		for _inFName in VolumeFilenames[volume]:
 			inFName = dirName+_inFName+extension
-			with open(inFName) as data_file:
+			with open(inFName, encoding='utf8') as data_file:
 				data = json.load(data_file)
 				# Display the chapter
 				s=data['cells'][0]['source']

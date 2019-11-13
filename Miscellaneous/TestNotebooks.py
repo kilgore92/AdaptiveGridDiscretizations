@@ -19,7 +19,7 @@ def TestNotebook(notebook_filename, result_path):
 	filename,extension = os.path.splitext(notebook_filename)
 	if extension=='': extension='.ipynb'
 	filename_out = filename+"_out"
-	with open(filename+extension) as f:
+	with open(filename+extension, encoding='utf8') as f:
 		nb = nbformat.read(f,as_version=4) # alternatively nbformat.NO_CONVERT
 	ep = ExecutePreprocessor(timeout=600,kernel_name='python3')
 	success = True

@@ -10,7 +10,7 @@ def ListNotebookFiles(dirname):
 	return [filename for filename,extension in filenames_extensions if extension==".ipynb" and filename!="Summary"]
 
 def TestToc(dirname,filename):
-	with open(dirname+"/"+filename+".ipynb") as data_file:
+	with open(dirname+"/"+filename+".ipynb", encoding='utf8') as data_file:
 		data = json.load(data_file)
 
 	# Test Header
@@ -54,7 +54,7 @@ def TestToc(dirname,filename):
 
 
 def TestTocs(dirname):
-	with open(dirname+"/Summary.ipynb") as data_file:
+	with open(dirname+"/Summary.ipynb", encoding='utf8') as data_file:
 		data = json.load(data_file)
 	toc = TocTools.displayTOCs(dirname[10:],dirname+"/").strip()
 	for c in data['cells']:
@@ -68,7 +68,7 @@ def TestTocs(dirname):
 	print("directory : ",dirname," Summary toc not found")
 
 def TestTocss():
-	with open("Summary.ipynb") as data_file:
+	with open("Summary.ipynb", encoding='utf8') as data_file:
 		data = json.load(data_file)
 	toc = TocTools.displayTOCss().strip()
 	for c in data['cells']:

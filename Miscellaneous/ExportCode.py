@@ -11,7 +11,7 @@ def ListNotebooks():
 	return [filename for filename,extension in filenames_extensions if extension==".ipynb"]
 
 def ExportCode(inFName,outFName):
-	with open(inFName) as data_file:
+	with open(inFName, encoding='utf8') as data_file:
 		data = json.load(data_file)
 	output = [
 		'# Code automatically exported from notebook '+inFName,
@@ -26,7 +26,7 @@ def ExportCode(inFName,outFName):
 			nAlgo+=1
 	if nAlgo>0:
 		print("Exporting ", nAlgo, " code cells from notebook ", inFName, " in file ", outFName)
-		with open(outFName,'w+') as output_file:			
+		with open(outFName,'w+', encoding='utf8') as output_file:			
 			for c in output:
 				output_file.write(c)
 
