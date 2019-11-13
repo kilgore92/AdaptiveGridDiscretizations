@@ -29,7 +29,7 @@ def PostProcess(key,value,refined_out,raw_in):
 	else:
 		refined_out[key]=value
 
-def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None):
+def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 	"""
 	Calls the HFM library, with pre-processing and post-processing of data.
 
@@ -39,11 +39,14 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None):
 		take precedence over similar keys hfmIn
 	- tupleOut : (key_1, ..., key_n) corresponding to results 
 		(value_1,...,value_n) to be return in a tuple
+	- returns : string in ('in_raw','out_raw','out')
+		early aborts the run and returns specified data
 	"""
 	
 	#TODO : 
 	#	- geometryFirst (default : all but seeds)
 	#	- Handling of AD information, forward and reverse
+	assert(returns in ('in_raw','out_raw','out'))
 	hfmIn_raw = {}
 
 	# Pre-process tuple arguments
@@ -59,8 +62,10 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None):
 		if key not in tupleInKeys:
 			PreProcess(key,value,hfmIn_raw)
 
+	if returns=='in_raw': return hfmIn_raw
 	hfmOut_raw = RunDispatch(hfmIn_raw,GetBinaryDir("FileHFM","HFMpy"))
-
+	if returns=='out_raw': return hfmOut_raw
+	
 	hfmOut = {'raw':hfmOut_raw}
 
 	# Post process
