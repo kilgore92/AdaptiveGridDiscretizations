@@ -1,1 +1,1 @@
-$PYTHON setup.py install
+$PYTHON conda.recipe/setup.py install

@@ -23,7 +23,6 @@ def savefig(fig,fileName,dirName=None,**kwargs):
 	# Save figure
 	if path.isdir(dirName):
 		fig.savefig(path.join(dirName,fileName),**kwargs) 
-		assert(False)
 	else:
 		print("savefig error: No such directory", dirName)
 #		raise OSError(2, 'No such directory', dirName)
