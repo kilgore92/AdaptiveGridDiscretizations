@@ -1,0 +1,10 @@
+name: agd-lbr_dev
+channels:
+  - conda-forge
+dependencies:
+  - matplotlib
+  - notebook
+  - scipy
+  - conda-build
+  - conda-verify
+  - anaconda-client

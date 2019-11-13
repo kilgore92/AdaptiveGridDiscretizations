@@ -1,0 +1,21 @@
+package:
+  name: agd
+  version: 0.0.1
+  
+source:
+  path: ../
+
+requirements:
+  build:
+   - python
+
+  run:
+   - python
+   - numpy
+   - scipy
+#   - itertools
+#   - importlib
+#   - functools
+#   - os
+#   - math
+#   - copy

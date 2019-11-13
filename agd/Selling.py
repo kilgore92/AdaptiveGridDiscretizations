@@ -4,7 +4,7 @@
 
 import numpy as np
 from itertools import cycle
-from NumericalSchemes.LinearParallel import dot_VV, dot_AV, perp, cross
+from .LinearParallel import dot_VV, dot_AV, perp, cross
 
 iterMax2 = 100 
 iterMax3 = 100 

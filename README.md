@@ -12,8 +12,8 @@ The notebooks can be visualized online, [view summary online](http://nbviewer.ju
 For offline consultation, please download and install [anaconda](https://www.anaconda.com) or [miniconda](https://conda.io/en/latest/miniconda.html).  
 *Optionally*, you may create a dedicated conda environnement by typing the following in a terminal:
 ```console
-conda env create --file agd-lbr.yaml
-conda activate agd-lbr
+conda env create --file agd-hfm.yaml
+conda activate agd-hfm
 ```
 In order to open the book summary, type in a terminal:
 ```console

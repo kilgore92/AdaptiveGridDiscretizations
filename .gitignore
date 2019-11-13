@@ -8,3 +8,4 @@ test_results/
 Prepublication/
 Notebooks_Repro/InPreparation/
 FileHFM_binary_dir.txt
+dist/

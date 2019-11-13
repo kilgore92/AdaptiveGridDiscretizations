@@ -1,6 +1,6 @@
-from NumericalSchemes import FiniteDifferences as fd
-from NumericalSchemes import AutomaticDifferentiation as ad
-from NumericalSchemes import LinearParallel as lp
+from . import FiniteDifferences as fd
+from . import AutomaticDifferentiation as ad
+from . import LinearParallel as lp
 
 import numpy as np
 from functools import reduce

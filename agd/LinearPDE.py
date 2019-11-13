@@ -1,8 +1,8 @@
 import numpy as np
 import scipy.sparse as sp
 
-from NumericalSchemes import Selling
-from NumericalSchemes import LinearParallel as LP
+from . import Selling
+from . import LinearParallel as LP
 
 diff = np.zeros((3,3,2,2))
 diff[:,:,0,0]=1
