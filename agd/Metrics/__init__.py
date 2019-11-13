@@ -9,7 +9,7 @@ from .hooke_topo import HookeTopo
 def reload_submodules():
 	from importlib import reload
 	import sys
-	metrics = sys.modules['NumericalSchemes.Metrics']
+	metrics = sys.modules['agd.Metrics']
 
 	global Isotropic
 	metrics.isotropic = reload(metrics.isotropic)
