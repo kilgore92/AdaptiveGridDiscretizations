@@ -9,3 +9,4 @@ Prepublication/
 Notebooks_Repro/InPreparation/
 FileHFM_binary_dir.txt
 dist/
+*.slides.html
