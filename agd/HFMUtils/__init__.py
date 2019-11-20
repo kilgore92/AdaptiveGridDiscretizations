@@ -35,15 +35,16 @@ def VoronoiDecomposition(arr):
 def reload_submodules():
 	from importlib import reload
 	import sys
-	hfm = sys.modules['NumericalSchemes.HFMUtils']
+	hfm = sys.modules['agd.HFMUtils']
 
-	global RunDispatch
+	global GetBinaryDir
 	hfm.LibraryCall = reload(hfm.LibraryCall)
-	RunDispatch =  LibraryCall.RunDispatch
+	GetBinaryDir =  LibraryCall.GetBinaryDir
 
-	global RunRefined
-	hfm.run_refined = reload(hfm.run_refined)
-	RunRefined =  run_refined.RunRefined
+	global RunRaw,RunSmart
+	hfm.run_detail = reload(hfm.run_detail)
+	RunSmart =  run_detail.RunSmart
+	RunRaw = run_detail.RunRaw
 
 
 # ----- Basic utilities for HFM input and output -----

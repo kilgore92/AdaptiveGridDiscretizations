@@ -1,67 +1,12 @@
 import numpy as np
 from .LibraryCall import RunDispatch,GetBinaryDir
-from ..Metrics.base import Base as MetricsBase
+from .. import Metrics
 from .. import AutomaticDifferentiation as ad
 
 
 def RunRaw(hfmIn):
 	"""Raw call to the HFM library"""
 	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
-
-
-def setkey_safe(dico,key,value):
-	if key in dico:
-		if value is not dico[key]:
-			raise ValueError("Multiple values for key ",key)
-	else:
-		dico[key]=value
-
-def PreProcess(key,value,refined_in,raw_out):
-	"""
-	copies key,val from refined to raw, with adequate treatment
-	"""
-
-	verbosity = refined_in.get('verbosity',1)
-
-	if isinstance(value,MetricsBase): 
-		# ---------- Set the metric ----------
-		assert(key in ['cost','speed','metric','dualMetric'])
-
-		# Set the model if unspecified
-		if 'model' not in refined_in:
-			modelName = value.name_HFM()
-			if isinstance(modelName,tuple):
-				modelName=modelName[0]
-				if verbosity>=1:
-					print('model defaults to ',modelName[0])
-			setkey_safe(raw_out,'model',modelName)
-		
-		# Set the metric
-		metricValues = value.to_HFM()
-
-		if ad.is_ad(metricValues):
-			# Interface for forward automatic differentiation
-			assert(key=='cost' and isinstance(metricValues,Metrics.Isotropic))
-			setkey_safe(raw_out,'costVariation',metricValues.gradient())
-#			for i,dvalue in enumerate(metricValues.gradient()):
-#				setkey_safe(raw_out,'costVariation_'+str(i),dvalue)
-		else:
-			setkey_safe(raw_out,key,metricValues)
-
-	else:
-		setkey_safe(raw_out,key,value)
-
-def PostProcess(key,value,refined_out,raw_in):
-	"""
-	copies key,val from raw to refined, with adequate treatment
-	"""
-	if key.startswith('geodesicPoints'):
-		from ..HFMUtils import GetGeodesics
-		suffix = key[len('geodesicPoints'):]
-		geodesics = GetGeodesics(raw_in,suffix=suffix)
-		refined_out["geodesics"+suffix]=[np.moveaxis(geo,-1,0) for geo in geodesics]
-	else:
-		refined_out[key]=value
 
 def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 	"""
@@ -79,7 +24,10 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 	
 	#TODO : 
 	#	- geometryFirst (default : all but seeds)
-	#	- Handling of AD information, forward and reverse
+	#	- Forward AD (~done)
+	#   - Reverse AD (co_state)
+	#   - cache argument
+	#   - differentiation of the geodesicFlow
 	assert(returns in ('in_raw','out_raw','out'))
 	hfmIn_raw = {}
 
@@ -104,7 +52,7 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 
 	# Post process
 	for key,val in hfmOut_raw.items():
-		PostProcess(key,val,hfmOut,hfmOut_raw)
+		PostProcess(key,val,hfmOut_raw,hfmOut)
 
 	# Extract tuple arguments
 	if tupleOut is None:
@@ -114,5 +62,84 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 		return hfmOut,tupleResult
 	
 
+def setkey_safe(dico,key,value):
+	if key in dico:
+		if value is not dico[key]:
+			raise ValueError("Multiple values for key ",key)
+	else:
+		dico[key]=value
 
+# ----------------- Preprocessing ---------------
+def PreProcess(key,value,refined_in,raw_out):
+	"""
+	copies key,val from refined to raw, with adequate treatment
+	"""
+
+	verbosity = refined_in.get('verbosity',1)
+
+	if key=='cost':
+		if isinstance(value,Metrics.Isotropic):
+			value = value.to_HFM()
+		if ad.is_ad(value):
+			setkey_safe(raw_out,'costVariation',value.coef)
+			value = np.array(value)
+		setkey_safe(raw_out,key,value)
+	elif key=='speed':
+		if isinstance(value,Metrics.Isotropic):
+			value = value.to_HFM()
+		if ad.is_ad(value):
+			setkey_safe(raw_out,'costVariation',(1/value).coef)
+			value = np.array(value)
+		setkey_safe(raw_out,key,value)
+	elif key=='seedValues':
+		if ad.is_ad(value):
+			setkey_safe(raw_out,'seedValueVariation',value.gradient())
+			value=np.array(value)
+		setkey_safe(raw_out,key,value)
+	else:
+		setkey_safe(raw_out,key,value)
+
+#	if isinstance(value,Metrics.Base): 
+		# ---------- Set the metric ----------
+#		assert(key in ['cost','speed','metric','dualMetric'])
+
+#		# Set the model if unspecified
+#		if 'model' not in refined_in:
+#			modelName = value.name_HFM()
+#				modelName=modelName[0]
+#				if verbosity>=1:
+#					print('model defaults to ',modelName[0])
+#			setkey_safe(raw_out,'model',modelName)
+		
+		# Set the metric
+#		metricValues = value.to_HFM()
+
+#		if ad.is_ad(metricValues):
+			# Interface for forward automatic differentiation
+#			assert(key=='cost' and isinstance(metricValues,Metrics.Isotropic))
+#			setkey_safe(raw_out,'costVariation',metricValues.gradient())
+#			for i,dvalue in enumerate(metricValues.gradient()):
+#				setkey_safe(raw_out,'costVariation_'+str(i),dvalue)
+#		else:
+#			setkey_safe(raw_out,key,metricValues)
+
+#---------- Post processing ------------
+def PostProcess(key,value,raw_in,refined_out):
+	"""
+	copies key,val from raw to refined, with adequate treatment
+	"""
+	if key.startswith('geodesicPoints'):
+		from ..HFMUtils import GetGeodesics
+		suffix = key[len('geodesicPoints'):]
+		geodesics = GetGeodesics(raw_in,suffix=suffix)
+		setkey_safe(refined_out,"geodesics"+suffix,
+			[np.moveaxis(geo,-1,0) for geo in geodesics])
+	elif key=='values':
+		if 'valueVariation' in raw_in:
+			value = ad.Dense.denseAD(value,raw_in['valueVariation'])
+		setkey_safe(refined_out,key,value)
+	elif key=='valueVariation':
+		pass
+	else:
+		setkey_safe(refined_out,key,value)
 
