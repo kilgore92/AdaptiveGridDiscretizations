@@ -1,15 +1,18 @@
 package:
   name: agd
-  version: 0.0.2
+  version: 0.0.3
   
 source:
   path: ../
 
+build:
+  noarch: python
+  
 requirements:
-  build:
-    - python 
-#    noarch: python # Cannot get this to work, set several versions in conda_build_config.yaml instead
-
+  channels:
+   - conda-forge
+  host:
+   - python
   run:
    - python
    - numpy
