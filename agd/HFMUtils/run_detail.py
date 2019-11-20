@@ -1,21 +1,55 @@
 import numpy as np
 from .LibraryCall import RunDispatch,GetBinaryDir
 from ..Metrics.base import Base as MetricsBase
+from .. import AutomaticDifferentiation as ad
 
 
 def RunRaw(hfmIn):
 	"""Raw call to the HFM library"""
 	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
 
-def PreProcess(key,value,raw_out):
+
+def setkey_safe(dico,key,value):
+	if key in dico:
+		if value is not dico[key]:
+			raise ValueError("Multiple values for key ",key)
+	else:
+		dico[key]=value
+
+def PreProcess(key,value,refined_in,raw_out):
 	"""
 	copies key,val from refined to raw, with adequate treatment
 	"""
-	if isinstance(value,MetricsBase):
+
+	verbosity = refined_in.get('verbosity',1)
+
+	if isinstance(value,MetricsBase): 
+		# ---------- Set the metric ----------
 		assert(key in ['cost','speed','metric','dualMetric'])
-		raw_out[key] = value.to_HFM()
+
+		# Set the model if unspecified
+		if 'model' not in refined_in:
+			modelName = value.name_HFM()
+			if isinstance(modelName,tuple):
+				modelName=modelName[0]
+				if verbosity>=1:
+					print('model defaults to ',modelName[0])
+			setkey_safe(raw_out,'model',modelName)
+		
+		# Set the metric
+		metricValues = value.to_HFM()
+
+		if ad.is_ad(metricValues):
+			# Interface for forward automatic differentiation
+			assert(key=='cost' and isinstance(metricValues,Metrics.Isotropic))
+			setkey_safe(raw_out,'costVariation',metricValues.gradient())
+#			for i,dvalue in enumerate(metricValues.gradient()):
+#				setkey_safe(raw_out,'costVariation_'+str(i),dvalue)
+		else:
+			setkey_safe(raw_out,key,metricValues)
+
 	else:
-		raw_out[key] = value
+		setkey_safe(raw_out,key,value)
 
 def PostProcess(key,value,refined_out,raw_in):
 	"""
@@ -55,12 +89,12 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 		raise ValueError("RunProcessed error : duplicate keys in tupleIn")
 	
 	for key,value in tupleIn:
-		PreProcess(key,value,hfmIn_raw)
+		PreProcess(key,value,hfmIn,hfmIn_raw)
 
 	# Pre-process usual arguments
 	for key,value in hfmIn.items():
 		if key not in tupleInKeys:
-			PreProcess(key,value,hfmIn_raw)
+			PreProcess(key,value,hfmIn,hfmIn_raw)
 
 	if returns=='in_raw': return hfmIn_raw
 	hfmOut_raw = RunDispatch(hfmIn_raw,GetBinaryDir("FileHFM","HFMpy"))

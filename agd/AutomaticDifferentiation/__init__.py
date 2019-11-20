@@ -37,8 +37,19 @@ def is_strict_subclass(type0,type1):
 	return issubclass(type0,type1) and type0!=type1
 
 def toarray(a,array_type=np.ndarray):
+	"""Deprecated"""
 	if isinstance(a,array_type): return a
 	return array_type(a) if is_strict_subclass(array_type,np.ndarray) else np.array(a)
+
+def array(a):
+	"""
+	Similar to np.array, but does not cast AD subclasses of np.ndarray to the base class.
+	Turns a list or tuple of arrays with the same dimensions. 
+	Turns a scalar into an array scalar.
+	"""
+	if isinstance(a,np.ndarray): return a
+	elif hasattr(a,'__iter__'): return stack([array(e) for e in a],axis=0)
+	else: return np.array(a)
 
 def broadcast_to(array,shape):
 	if is_ad(array): return array.broadcast_to(shape)
