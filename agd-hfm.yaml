@@ -7,7 +7,7 @@ dependencies:
   - python=3.7
   - jupyter
   - hfm
-  - agd
+#  - agd # Not able to build yet ...
   - matplotlib
   - notebook
   - scipy
