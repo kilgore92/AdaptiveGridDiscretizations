@@ -7,8 +7,8 @@ source:
 
 requirements:
   build:
-    - python
-#    noarch: python # Cannot get this to work, set several versions in conda_build_config.yaml instead
+#    - python
+    noarch: python # Cannot get this to work, set several versions in conda_build_config.yaml instead
 
   run:
    - python
