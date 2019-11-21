@@ -79,6 +79,7 @@ def GetAxes(params,dims=None):
 	if dims is None: dims=params['dims']
 	return [CenteredLinspace(b,t,d) for b,t,d in zip(bottom,top,dims)]
 
+
 def GetGrid(params,dims=None):
 	axes = GetAxes(params,dims);
 	ordering = params['arrayOrdering']
@@ -121,3 +122,75 @@ def Rect(sides,sampleBoundary=False,gridScale=None,gridScales=None,dimx=None,dim
 	origin = [c+(r-d-sb)*delta/2 for c,r,d,delta in zip(corner0,ratios,dims,h)]
 	result.update({'dims':np.array(dims),'origin':np.array(origin)});
 	return result
+
+
+# -------------- Point to and from index --------------
+
+def PointFromIndex(params,index,to=False):
+	"""
+	Turns an index into a point.
+	Optional argument to: if true, inverse transformation, turning a point into a continuous index
+	"""
+	bottom,top = GetCorners(params)
+	dims=np.array(params['dims'])
+	
+	scale = (top-bottom)/dims
+	start = bottom +0.5*scale
+	if not to: return start+scale*index
+	else: return (index-start)/scale
+
+def IndexFromPoint(params,point):
+	"""
+	Returns the index that yields the position closest to a point, and the error.
+	"""
+	continuousIndex = PointFromIndex(params,point,to=True)
+	index = np.round(continuousIndex)
+	return index.astype(int),(continuousIndex-index)
+
+
+# ----------- Helper class ----------
+
+class dictIn(dict):
+	"""
+	A very shallow subclass of a python dictionnary, intended for storing the inputs to the HFM library.
+	Usage: a number of the free functions of HFMUtils are provided as methods, for convenience.
+	"""
+
+	# Coordinates related methods
+	@property
+	def Corners(self):
+		return GetCorners(self)
+	def SetRect(self,*args,**kwargs):
+		self.update(Rect(*args,**kwargs))
+
+	Axes=GetAxes
+	Grid=GetGrid
+	PointFromIndex=PointFromIndex
+	IndexFromPoint=IndexFromPoint
+
+	# Running
+	Run = Run
+	RunRaw = RunRaw
+	RunSmart = RunSmart
+
+#	def Axes(self,*args,**kwargs):
+#		return GetAxes(self,*args,**kwargs)
+#	def Grid(self,*args,**kwargs):
+#		return GetGrid(self,*args,**kwargs)
+#	def PointFromIndex(self,*args,**kwargs):
+#		return PointFromIndex(self,*args,**kwargs)
+#	def IndexFromPoint(self,*args,**kwargs):
+#		return IndexFromPoint(self,*args,**kwargs)
+
+#	def Run(self,*args,**kwargs):
+#		return Run(self,*args,**kwargs)
+#	def RunRaw(self,*args,**kwargs):
+#		return RunRaw(self,*args,**kwargs)
+#	def RunSmart(self,*args,**kwargs):
+#		return RunSmart(self,*args,**kwargs)
+
+
+
+
+
+

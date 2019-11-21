@@ -8,7 +8,7 @@ def RunRaw(hfmIn):
 	"""Raw call to the HFM library"""
 	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
 
-def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
+def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out",co_output=None):
 	"""
 	Calls the HFM library, with pre-processing and post-processing of data.
 
@@ -26,7 +26,7 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 	#	- geometryFirst (default : all but seeds)
 	#	- Forward AD (~done)
 	#   - Reverse AD (co_state)
-	#   - cache argument
+	#   - cache argument for faster output
 	#   - differentiation of the geodesicFlow
 	assert(returns in ('in_raw','out_raw','out'))
 	hfmIn_raw = {}
@@ -44,6 +44,20 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 		if key not in tupleInKeys:
 			PreProcess(key,value,hfmIn,hfmIn_raw)
 
+	# Reverse automatic differentiation
+	if co_output is not None:
+		for key,value in zip(tupleOut,co_output):
+			if key=='values':
+				indices = np.array(np.nonzero(value))
+				positions = PointFromIndex(hfmIn_raw,indices)
+				weights = value[positions]
+				setkey_safe(hfmIn_raw,'inspectSensitivity',positions)
+				setkey_safe(hfmIn_raw,'inspectSensitivityWeights',weights)
+				setkey_safe(hfmIn_raw,'inspectSensitivityLengths',len(weights))
+			else:
+				raise ValueError(f"Reverse automatic differentiation unsupported for output : {key}")
+		# TODO : gradientFlow
+		
 	if returns=='in_raw': return hfmIn_raw
 	hfmOut_raw = RunDispatch(hfmIn_raw,GetBinaryDir("FileHFM","HFMpy"))
 	if returns=='out_raw': return hfmOut_raw
@@ -53,6 +67,18 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out"):
 	# Post process
 	for key,val in hfmOut_raw.items():
 		PostProcess(key,val,hfmOut_raw,hfmOut)
+
+	if co_output is not None:
+		result=[]
+		for key,value in tupleIn:
+			if key=='cost':
+				result.append((value,hfmOut['costSensitivity']))
+			elif key=='seedValues':
+				result.append((value,hfmOut['seedSensitivity']))
+			else:
+				raise ValueError(f"Reverse automatic differentiation unsupported for input : {key}")
+			# TODO : speed
+		return result
 
 	# Extract tuple arguments
 	if tupleOut is None:
