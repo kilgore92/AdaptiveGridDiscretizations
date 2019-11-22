@@ -117,6 +117,7 @@ class reverseAD(object):
 
 	def gradient(self,a):
 		"""Computes the gradient of the scalar spAD variable a"""
+		assert(isinstance(a,Sparse.spAD) and a.shape==tuple())
 		coef = Sparse.spAD(a.value,a.coef,self._index_rev(a.index)).to_dense().coef
 		size_total = self.size_ad+self.size_rev
 		if coef.size<size_total:  coef = misc._pad_last(coef,size_total)

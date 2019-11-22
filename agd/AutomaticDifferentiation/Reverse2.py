@@ -77,6 +77,8 @@ class reverseAD2(object):
 
 	# Adjoint evaluation pass
 	def gradient(self,a):
+		"""Computes the gradient of the scalar spAD2 variable a"""
+		assert(isinstance(a,Sparse2.spAD2) and a.shape==tuple())
 		coef = Sparse.spAD(a.value,a.coef1,self._index_rev(a.index)).to_dense().coef
 		for outputshapes,func,args,kwargs in reversed(self._states):
 			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes)
@@ -126,6 +128,8 @@ class reverseAD2(object):
 			dir[sstart:(sstart+values.size)] = values.coef.flatten()
 
 	def hessian(self,a):
+		"""Returns the hessian operator associated with the scalar spAD2 variable a"""
+		assert(isinstance(a,Sparse2.spAD2) and a.shape==tuple())
 		def hess_operator(dir_hessian,coef2_init=None,with_grad=False):
 			nonlocal self,a
 			# Forward pass : propagate the hessian direction
