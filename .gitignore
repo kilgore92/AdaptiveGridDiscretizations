@@ -10,3 +10,5 @@ Notebooks_Repro/InPreparation/
 FileHFM_binary_dir.txt
 dist/
 *.slides.html
+*_Format.txt
+*_Data.dat

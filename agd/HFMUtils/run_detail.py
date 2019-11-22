@@ -62,7 +62,7 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out",co_output=None):
 	hfmOut_raw = RunDispatch(hfmIn_raw,GetBinaryDir("FileHFM","HFMpy"))
 	if returns=='out_raw': return hfmOut_raw
 	
-	hfmOut = {'raw':hfmOut_raw}
+	hfmOut = {}
 
 	# Post process
 	for key,val in hfmOut_raw.items():
@@ -106,14 +106,14 @@ def PreProcess(key,value,refined_in,raw_out):
 	if key=='cost':
 		if isinstance(value,Metrics.Isotropic):
 			value = value.to_HFM()
-		if ad.is_ad(value):
+		if isinstance(value,ad.Dense.denseAD):
 			setkey_safe(raw_out,'costVariation',value.coef)
 			value = np.array(value)
 		setkey_safe(raw_out,key,value)
 	elif key=='speed':
 		if isinstance(value,Metrics.Isotropic):
 			value = value.to_HFM()
-		if ad.is_ad(value):
+		if isinstance(value,ad.Dense.denseAD):
 			setkey_safe(raw_out,'costVariation',(1/value).coef)
 			value = np.array(value)
 		setkey_safe(raw_out,key,value)
@@ -160,12 +160,16 @@ def PostProcess(key,value,raw_in,refined_out):
 		geodesics = GetGeodesics(raw_in,suffix=suffix)
 		setkey_safe(refined_out,"geodesics"+suffix,
 			[np.moveaxis(geo,-1,0) for geo in geodesics])
+	elif key.startswith('geodesicLengths'):
+		pass
+
 	elif key=='values':
 		if 'valueVariation' in raw_in:
 			value = ad.Dense.denseAD(value,raw_in['valueVariation'])
 		setkey_safe(refined_out,key,value)
 	elif key=='valueVariation':
 		pass
+		
 	else:
 		setkey_safe(refined_out,key,value)
 

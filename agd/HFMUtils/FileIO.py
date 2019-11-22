@@ -23,7 +23,7 @@ def RawToFiles(params,prefix='input'):
             data.append([val])
         elif isinstance(val,str):
             f.write(key+'\n-1\n'+val.encode("unicode_escape").decode("utf-8")+'\n\n')
-        elif isinstance(val,np.ndarray):
+        elif type(val)==np.ndarray:
             f.write(key+'\n'+str(val.ndim)+'\n')
             for dim in val.shape:
                 f.write(str(dim)+'\n')
@@ -60,26 +60,19 @@ def FilesToRaw(prefix='output'):
         f.readline()
     return dict
 
-def WriteCallRead(inputData,executable,binary_dir=None,
-                  inputPrefix="input",outputPrefix="output",logFile="log.txt"):
-    if binary_dir: #Change to executable's directory
-        cwd=os.getcwd()
-        os.chdir(binary_dir)
-        
-    RawToFiles(inputData,inputPrefix) # Export inputData
+def WriteCallRead(inputData,executable,binary_dir='',working_dir=None,
+                  inputPrefix="input",outputPrefix="output"):
+    if working_dir is None: 
+        working_dir=binary_dir
+    RawToFiles(inputData,os.path.join(working_dir,inputPrefix) ) # Export inputData
     
-    execPrefix = '' if os.name=='nt' else './' # Run executable
-    command = execPrefix+executable+' '+inputPrefix+' '+outputPrefix
-    if logFile: command = command +' > '+logFile
-    retcode = subprocess.call(command, shell=True)
+    process = subprocess.Popen([os.path.join(binary_dir,executable),inputPrefix,outputPrefix],
+        stdout=subprocess.PIPE,stderr=subprocess.STDOUT, universal_newlines=True,cwd=working_dir)
+    for stdout_line in iter(process.stdout.readline, ""):
+        print(stdout_line,end='')
+    retcode = process.wait() #returncode
     if retcode!=0:  print('Returned with exit code ', retcode)
     
-    outputData = FilesToRaw(outputPrefix) # Import outputData
-    if logFile: 
-        log = open(logFile).read()
-        outputData['log'] = log
-        if log!='': print(log)
-    outputData['retcode']=retcode;
-    if binary_dir:  os.chdir(cwd)
-        
+    outputData = FilesToRaw(os.path.join(working_dir,outputPrefix)) # Import outputData
+    outputData['retcode']=retcode
     return outputData
