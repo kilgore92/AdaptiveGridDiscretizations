@@ -119,7 +119,7 @@ class spAD(np.ndarray):
 		assert a.size_ad == sum(lens)
 		t = tuple(np.moveaxis(b,0,-1) for b in t)
 		a_coefs = np.split(a.coef,np.cumsum(lens[:-1]),axis=-1)
-		def FlattenLast2(arr): return arr.reshape(arr.shape[:-2]+(np.prod(arr.shape[-2:]),))
+		def FlattenLast2(arr): return arr.reshape(arr.shape[:-2]+(np.prod(arr.shape[-2:],dtype=int),))
 		coef = tuple(_add_dim(c)*b.coef for c,b in zip(a_coefs,t) )
 		coef = np.concatenate( tuple(FlattenLast2(c) for c in coef), axis=-1)
 		index = np.broadcast_to(np.concatenate( tuple(FlattenLast2(b.index) for b in t), axis=-1),coef.shape)
@@ -417,4 +417,4 @@ class spAD(np.ndarray):
 def identity(shape=None,constant=None,shift=0):
 	shape,constant = misc._set_shape_constant(shape,constant)
 	shape2 = shape+(1,)
-	return spAD(constant,np.full(shape2,1.),np.arange(shift,shift+np.prod(shape)).reshape(shape2))
+	return spAD(constant,np.full(shape2,1.),np.arange(shift,shift+np.prod(shape,dtype=int)).reshape(shape2))

@@ -77,7 +77,7 @@ def apply_linear_operator(op,rhs,flatten_ndim=0):
 	by flattening the last dimensions"""
 	assert (rhs.ndim-flatten_ndim) in [1,2]
 	shape_tail = rhs.shape[1:]
-	op_input = rhs.reshape((rhs.shape[0],np.prod(shape_tail)))
+	op_input = rhs.reshape((rhs.shape[0],np.prod(shape_tail,dtype=int)))
 	op_output = op(op_input)
 	return op_output.reshape((op_output.shape[0],)+shape_tail)
 
@@ -85,24 +85,28 @@ def apply_linear_operator(op,rhs,flatten_ndim=0):
 # -------- For Reverse and Reverse2 -------
 
 # Applying a function
-def _apply_output_helper(rev,a):
+def _apply_output_helper(rev,a,output_iterables):
 	"""
 	Adds 'virtual' AD information to an output (with negative indices), 
 	in selected places.
 	"""
 	from . import is_ad
 	import numbers
-	assert not is_ad(a)
+	if(is_ad(a)):
+		raise ValueError("reverseAD error : input_iterables incorrectly set")
+	if isinstance(a,numbers.Real) and not isinstance(a,numbers.Integral):
+		a=np.array(a)
+
 	if isinstance(a,tuple): 
-		result = tuple(_apply_output_helper(rev,x) for x in a)
+		result = tuple(_apply_output_helper(rev,x,output_iterables) for x in a)
 		return tuple(x for x,_ in result), tuple(y for _,y in result)
 	elif isinstance(a,np.ndarray) and not issubclass(a.dtype.type,numbers.Integral):
 		shape = [rev.size_rev,a.shape]
-		return rev._identity_rev(constant=a),shape
+		return rev._identity_rev(constant=a),shape		
 	else:
 		return a,None
 
-def _apply_input_helper(args,kwargs,cls):
+def _apply_input_helper(args,kwargs,cls,input_iterables):
 	"""
 	Removes the AD information from some function input, and provides the correspondance.
 	"""
@@ -115,9 +119,15 @@ def _apply_input_helper(args,kwargs,cls):
 			a_value = np.array(a)
 			corresp.append((a,a_value))
 			return a_value
+		for type_iterable in input_iterables:
+			if isinstance(a,type_iterable):
+				if issubclass(type_iterable,dict):
+					return type_iterable({key:_make_arg(val) for key,val in a.items()})
+				else: 
+					return type_iterable(_make_arg(val) for val in a)
 		else:
 			return a
-	_args = [_make_arg(a) for a in args]
+	_args = tuple(_make_arg(val) for val in args)
 	_kwargs = {key:_make_arg(val) for key,val in kwargs.items()}
 	return _args,_kwargs,corresp
 
@@ -133,7 +143,7 @@ def _to_shapes(coef,shapes):
 		return tuple(_to_shapes(coef,s) for s in shapes)
 	else:
 		start,shape = shapes
-		return coef[start : start+np.prod(shape)].reshape(shape)
+		return coef[start : start+np.prod(shape,dtype=int)].reshape(shape)
 
 def sumprod(u,v):
 	if u is None: return 0.
@@ -156,6 +166,9 @@ def recurse(step,niter=1):
 	return operator
 
 # ------- Common functions -------
+
+def flatten(a):
+	return a.flatten() if isinstance(a,np.ndarray) else np.array([a])
 
 def spsolve(mat,rhs):
 	"""

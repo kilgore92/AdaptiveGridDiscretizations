@@ -14,6 +14,10 @@ class reverseAD2(object):
 	def __init__(self,operator_data=None):
 		self.operator_data=operator_data
 		self.deepcopy_states = False
+
+		self.input_iterables = set()
+		self.output_iterables = {tuple}
+
 		self._size_ad = 0
 		self._size_rev = 0
 		self._states = []
@@ -55,10 +59,10 @@ class reverseAD2(object):
 		for reverse AD.
 		"""
 		if self.operator_data is "PassThrough": return func(*args,**kwargs)
-		_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2)
+		_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2,self.input_iterables)
 		if len(corresp)==0: return f(args,kwargs)
 		_output = func(*_args,**_kwargs)
-		output,shapes = misc._apply_output_helper(self,_output)
+		output,shapes = misc._apply_output_helper(self,_output,self.output_iterables)
 		self._states.append((shapes,func,
 			copy.deepcopy(args) if self.deepcopy_states else args,
 			copy.deepcopy(kwargs) if self.deepcopy_states else kwargs))
@@ -76,7 +80,7 @@ class reverseAD2(object):
 		coef = Sparse.spAD(a.value,a.coef1,self._index_rev(a.index)).to_dense().coef
 		for outputshapes,func,args,kwargs in reversed(self._states):
 			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes)
-			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2)
+			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2,self.input_iterables)
 			co_args = func(*_args,**_kwargs,co_output=co_output)
 			for a_value,a_adjoint in co_args:
 				for a_sparse,a_value2 in corresp:
@@ -84,7 +88,7 @@ class reverseAD2(object):
 						val,(row,col) = a_sparse.to_first().triplets()
 						coef_contrib = misc.spapply(
 							(val,(self._index_rev(col),row)),
-							a_adjoint)
+							misc.flatten(a_adjoint))
 						# Possible improvement : shift by np.min(self._index_rev(col)) to avoid adding zeros
 						coef[:coef_contrib.shape[0]] += coef_contrib
 						break
