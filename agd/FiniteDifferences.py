@@ -215,7 +215,17 @@ def UniformGridInterpolator1D(bounds,values,mode='clip',axis=-1):
 		return result
 	return interp
 
-def UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=False):
+def UniformGridInterpolator(grid,values,mode='clip'):
+	dim = len(grid)
+	lbounds = grid.__getitem__((slice(None),)+(0,)*dim)
+	ubounds = grid.__getitem__((slice(None),)+(-1,)*dim)
+
+	h = (ubounds-lbounds)/np.array(grid.shape[1:])
+	bounds = np.array((lbounds,ubounds)).T
+	return _UniformGridInterpolator(bounds,values,mode=mode)
+
+
+def _UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=False):
 	"""
 	bounds : np.ndarray containing the bounds for each variable. [[x[0],x[-1]],[y[0],y[-1]],[z[0],z[-1]],...]
 	values : data to be interpolated. Can be vector data.
@@ -223,8 +233,6 @@ def UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=Fa
 	mode : 'clip', 'wrap', ou ('fill',value)
 	axes : the axes along which the interpolation is done. By default these are the *last axes* of the array.
 	cell_centered : if true, the values given correspond to the cell centers
-
-	#TODO : replace bounds,axes,cell_centered with the grid itself
 	"""
 
 	bounds=np.array(bounds)
@@ -264,7 +272,7 @@ def UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=Fa
 				index1[i] = np.clip(index1[i],0,s-1)
 
 		result = sum( #Worryingly, priority rules of __rmul__ where not respected here ?
-			np.prod(tuple( (1.-r) if m else r for m,r in zip(mask,index_rem)) ) *
+			ad.toarray(np.prod(tuple( (1.-r) if m else r for m,r in zip(mask,index_rem)) )) *
 			val[ tuple(np.where(as_field(np.array(mask),pos_shape),index0,index1)) ]
 			for mask in itertools.product((True,False),repeat=ndim_interp))
 
