@@ -8,20 +8,19 @@ class reverseAD(object):
 	A class for reverse first order automatic differentiation.
 
 	Fields : 
-	- input_iterables (set, default = set())
-	 	subset of {tuple,list,dict,set}.
-		Which input structures should be explored looking for AD information
-	- output_iterables (set, default = {tuple})
-		subset of {tuple,list,dict,set}.
+	- input_iterables : tuple, subset of {tuple,list,dict,set}.
+		Which input structures should be explored when looking for AD information
+	- output_iterables : tuple subset of (tuple,list,dict).
 		Which output structures should be explored looking for AD information
 	"""
 
-	def __init__(self,operator_data=None):
+	def __init__(self,operator_data=None,input_iterables=None,output_iterables=None):
 		self.operator_data=operator_data
 		self.deepcopy_states = False
 
-		self.input_iterables = set()
-		self.output_iterables = {tuple}
+		self.input_iterables  = (tuple,) if input_iterables is None else input_iterables
+		self.output_iterables = (tuple,) if output_iterables is None else output_iterables
+		assert hasattr(self.input_iterables,'__iter__') and hasattr(self.output_iterables,'__iter__')
 
 		self._size_ad = 0
 		self._size_rev = 0
@@ -34,10 +33,13 @@ class reverseAD(object):
 	def size_rev(self): return self._size_rev
 
 	# Variable creation
+	def register(self,a):
+		return misc.register(self.identity,a,self.input_iterables)
+
 	def identity(self,*args,**kwargs):
 		"""Creates and register a new AD variable"""
 		result = Sparse.identity(*args,**kwargs,shift=self.size_ad)
-		self._shapes_ad += ([self.size_ad,result.shape],)
+		self._shapes_ad += (misc.pair(self.size_ad,result.shape),)
 		self._size_ad += result.size
 		return result
 
@@ -113,7 +115,7 @@ class reverseAD(object):
 	# Adjoint evaluation pass
 
 	def to_inputshapes(self,a):
-		return misc._to_shapes(a,self._shapes_ad)
+		return misc._to_shapes(a,self._shapes_ad,self.input_iterables)
 
 	def gradient(self,a):
 		"""Computes the gradient of the scalar spAD variable a"""
@@ -122,7 +124,7 @@ class reverseAD(object):
 		size_total = self.size_ad+self.size_rev
 		if coef.size<size_total:  coef = misc._pad_last(coef,size_total)
 		for outputshapes,func,args,kwargs in reversed(self._states):
-			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes)
+			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes,self.output_iterables)
 			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse.spAD,self.input_iterables)
 			co_args = func(*_args,**_kwargs,co_output=co_output)
 			for a_value,a_adjoint in co_args:
@@ -143,36 +145,46 @@ class reverseAD(object):
 		if self.operator_data is "PassThrough":
 			return a
 		inputs,co_output = self.operator_data
-		grad = self.gradient(misc.sumprod(a,co_output))
-		return [(x,y) for (x,y) in zip(inputs,self.to_inputshapes(grad))]
+		grad = self.gradient(misc.sumprod(a,co_output,self.output_iterables))
+		grad = self.to_inputshapes(grad)
+		co_arg=[]
+		def f(input):
+			nonlocal co_arg
+			input,to_ad = misc.ready_ad(input)
+			if to_ad:
+				co_arg.append( (input,grad[len(co_arg)]) )
+		misc.map_iterables(f,inputs,self.input_iterables)
+		return co_arg
+#		return [(x,y) for (x,y) in zip(inputs,self.to_inputshapes(grad))]
 
 
 
 # End of class reverseAD
 
-def empty(inputs=None):
-	rev = reverseAD()
-	if inputs is None: return rev
-	_inputs = tuple(rev.identity(constant=a) for a in inputs)
-	return rev,_inputs
+def empty(inputs=None,**kwargs):
+	rev = reverseAD(**kwargs)
+	return rev if inputs is None else (rev,rev.register(inputs))
+
+#	if inputs is None: return rev
+#	_inputs = tuple(rev.identity(constant=a) for a in inputs)
+#	return rev,_inputs
 
 # Elementary operators with adjoints
 
-def operator_like(inputs=None,co_output=None):
+def operator_like(inputs=None,co_output=None,**kwargs):
 	"""
 	Operator_like reverseAD (or reverseAD2 depending on co_output): 
 	- has a fixed co_output
 	"""
 	mode = misc.reverse_mode(co_output)
 	if mode is "Forward": 
-		return reverseAD(operator_data="PassThrough"),inputs
+		return reverseAD(operator_data="PassThrough",**kwargs),inputs
 	elif mode is "Reverse":
-		rev = reverseAD(operator_data=(inputs,co_output))
-		_inputs = tuple(rev.identity(constant=a) for a in inputs)
-		return rev,_inputs
+		rev = reverseAD(operator_data=(inputs,co_output),**kwargs)
+		return rev,rev.register(inputs)
 	elif mode is "Reverse2": 
 		from . import Reverse2
-		return Reverse2.operator_like(inputs,co_output)
+		return Reverse2.operator_like(inputs,co_output,**kwargs)
 
 def linear_inverse_with_adjoint(solver,matrix,niter=1):
 	from . import apply_linear_inverse
@@ -182,7 +194,7 @@ def linear_inverse_with_adjoint(solver,matrix,niter=1):
 		mode = misc.reverse_mode(co_output)
 		if mode is "Forward":	return operator(u)
 		elif mode is "Reverse": return [(u,adjoint(co_output))]
-		elif mode is "Reverse2":return [(u,adjoint(co_output[0]),adjoint(co_output[1]))]
+		elif mode is "Reverse2":co0,co1 = co_output; return [(u,adjoint(co0),adjoint(co1))]
 	return method
 
 def linear_mapping_with_adjoint(matrix,niter=1):
@@ -193,11 +205,11 @@ def linear_mapping_with_adjoint(matrix,niter=1):
 		mode = misc.reverse_mode(co_output)
 		if mode is "Forward":	return operator(u)
 		elif mode is "Reverse": return [(u,adjoint(co_output))]
-		elif mode is "Reverse2":return [(u,adjoint(co_output[0]),adjoint(co_output[1]))]
+		elif mode is "Reverse2":co0,co1 = co_output; return [(u,adjoint(co0),adjoint(co1))]
 	return method
 
 def identity_with_adjoint(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
 		if mode is "Forward":	return u
 		elif mode is "Reverse": return [(u,co_output)]
-		elif mode is "Reverse2":return [(u,co_output[0],co_output[1])]
+		elif mode is "Reverse2":co0,co1 = co_output; return [(u,co0,co1)]

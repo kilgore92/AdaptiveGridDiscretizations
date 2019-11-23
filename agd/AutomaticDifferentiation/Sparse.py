@@ -418,3 +418,18 @@ def identity(shape=None,constant=None,shift=0):
 	shape,constant = misc._set_shape_constant(shape,constant)
 	shape2 = shape+(1,)
 	return spAD(constant,np.full(shape2,1.),np.arange(shift,shift+np.prod(shape,dtype=int)).reshape(shape2))
+
+def register(inputs,iterables=None,shift=0,ident=identity):
+	if iterables is None:
+		iterables = (tuple,)
+	def reg(a):
+		nonlocal shift
+		a,to_ad = misc.ready_ad(a)
+		if to_ad:
+			result = ident(constant=a,shift=shift)
+			shift += result.size
+			return result
+		else:
+			return a
+	return misc.map_iterables(reg,inputs,iterables)
+

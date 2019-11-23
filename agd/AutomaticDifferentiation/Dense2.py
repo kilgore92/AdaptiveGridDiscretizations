@@ -277,3 +277,6 @@ class denseAD2(np.ndarray):
 def identity(*args,**kwargs):
 	arr = Dense.identity(*args,**kwargs)
 	return denseAD2(arr.value,arr.coef,np.zeros(arr.shape+(arr.size_ad,arr.size_ad)))
+
+def register(*args,**kwargs):
+	return Dense.register(*args,**kwargs,ident=identity)

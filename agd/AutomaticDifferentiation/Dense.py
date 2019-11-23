@@ -276,6 +276,10 @@ def _is_constant(a):	return isinstance(a,denseAD) and a.size_ad==0
 # -------- Factory method -----
 
 def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,0)):
+	"""
+	Creates a dense AD variable with independent symbolic perturbations for each coordinate
+	(unless some are tied together as specified by shape_free and shape_bound)
+	"""
 	shape,constant = misc._set_shape_constant(shape,constant)
 	shape_free,shape_bound = misc._set_shape_free_bound(shape,shape_free,shape_bound)
 
@@ -290,3 +294,35 @@ def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,
 	if coef1.shape[:-1]!=constant.shape: 
 		coef1 = np.broadcast_to(coef1,shape+(size_ad,))
 	return denseAD(constant,coef1)
+
+def register(inputs,iterables=None,shape_bound=None,shift=(0,0),ident=identity):
+	"""
+	Creates a series of dense AD variables with independent symbolic perturbations for each coordinate,
+	and adequate intermediate shifts.
+	"""
+	if iterables is None:
+		iterables = (tuple,)
+	boundsize = 1 if shape_bound is None else np.prod(shape_bound,dtype=int)
+
+	start=shift[0]
+	def setstart(a):
+		nonlocal start
+		a,to_ad = misc.ready_ad(a)
+		if to_ad: 
+			result = misc.pair(a,start)
+			start += a.size//boundsize
+			return result
+		else: 
+			return misc.pair(a,None)
+	starts = misc.map_iterables(setstart,inputs,iterables)
+	end = start+shift[1]
+
+	def setad(b):
+		a,start = b
+		if start is None:
+			return a
+		else:
+			return ident(constant=a,shift=(start,end-start-a.size//boundsize),
+				shape_bound=shape_bound)
+	return misc.map_iterables(setad,starts,iterables)
+

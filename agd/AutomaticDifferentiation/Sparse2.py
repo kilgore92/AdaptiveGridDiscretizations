@@ -415,3 +415,7 @@ def identity(*args,**kwargs):
 	arr = Sparse.identity(*args,**kwargs)
 	shape2 = arr.shape+(0,)
 	return spAD2(arr.value,arr.coef,arr.index,np.full(shape2,0.),np.full(shape2,0),np.full(shape2,0))
+
+def register(*args,**kwargs):
+	return Sparse.register(*args,**kwargs,ident=identity)
+

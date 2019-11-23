@@ -1,4 +1,10 @@
 import numpy as np
+import numbers
+
+# We cannot directly import is_ad due to interdependency of packages
+def is_ad(a):
+	from . import is_ad as _is_ad
+	return _is_ad(a)
 
 # ------- Ugly utilities -------
 def _tuple_first(a): 	return a[0] if isinstance(a,tuple) else a
@@ -84,33 +90,101 @@ def apply_linear_operator(op,rhs,flatten_ndim=0):
 
 # -------- For Reverse and Reverse2 -------
 
+class pair(object):
+	"""
+	A to element iterable. 
+	Introduced as an alternative of tuple, to avoid confusion in map_iterables
+	"""
+	def __init__(self,first,second):
+		self.first=first
+		self.second=second
+	def __iter__(self):
+		yield self.first
+		yield self.second
+	def __str__(self):
+		return "pair("+str(self.first)+","+str(self.second)+")"
+	def __repr__(self):
+		return "pair("+repr(self.first)+","+repr(self.second)+")"
+
+def map_iterables(f,a,iterables,split=False): 
+	"""Apply f to variable 'a' exploring recursively certain iterables"""
+	for type_iterable in iterables:
+		if isinstance(a,type_iterable):
+			if issubclass(type_iterable,dict):
+				result = type_iterable({key:map_iterables(f,val,iterables,split=split) for key,val in a.items()})
+				if split: return type_iterable({key:a for key,(a,_) in a.items()}), type_iterable({key:a for key,(_,a) in a.items()})
+				else: return result
+			else: 
+				result = type_iterable(map_iterables(f,val,iterables,split=split) for val in a)
+				if split: return type_iterable(a for a,_ in result), type_iterable(a for _,a in result)
+				else: return result 
+	return f(a)
+
+def map_iterables2(f,a,b,iterables):
+	"""Apply f to variable 'a' and 'b' zipped, exploring recursively certain iterables"""
+	for type_iterable in iterables:
+		if isinstance(a,type_iterable):
+			if issubclass(type_iterable,dict):
+				return type_iterable({key:map_iterables2(f,a[key],b[key],iterables) for key in a})
+			else: 
+				return type_iterable(map_iterables2(f,ai,bi,iterables) for ai,bi in zip(a,b))
+	return f(a,b)
+
+def ready_ad(a):
+	"""
+	Readies a variable for adding ad information, if possible.
+	Returns : readied variable, boolean (wether AD extension is possible)
+	"""
+	if is_ad(a):
+		raise ValueError("Variable a already contains AD information")
+	elif isinstance(a,numbers.Real) and not isinstance(a,numbers.Integral):
+		return np.array(a),True
+	elif isinstance(a,np.ndarray) and not issubclass(a.dtype.type,numbers.Integral):
+		return a,True
+	else:
+		return a,False
+
 # Applying a function
-def _apply_output_helper(rev,a,output_iterables):
+def _apply_output_helper(rev,val,iterables):
 	"""
 	Adds 'virtual' AD information to an output (with negative indices), 
 	in selected places.
 	"""
-	from . import is_ad
-	import numbers
-	if(is_ad(a)):
-		raise ValueError("reverseAD error : input_iterables incorrectly set")
-	if isinstance(a,numbers.Real) and not isinstance(a,numbers.Integral):
-		a=np.array(a)
+	def f(a):
+		a,to_ad = ready_ad(a)
+		if to_ad:
+			shape = pair(rev.size_rev,a.shape)
+			return rev._identity_rev(constant=a),shape		
+		else:
+			return a,None
+	return map_iterables(f,val,iterables,split=True)
 
-	if isinstance(a,tuple): 
-		result = tuple(_apply_output_helper(rev,x,output_iterables) for x in a)
-		return tuple(x for x,_ in result), tuple(y for _,y in result)
-	elif isinstance(a,np.ndarray) and not issubclass(a.dtype.type,numbers.Integral):
-		shape = [rev.size_rev,a.shape]
-		return rev._identity_rev(constant=a),shape		
-	else:
-		return a,None
 
-def _apply_input_helper(args,kwargs,cls,input_iterables):
+def register(identity,data,iterables):
+	def reg(a):
+		a,to_ad = ready_ad(a)
+		if to_ad: return identity(constant=a)
+		else: return a 
+	return map_iterables(reg,data,iterables)
+
+
+def _to_shapes(coef,shapes,iterables):
+	"""
+	Reshapes a one dimensional array into the given shapes, 
+	given as a tuple of pair(start,shape) 
+	"""
+	def f(s):
+		if s is None:
+			return None
+		else:
+			start,shape = s
+			return coef[start : start+np.prod(shape,dtype=int)].reshape(shape)
+	return map_iterables(f,shapes,iterables)
+
+def _apply_input_helper(args,kwargs,cls,iterables):
 	"""
 	Removes the AD information from some function input, and provides the correspondance.
 	"""
-	from . import is_ad
 	corresp = []
 	def _make_arg(a):
 		nonlocal corresp
@@ -119,40 +193,36 @@ def _apply_input_helper(args,kwargs,cls,input_iterables):
 			a_value = np.array(a)
 			corresp.append((a,a_value))
 			return a_value
-		for type_iterable in input_iterables:
-			if isinstance(a,type_iterable):
-				if issubclass(type_iterable,dict):
-					return type_iterable({key:_make_arg(val) for key,val in a.items()})
-				else: 
-					return type_iterable(_make_arg(val) for val in a)
 		else:
 			return a
-	_args = tuple(_make_arg(val) for val in args)
-	_kwargs = {key:_make_arg(val) for key,val in kwargs.items()}
+	_args = tuple(map_iterables(_make_arg,val,iterables) for val in args)
+	_kwargs = {key:map_iterables(_make_arg,val,iterables) for key,val in kwargs.items()}
 	return _args,_kwargs,corresp
 
 
-def _to_shapes(coef,shapes):
+def sumprod(u,v,iterables,to_first=False):
+	acc=0.
+	def f(u,v):
+		nonlocal acc
+		if u is not None: 
+			U = u.to_first() if to_first else u
+			acc=acc+(U*v).sum()
+	map_iterables2(f,u,v,iterables)
+	return acc
 	"""
-	Reshapes a one dimensional array into the given shapes, 
-	given as a tuple of [start,shape]
-	""" 
-	if shapes is None: 
-		return None
-	elif isinstance(shapes,tuple): 
-		return tuple(_to_shapes(coef,s) for s in shapes)
-	else:
-		start,shape = shapes
-		return coef[start : start+np.prod(shape,dtype=int)].reshape(shape)
-
-def sumprod(u,v):
 	if u is None: return 0.
-	elif isinstance(u,tuple): return sum(sumprod(x,y) for (x,y) in zip(u,v))
-	else: return (u*v).sum()
+	elif isinstance(u,iterables): 
+		if isinstance(u,dict):
+			return sum(sumprod(u[key],v[key],iterables) for key in u)
+		else:
+			return sum(sumprod(x,y,iterables) for (x,y) in zip(u,v))
+	else: 
+		return (u*v).sum()
+	"""
 
 def reverse_mode(co_output):
 	if co_output is None: return "Forward"
-	elif isinstance(co_output,list): assert len(co_output)==2; return "Reverse2"
+	elif isinstance(co_output,pair): return "Reverse2"
 	else: return "Reverse"
 
 # ----- Functionnal -----
@@ -208,22 +278,18 @@ def max(array,axis=None,keepdims=False,out=None):
 	return out
 
 def add(a,b,out=None,where=True): 
-	from . import is_ad
 	if out is None: return a+b if is_ad(a) else b+a
 	else: result=_tuple_first(out); result[where]=a[where]+_getitem(b,where); return result
 
 def subtract(a,b,out=None,where=True):
-	from . import is_ad
 	if out is None: return a-b if is_ad(a) else b.__rsub__(a) 
 	else: result=_tuple_first(out); result[where]=a[where]-_getitem(b,where); return result
 
-def multiply(a,b,out=None,where=True): 
-	from . import is_ad
+def multiply(a,b,out=None,where=True):
 	if out is None: return a*b if is_ad(a) else b*a
 	else: result=_tuple_first(out); result[where]=a[where]*_getitem(b,where); return result
 
 def true_divide(a,b,out=None,where=True): 
-	from . import is_ad
 	if out is None: return a/b if is_ad(a) else b.__rtruediv__(a)
 	else: result=_tuple_first(out); result[where]=a[where]/_getitem(b,where); return result
 
