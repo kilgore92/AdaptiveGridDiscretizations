@@ -127,8 +127,9 @@ class reverseAD(object):
 			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes,self.output_iterables)
 			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse.spAD,self.input_iterables)
 			co_args = func(*_args,**_kwargs,co_output=co_output)
-			for a_value,a_adjoint in co_args:
-				for a_sparse,a_value2 in corresp:
+			for a_sparse,a_value2 in corresp:
+				found=False
+				for a_value,a_adjoint in co_args:
 					if a_value is a_value2:
 						val,(row,col) = a_sparse.triplets()
 						coef_contrib = misc.spapply(
@@ -136,7 +137,10 @@ class reverseAD(object):
 							misc.flatten(a_adjoint))
 						# Possible improvement : shift by np.min(self._index_rev(col)) to avoid adding zeros
 						coef[:coef_contrib.shape[0]] += coef_contrib
+						found=True
 						break
+				if not found:
+					raise ValueError(f"ReverseAD error : sensitivity not provided for input value {id(a_sparse)} equal to {a_sparse}")
 		return coef[:self.size_ad]
 
 	def output(self,a):

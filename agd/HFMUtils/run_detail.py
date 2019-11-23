@@ -2,22 +2,19 @@ import numpy as np
 from .LibraryCall import RunDispatch,GetBinaryDir
 from .. import Metrics
 from .. import AutomaticDifferentiation as ad
+from . import PointFromIndex
 
 
 def RunRaw(hfmIn):
 	"""Raw call to the HFM library"""
 	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
 
-def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out",co_output=None):
+def RunSmart(hfmIn,returns="out",co_output=None):
 	"""
 	Calls the HFM library, with pre-processing and post-processing of data.
 
 	tupleIn and tupleOut are intended to make the inputs and outputs 
 	visible to reverse automatic differentiation
-	- tupleIn : arguments specified as ((key_1,value_1), ..., (key_n,value_m))
-		take precedence over similar keys hfmIn
-	- tupleOut : (key_1, ..., key_n) corresponding to results 
-		(value_1,...,value_n) to be return in a tuple
 	- returns : string in ('in_raw','out_raw','out')
 		early aborts the run and returns specified data
 	"""
@@ -28,35 +25,41 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out",co_output=None):
 	#   - Reverse AD (co_state)
 	#   - cache argument for faster output
 	#   - differentiation of the geodesicFlow
+
+	#Removed
+#	tupleIn=tuple(),tupleOut=None,
+	#- tupleIn : arguments specified as ((key_1,value_1), ..., (key_n,value_m))
+	#	take precedence over similar keys hfmIn
+	#- tupleOut : (key_1, ..., key_n) corresponding to results 
+	#	(value_1,...,value_n) to be return in a tuple
+
 	assert(returns in ('in_raw','out_raw','out'))
 	hfmIn_raw = {}
 
 	# Pre-process tuple arguments
-	tupleInKeys = {key for key,_ in tupleIn}
-	if len(tupleInKeys)!=len(tupleIn):
-		raise ValueError("RunProcessed error : duplicate keys in tupleIn")
+#	tupleInKeys = {key for key,_ in tupleIn}
+#	if len(tupleInKeys)!=len(tupleIn):
+#		raise ValueError("RunProcessed error : duplicate keys in tupleIn")
 	
-	for key,value in tupleIn:
-		PreProcess(key,value,hfmIn,hfmIn_raw)
+#	for key,value in tupleIn:
+#		PreProcess(key,value,hfmIn,hfmIn_raw)
 
 	# Pre-process usual arguments
 	for key,value in hfmIn.items():
-		if key not in tupleInKeys:
-			PreProcess(key,value,hfmIn,hfmIn_raw)
+#		if key not in tupleInKeys:
+		PreProcess(key,value,hfmIn,hfmIn_raw)
 
 	# Reverse automatic differentiation
 	if co_output is not None:
-		for key,value in zip(tupleOut,co_output):
-			if key=='values':
-				indices = np.array(np.nonzero(value))
-				positions = PointFromIndex(hfmIn_raw,indices)
-				weights = value[positions]
-				setkey_safe(hfmIn_raw,'inspectSensitivity',positions)
-				setkey_safe(hfmIn_raw,'inspectSensitivityWeights',weights)
-				setkey_safe(hfmIn_raw,'inspectSensitivityLengths',len(weights))
-			else:
-				raise ValueError(f"Reverse automatic differentiation unsupported for output : {key}")
-		# TODO : gradientFlow
+		assert hfmIn.get('extractValues',False) and co_output[0] is None
+		co_value = co_output[1] 
+		indices = np.nonzero(co_value)
+		positions = PointFromIndex(hfmIn_raw,np.array(indices).T)
+		weights = co_value[indices]
+		print(indices,positions,weights)
+		setkey_safe(hfmIn_raw,'inspectSensitivity',positions)
+		setkey_safe(hfmIn_raw,'inspectSensitivityWeights',weights)
+		setkey_safe(hfmIn_raw,'inspectSensitivityLengths',[len(weights)])
 		
 	if returns=='in_raw': return hfmIn_raw
 	hfmOut_raw = RunDispatch(hfmIn_raw,GetBinaryDir("FileHFM","HFMpy"))
@@ -70,22 +73,22 @@ def RunSmart(hfmIn,tupleIn=tuple(),tupleOut=None,returns="out",co_output=None):
 
 	if co_output is not None:
 		result=[]
-		for key,value in tupleIn:
+		for key,value in hfmIn.items():
 			if key=='cost':
-				result.append((value,hfmOut['costSensitivity']))
+				result.append((value,hfmOut['costSensitivity_0']))
 			elif key=='seedValues':
-				result.append((value,hfmOut['seedSensitivity']))
-			else:
-				raise ValueError(f"Reverse automatic differentiation unsupported for input : {key}")
+				result.append((value,hfmOut['seedSensitivity_0']))
 			# TODO : speed
 		return result
 
+	return (hfmOut,hfmOut.pop('values')) if hfmIn.get('extractValues',False) else hfmOut
+
 	# Extract tuple arguments
-	if tupleOut is None:
-		return hfmOut
-	else:
-		tupleResult = tuple(hfmOut.pop(key) for key in tupleOut)
-		return hfmOut,tupleResult
+#	if tupleOut is None:
+#		return hfmOut
+#	else:
+#		tupleResult = tuple(hfmOut.pop(key) for key in tupleOut)
+#		return hfmOut,tupleResult
 	
 
 def setkey_safe(dico,key,value):
@@ -103,25 +106,27 @@ def PreProcess(key,value,refined_in,raw_out):
 
 	verbosity = refined_in.get('verbosity',1)
 
-	if key=='cost':
+	if key in ('cost','speed'):
 		if isinstance(value,Metrics.Isotropic):
 			value = value.to_HFM()
 		if isinstance(value,ad.Dense.denseAD):
-			setkey_safe(raw_out,'costVariation',value.coef)
+			setkey_safe(raw_out,'costVariation',
+				value.coef if key=='cost' else (1/value).coef)
 			value = np.array(value)
 		setkey_safe(raw_out,key,value)
-	elif key=='speed':
-		if isinstance(value,Metrics.Isotropic):
+	elif key in ('metric','dualMetric'):
+		if isinstance(value,Metrics.Base): # AD not handled yet
 			value = value.to_HFM()
-		if isinstance(value,ad.Dense.denseAD):
-			setkey_safe(raw_out,'costVariation',(1/value).coef)
-			value = np.array(value)
 		setkey_safe(raw_out,key,value)
+
 	elif key=='seedValues':
 		if ad.is_ad(value):
 			setkey_safe(raw_out,'seedValueVariation',value.gradient())
 			value=np.array(value)
 		setkey_safe(raw_out,key,value)
+
+	elif key=='extractValues':
+		setkey_safe(raw_out,'exportValues',value)
 	else:
 		setkey_safe(raw_out,key,value)
 

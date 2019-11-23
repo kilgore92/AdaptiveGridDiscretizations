@@ -5,6 +5,19 @@ import importlib
 from .LibraryCall import GetBinaryDir
 from .run_detail import RunRaw,RunSmart
 
+def reload_submodules():
+	from importlib import reload
+	import sys
+	hfm = sys.modules['agd.HFMUtils']
+
+	global GetBinaryDir
+	hfm.LibraryCall = reload(hfm.LibraryCall)
+	GetBinaryDir =  LibraryCall.GetBinaryDir
+
+	global RunRaw,RunSmart
+	hfm.run_detail = reload(hfm.run_detail)
+	RunSmart =  run_detail.RunSmart
+	RunRaw = run_detail.RunRaw
 
 def Run(hfmIn,smart=False,**kwargs):
 	"""
@@ -30,21 +43,6 @@ def VoronoiDecomposition(arr):
 	vdqIn ={'tensors':np.moveaxis(misc.flatten_symmetric_matrix(arr),0,-1)}
 	vdqOut = FileIO.WriteCallRead(vdqIn, "FileVDQ", bin_dir)
 	return np.moveaxis(vdqOut['weights'],-1,0),np.moveaxis(vdqOut['offsets'],[-1,-2],[0,1])
-
-
-def reload_submodules():
-	from importlib import reload
-	import sys
-	hfm = sys.modules['agd.HFMUtils']
-
-	global GetBinaryDir
-	hfm.LibraryCall = reload(hfm.LibraryCall)
-	GetBinaryDir =  LibraryCall.GetBinaryDir
-
-	global RunRaw,RunSmart
-	hfm.run_detail = reload(hfm.run_detail)
-	RunSmart =  run_detail.RunSmart
-	RunRaw = run_detail.RunRaw
 
 
 # ----- Basic utilities for HFM input and output -----

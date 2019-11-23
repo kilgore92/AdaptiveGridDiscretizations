@@ -223,6 +223,8 @@ def UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=Fa
 	mode : 'clip', 'wrap', ou ('fill',value)
 	axes : the axes along which the interpolation is done. By default these are the *last axes* of the array.
 	cell_centered : if true, the values given correspond to the cell centers
+
+	#TODO : replace bounds,axes,cell_centered with the grid itself
 	"""
 
 	bounds=np.array(bounds)
