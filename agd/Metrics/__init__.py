@@ -1,3 +1,4 @@
+from .base 		import Base
 from .isotropic import Isotropic
 from .riemann 	import Riemann
 from .rander 	import Rander

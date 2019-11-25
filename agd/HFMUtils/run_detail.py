@@ -57,6 +57,8 @@ def RunSmart(hfmIn,returns="out",co_output=None):
 		result=[]
 		for key,value in hfmIn.items():
 			if key=='cost':
+				if isinstance(value,Metrics.Isotropic):
+					value = value.to_HFM()
 				result.append((value,hfmOut['costSensitivity_0']))
 			elif key=='seedValues':
 				result.append((value,hfmOut['seedSensitivity_0']))

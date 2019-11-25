@@ -1,3 +1,9 @@
+import numpy as np
+
+SEModels = {'ReedsShepp2','ReedsSheppForward2','Elastica2','Dubins2',
+'ReedsSheppExt2','ReedsSheppForwardExt2','ElasticaExt2','DubinsExt2',
+'ReedsShepp3','ReedsSheppForward3'}
+
 
 def GetCorners(params):
 	dims = params['dims']

@@ -53,11 +53,6 @@ def GetGeodesics(output,suffix=''):
 	return np.vsplit(output['geodesicPoints'+suffix],
 					 output['geodesicLengths'+suffix].cumsum()[:-1].astype(int))
 
-SEModels = {'ReedsShepp2','ReedsSheppForward2','Elastica2','Dubins2',
-'ReedsSheppExt2','ReedsSheppForwardExt2','ElasticaExt2','DubinsExt2',
-'ReedsShepp3','ReedsSheppForward3'}
-
-
 # ----------- Helper class ----------
 
 class dictIn(dict):

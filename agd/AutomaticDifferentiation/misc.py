@@ -106,6 +106,12 @@ class pair(object):
 	def __repr__(self):
 		return "pair("+repr(self.first)+","+repr(self.second)+")"
 
+def from_generator(iterable_type):
+	"""
+	Returns the method for constructing an object from a generator.
+	"""
+	return getattr(iterable_type,'from_generator',iterable_type)
+
 def map_iterables(f,a,iterables,split=False): 
 	"""Apply f to variable 'a' exploring recursively certain iterables"""
 	for type_iterable in iterables:
@@ -115,7 +121,7 @@ def map_iterables(f,a,iterables,split=False):
 				if split: return type_iterable({key:a for key,(a,_) in a.items()}), type_iterable({key:a for key,(_,a) in a.items()})
 				else: return result
 			else: 
-				result = type_iterable(map_iterables(f,val,iterables,split=split) for val in a)
+				result = from_generator(type_iterable)(map_iterables(f,val,iterables,split=split) for val in a)
 				if split: return type_iterable(a for a,_ in result), type_iterable(a for _,a in result)
 				else: return result 
 	return f(a)
@@ -127,7 +133,7 @@ def map_iterables2(f,a,b,iterables):
 			if issubclass(type_iterable,dict):
 				return type_iterable({key:map_iterables2(f,a[key],b[key],iterables) for key in a})
 			else: 
-				return type_iterable(map_iterables2(f,ai,bi,iterables) for ai,bi in zip(a,b))
+				return from_generator(type_iterable)(map_iterables2(f,ai,bi,iterables) for ai,bi in zip(a,b))
 	return f(a,b)
 
 def ready_ad(a):
