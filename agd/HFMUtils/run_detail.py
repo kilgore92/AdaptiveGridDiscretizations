@@ -21,28 +21,10 @@ def RunSmart(hfmIn,returns="out",co_output=None):
 	
 	#TODO : 
 	#	- geometryFirst (default : all but seeds)
-	#	- Forward AD (~done)
-	#   - Reverse AD (co_state)
 	#   - cache argument for faster output
-	#   - differentiation of the geodesicFlow
-
-	#Removed
-#	tupleIn=tuple(),tupleOut=None,
-	#- tupleIn : arguments specified as ((key_1,value_1), ..., (key_n,value_m))
-	#	take precedence over similar keys hfmIn
-	#- tupleOut : (key_1, ..., key_n) corresponding to results 
-	#	(value_1,...,value_n) to be return in a tuple
 
 	assert(returns in ('in_raw','out_raw','out'))
 	hfmIn_raw = {}
-
-	# Pre-process tuple arguments
-#	tupleInKeys = {key for key,_ in tupleIn}
-#	if len(tupleInKeys)!=len(tupleIn):
-#		raise ValueError("RunProcessed error : duplicate keys in tupleIn")
-	
-#	for key,value in tupleIn:
-#		PreProcess(key,value,hfmIn,hfmIn_raw)
 
 	# Pre-process usual arguments
 	for key,value in hfmIn.items():
@@ -81,15 +63,7 @@ def RunSmart(hfmIn,returns="out",co_output=None):
 			# TODO : speed
 		return result
 
-	return (hfmOut,hfmOut.pop('values')) if hfmIn.get('extractValues',False) else hfmOut
-
-	# Extract tuple arguments
-#	if tupleOut is None:
-#		return hfmOut
-#	else:
-#		tupleResult = tuple(hfmOut.pop(key) for key in tupleOut)
-#		return hfmOut,tupleResult
-	
+	return (hfmOut,hfmOut.pop('values')) if hfmIn.get('extractValues',False) else hfmOut	
 
 def setkey_safe(dico,key,value):
 	if key in dico:
