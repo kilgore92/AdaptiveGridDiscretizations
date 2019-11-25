@@ -251,6 +251,8 @@ class spAD2(np.ndarray):
 		out = spAD2(value,coef1,index,coef2,index_row,index_col)
 		return out
 
+	prod = misc.prod
+
 	def min(self,*args,**kwargs): return misc.min(self,*args,**kwargs)
 	def max(self,*args,**kwargs): return misc.max(self,*args,**kwargs)
 	def argmin(self,*args,**kwargs): return self.value.argmin(*args,**kwargs)

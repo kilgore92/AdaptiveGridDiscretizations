@@ -251,7 +251,8 @@ def _UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=F
 		bounds[:,0]  += h
 		bounds[:,-1] += (h if mode=='wrap' else -h)
 
-	def interp(position):
+	def interp(*position):
+		position = ad.array(position)
 		endpoint=not (mode=='wrap')
 		pos_shape = position.shape[1:]
 		bd = as_field(bounds,pos_shape)
@@ -270,6 +271,11 @@ def _UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=F
 					fill_indices = np.logical_or.reduce((index0<0, index1>=s))
 				index0[i] = np.clip(index0[i],0,s-1) 
 				index1[i] = np.clip(index1[i],0,s-1)
+
+		def weight_index(mask):
+			weight = ad.toarray(ad.prod(tuple( (1.-r) if m else r for m,r in zip(mask,index_rem)) ))
+
+
 
 		result = sum( #Worryingly, priority rules of __rmul__ where not respected here ?
 			ad.toarray(np.prod(tuple( (1.-r) if m else r for m,r in zip(mask,index_rem)) )) *

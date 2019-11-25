@@ -178,11 +178,7 @@ class spAD(np.ndarray):
 		out = spAD(value,coef,index)
 		return out
 
-#	def prod(self,axis=None,out=None,**kwargs):
-#		if axis is None: return self.flatten().prod(axis=0,out=out,**kwargs)
-#		result = reduce( 
-#		cprod = np.cumprod(self.value,axis=axis)
-#		cprod_rev = n
+	prod = misc.prod
 
 	def min(self,*args,**kwargs): return misc.min(self,*args,**kwargs)
 	def max(self,*args,**kwargs): return misc.max(self,*args,**kwargs)

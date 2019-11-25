@@ -1,5 +1,7 @@
 import numpy as np
 import numbers
+import functools
+import operator
 
 # We cannot directly import is_ad due to interdependency of packages
 def is_ad(a):
@@ -306,6 +308,46 @@ def maximum(a,b):
 def minimum(a,b): 	
 	from . import where
 	return where(a<b,a,b)
+
+
+def prod(arr,axis=None,dtype=None,out=None,keepdims=False,initial=None):
+	"""Attempt to reproduce numpy prod function. (Rather inefficiently, and I presume partially)"""
+
+	shape_orig = arr.shape
+
+	if axis is None:
+		arr = arr.flatten()
+		axis = (0,)
+	elif isinstance(axis,numbers.Number):
+		axis=(axis,)
+
+
+	if axis!=(0,):
+		d = len(axis)
+		rd = tuple(range(len(axis)))
+		arr = np.moveaxis(arr,axis,rd)
+		shape1 = (np.prod(arr.shape[d:],dtype=int),)+arr.shape[d:]
+		arr = arr.reshape(shape1)
+
+	if len(arr)==0:
+		return initial
+
+	if dtype!=arr.dtype and dtype is not None:
+		if initial is None:
+			initial = dtype(1)
+		elif dtype!=initial.dtype:
+			initial = initial*dtype(1)
+
+
+	out = functools.reduce(operator.mul,arr) if initial is None else functools.reduce(operator.mul,arr,initial)
+
+	if keepdims:
+		shape_kept = tuple(1 if i in axis else ai for i,ai in enumerate(shape_orig)) if out.size>1 else (1,)*len(shape_orig)
+		out = out.reshape(shape_kept) 
+
+	return out
+
+
 
 # Elementary functions and their derivatives
 

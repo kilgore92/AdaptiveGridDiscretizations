@@ -172,6 +172,8 @@ class denseAD2(np.ndarray):
 		out = denseAD2(self.value.sum(axis,**kwargs), self.coef1.sum(axis,**kwargs), self.coef2.sum(axis,**kwargs))
 		return out
 
+	prod = misc.prod
+
 	def min(self,*args,**kwargs): return misc.min(self,*args,**kwargs)
 	def max(self,*args,**kwargs): return misc.max(self,*args,**kwargs)
 	def argmin(self,*args,**kwargs): return self.value.argmin(*args,**kwargs)
