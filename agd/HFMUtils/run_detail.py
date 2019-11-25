@@ -38,7 +38,6 @@ def RunSmart(hfmIn,returns="out",co_output=None):
 		indices = np.nonzero(co_value)
 		positions = PointFromIndex(hfmIn_raw,np.array(indices).T)
 		weights = co_value[indices]
-		print(indices,positions,weights)
 		setkey_safe(hfmIn_raw,'inspectSensitivity',positions)
 		setkey_safe(hfmIn_raw,'inspectSensitivityWeights',weights)
 		setkey_safe(hfmIn_raw,'inspectSensitivityLengths',[len(weights)])
