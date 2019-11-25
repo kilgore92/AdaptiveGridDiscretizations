@@ -60,4 +60,7 @@ class Isotropic(Base):
 		if isinstance(metric,cls): return metric
 		raise ValueError("Isotropic.from_cast error : cannot cast an isotropic metric from ",type(metric))
 
+	def __iter__(self):
+		yield self.cost
+
 	# TODO : upwind gradient from HFM AD info (with grid)

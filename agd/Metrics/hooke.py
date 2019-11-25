@@ -76,6 +76,9 @@ Often encountered in seismic traveltime tomography.
 		riemann = Riemann.from_cast(metric)
 		return cls.from_Riemann(riemann.m)
 
+	def __iter__(self):
+		yield self.hooke
+
 	def rotate(self,r):
 		hooke,r = common_field((self.hooke,r),(2,2))
 		Voigt2 = np.array([[0,2],[2,1]])

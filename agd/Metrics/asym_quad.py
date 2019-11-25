@@ -65,3 +65,7 @@ class AsymQuad(Base):
 		if isinstance(metric,cls):	return metric
 		riemann = Riemann.from_cast(metric)
 		return cls(riemann.m,(0,)*riemann.ndim)
+
+	def __iter__(self):
+		yield self.m
+		yield self.w

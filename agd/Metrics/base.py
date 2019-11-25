@@ -130,6 +130,13 @@ concatenating with vector fields, and moving the first axis last.
 	def from_HFM(cls,arr):
 		return cls.expand(np.moveaxis(arr,-1,0))
 
+	def __iter__(self):
+		raise ValueError("__iter__ not implemented for this norm")
+		
+	@classmethod
+	def from_generator(cls,gen):
+		return cls(*gen)
+
 """ 
 Possible additions : 
  - shoot geodesic (with a grid), 
