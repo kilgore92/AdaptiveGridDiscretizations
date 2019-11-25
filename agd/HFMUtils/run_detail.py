@@ -2,7 +2,7 @@ import numpy as np
 from .LibraryCall import RunDispatch,GetBinaryDir
 from .. import Metrics
 from .. import AutomaticDifferentiation as ad
-from . import PointFromIndex
+from .Grid import PointFromIndex
 
 
 def RunRaw(hfmIn):

@@ -273,7 +273,8 @@ def _UniformGridInterpolator(bounds,values,mode='clip',axes=None,cell_centered=F
 
 		result = sum( #Worryingly, priority rules of __rmul__ where not respected here ?
 			ad.toarray(np.prod(tuple( (1.-r) if m else r for m,r in zip(mask,index_rem)) )) *
-			val[ tuple(np.where(as_field(np.array(mask),pos_shape),index0,index1)) ]
+			val[tuple(np.where(as_field(np.array(mask),pos_shape),index0,index1))] # Incorrect 
+#			val.__getitem__( tuple(np.where(as_field(np.array(mask),pos_shape),index0,index1)) ) # ??
 			for mask in itertools.product((True,False),repeat=ndim_interp))
 
 		if mode=='fill': result[fill_indices] = fill_value
