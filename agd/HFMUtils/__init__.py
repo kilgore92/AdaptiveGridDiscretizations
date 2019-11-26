@@ -3,7 +3,7 @@ import importlib
 
 from .Grid import GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint,CenteredLinspace
 from .LibraryCall import GetBinaryDir
-from .run_detail import RunRaw,RunSmart
+from .run_detail import RunRaw,RunSmart,Cache
 
 def reload_submodules():
 	from importlib import reload
