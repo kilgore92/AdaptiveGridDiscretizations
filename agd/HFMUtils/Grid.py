@@ -73,6 +73,13 @@ def Rect(sides,sampleBoundary=False,gridScale=None,gridScales=None,dimx=None,dim
 
 # -------------- Point to and from index --------------
 
+def to_YXZ(params,index):
+	assert params['arrayOrdering'] in ('RowMajor','YXZ_RowMajor')
+	if params['arrayOrdering']=='RowMajor':
+		return index
+	else:
+		return np.stack((index[:,1],index[:,0],*index[:,2:].T),axis=1)
+
 def PointFromIndex(params,index,to=False):
 	"""
 	Turns an index into a point.
@@ -83,8 +90,8 @@ def PointFromIndex(params,index,to=False):
 	
 	scale = (top-bottom)/dims
 	start = bottom +0.5*scale
-	if not to: return start+scale*index
-	else: return (index-start)/scale
+	if not to: return start+scale*to_YXZ(params,index)
+	else: return to_YXZ((index-start)/scale)
 
 def IndexFromPoint(params,point):
 	"""

@@ -60,7 +60,13 @@ def RunSmart(hfmIn,returns="out",co_output=None):
 					value = value.to_HFM()
 				result.append((value,hfmOut['costSensitivity_0']))
 			elif key=='seedValues':
-				result.append((value,hfmOut['seedSensitivity_0']))
+				sens = hfmOut['seedSensitivity_0']
+				# Match the seeds with their approx given in sensitivity
+				corresp = np.argmin(ad.Optimization.norm(np.expand_dims(hfmIn_raw['seeds'],axis=2)
+					-np.expand_dims(sens[:,:2].T,axis=1),ord=2,axis=0),axis=0)
+				sens_ordered = np.zeros_like(value)
+				sens_ordered[corresp]=sens[:,2]
+				result.append((value,sens_ordered))
 			# TODO : speed
 		return result
 
@@ -96,7 +102,7 @@ def PreProcess(key,value,refined_in,raw_out):
 
 	elif key=='seedValues':
 		if ad.is_ad(value):
-			setkey_safe(raw_out,'seedValueVariation',value.gradient())
+			setkey_safe(raw_out,'seedValueVariation',value.coef)
 			value=np.array(value)
 		setkey_safe(raw_out,key,value)
 

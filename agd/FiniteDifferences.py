@@ -217,13 +217,26 @@ def UniformGridInterpolator1D(bounds,values,mode='clip',axis=-1):
 		return result
 	return interp
 
-def UniformGridInterpolator(grid,values,mode='clip'):
+def AxesOrderingBounds(grid):
 	dim = len(grid)
 	lbounds = grid.__getitem__((slice(None),)+(0,)*dim)
 	ubounds = grid.__getitem__((slice(None),)+(-1,)*dim)
 
-	h = (ubounds-lbounds)/np.array(grid.shape[1:])
-	return _UniformGridInterpolator(lbounds,ubounds,values,mode=mode)
+	def active(i):
+		di = grid.__getitem__((slice(None),)+(0,)*i+(1,)+(0,)*(dim-1-i))
+		return np.argmax(np.abs(di-lbounds))
+	axes = tuple(active(i) for i in range(dim))
+
+	return axes,lbounds,ubounds #lbounds[np.array(axes)],ubounds[np.array(axes)]
+
+def UniformGridInterpolator(grid,values,mode='clip'):
+	"""Interpolate values on a uniform grid.
+	Assumes 'ij' indexing.
+	"""
+	axes,lbounds,ubounds = AxesOrderingBounds(grid)
+
+	axes = tuple(i-len(axes) for i in axes) 
+	return _UniformGridInterpolator(lbounds,ubounds,values,mode=mode,axes=axes)
 
 
 def _UniformGridInterpolator(lbounds,ubounds,values,mode='clip',axes=None,cell_centered=False):
