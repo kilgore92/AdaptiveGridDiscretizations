@@ -192,7 +192,7 @@ class reverseAD2(object):
 
 
 	def to_inputshapes(self,a):
-		return misc._to_shapes(a,self._shapes_ad,self.input_iterables)
+		return tuple(misc._to_shapes(a,shape,self.input_iterables) for shape in self._shapes_ad)
 
 	def output(self,a):
 		assert not(self.operator_data is None)

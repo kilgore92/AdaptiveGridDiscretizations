@@ -97,7 +97,13 @@ in the first line of a file named '"""+fileName+"""' in the current directory\n
 		# Try importing the library
 		if libName is not None and importlib.util.find_spec(libName) is not None:
 			return None
-		print("ERROR : the " + libName + " library is not found, and the path to the "+execName+" binaries is not set \n")
+		error_msg = "ERROR :"
+
+		print("ERROR :", end='') 
+		if libName: error_msg+=" the " + libName + " library is not found"
+		if libName and execName: error_msg+=", and"
+		if execName: error_msg+=" the path to the "+execName+" binaries is not set"
+		print(error_msg)
 		print(set_directory_msg)
 		raise
 

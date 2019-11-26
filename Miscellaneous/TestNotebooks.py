@@ -5,14 +5,15 @@ import os
 
 # ------- Specific to this repository -----
 
-result_path = "test_results/"
+result_path = "test_results"
 
 # --------- Generic ---------
 
 def ListNotebooks(dir=None):
 	filenames_extensions = [os.path.splitext(f) for f in os.listdir(dir)]
 	filenames = [filename for filename,extension in filenames_extensions if extension==".ipynb"]
-	subdirectories = [filename for filename,extension in filenames_extensions if extension=="" and filename.startswith("Notebooks_")]
+	subdirectories = [filename for filename,extension in filenames_extensions 
+	if extension=="" and filename.startswith("Notebooks_") and filename!="Notebooks_Repro"]
 	subfilenames = [os.path.join(subdir,file) for subdir in subdirectories for file in ListNotebooks(subdir)]
 	return filenames+subfilenames
 
@@ -35,13 +36,13 @@ def TestNotebook(notebook_filename, result_path):
 		print(str(e))
 		success=False
 	finally:
-		with open(result_path+filename_out+extension, mode='wt') as f:
+		subdir,file = os.path.split(filename_out)
+		with open(os.path.join(subdir,result_path,file)+extension, mode='wt') as f:
 			nbformat.write(nb, f)
 		return success
 
 if __name__ == '__main__':
-	if not os.path.exists(result_path):
-		os.mkdir(result_path)
+#	if not os.path.exists(result_path): os.mkdir(result_path)
 	notebook_filenames = sys.argv[1:] if len(sys.argv)>=2 else ListNotebooks()
 	notebooks_failed = []
 	for notebook_filename in notebook_filenames:

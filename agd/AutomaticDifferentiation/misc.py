@@ -187,7 +187,7 @@ def _to_shapes(coef,shapes,iterables):
 		else:
 			start,shape = s
 			return coef[start : start+np.prod(shape,dtype=int)].reshape(shape)
-	return tuple(map_iterables(f,shape,iterables) for shape in shapes)
+	return map_iterables(f,shapes,iterables)
 
 def _apply_input_helper(args,kwargs,cls,iterables):
 	"""

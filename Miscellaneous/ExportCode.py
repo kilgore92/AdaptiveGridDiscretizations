@@ -5,7 +5,7 @@ import os
 
 from TestNotebooks import ListNotebooks
 
-result_path = "/ExportedCode/"
+result_path = "ExportedCode"
 
 def ExportCode(inFName,outFName):
 	with open(inFName, encoding='utf8') as data_file:
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 	notebook_filenames = sys.argv[1:] if len(sys.argv)>=2 else ListNotebooks()
 
 	for name in notebook_filenames:
-		filename = name if os.path.splitext(name)[1]=='.ipynb' else name+'.ipynb'
-		ExportCode(name+'.ipynb',result_path.join(os.path.split(name))+'.py')
+		subdir,fname = os.path.split(name)
+		ExportCode(name+'.ipynb',os.path.join(subdir,result_path,fname)+'.py')
 
 
