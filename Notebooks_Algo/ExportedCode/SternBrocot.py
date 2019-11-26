@@ -1,4 +1,4 @@
-# Code automatically exported from notebook SternBrocot.ipynb# Do not modifyimport sys; sys.path.append("../..") # Allow imports from parent directory
+# Code automatically exported from notebook Notebooks_Algo/SternBrocot.ipynb# Do not modifyimport sys; sys.path.append("../..") # Allow imports from parent directory
 
 import numpy as np
 from matplotlib import pyplot as plt

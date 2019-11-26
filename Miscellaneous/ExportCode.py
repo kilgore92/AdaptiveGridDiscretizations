@@ -3,12 +3,9 @@ import json
 import sys
 import os
 
+from TestNotebooks import ListNotebooks
 
-result_path = "ExportedCode"
-
-def ListNotebooks():
-	filenames_extensions = [os.path.splitext(f) for f in os.listdir()]
-	return [filename for filename,extension in filenames_extensions if extension==".ipynb"]
+result_path = "/ExportedCode/"
 
 def ExportCode(inFName,outFName):
 	with open(inFName, encoding='utf8') as data_file:
@@ -31,12 +28,10 @@ def ExportCode(inFName,outFName):
 				output_file.write(c)
 
 if __name__ == '__main__':
-	if not os.path.exists(result_path):
-		os.mkdir(result_path)
 	notebook_filenames = sys.argv[1:] if len(sys.argv)>=2 else ListNotebooks()
 
 	for name in notebook_filenames:
 		filename = name if os.path.splitext(name)[1]=='.ipynb' else name+'.ipynb'
-		ExportCode(filename,result_path+"/"+name+'.py')
+		ExportCode(name+'.ipynb',result_path.join(os.path.split(name))+'.py')
 
 

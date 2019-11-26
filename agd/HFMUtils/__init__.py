@@ -1,7 +1,7 @@
 import numpy as np
 import importlib
 
-from .Grid import GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint
+from .Grid import GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint,CenteredLinspace
 from .LibraryCall import GetBinaryDir
 from .run_detail import RunRaw,RunSmart
 
@@ -10,10 +10,10 @@ def reload_submodules():
 	import sys
 	hfm = sys.modules['agd.HFMUtils']
 
-	global GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint
+	global GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint,CenteredLinspace
 	hfm.Grid = reload(hfm.Grid)
-	GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint = (
-		Grid.GetCorners,Grid.Rect,Grid.GetAxes,Grid.GetGrid,Grid.PointFromIndex,Grid.IndexFromPoint)
+	GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint,CenteredLinspace = (
+		Grid.GetCorners,Grid.Rect,Grid.GetAxes,Grid.GetGrid,Grid.PointFromIndex,Grid.IndexFromPoint,Grid.CenteredLinspace)
 
 	global GetBinaryDir
 	hfm.LibraryCall = reload(hfm.LibraryCall)

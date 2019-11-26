@@ -1,9 +1,10 @@
-# Code automatically exported from notebook MongeAmpere.ipynb# Do not modifyimport sys; sys.path.append("../..") # Allow imports from parent directory
+# Code automatically exported from notebook Notebooks_NonDiv/MongeAmpere.ipynb# Do not modifyimport sys; sys.path.append("../..") # Allow imports from parent directory
 
-from NumericalSchemes import Selling
-from NumericalSchemes import Domain
-from NumericalSchemes import LinearParallel as lp
-from NumericalSchemes import AutomaticDifferentiation as ad
+from agd import Selling
+from agd import Domain
+from agd import LinearParallel as lp
+from agd import AutomaticDifferentiation as ad
+from agd.Plotting import savefig; #savefig.dirName = "Figures/MongeAmpere"
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -126,7 +127,7 @@ def SchemeUniform(u,SB,f,bc):
     
     # Evaluate the numerical scheme
     m = bc.as_field(m)
-    from NumericalSchemes.FiniteDifferences import as_field
+    from agd.FiniteDifferences import as_field
     Q = as_field(Q,m.shape[1:])
     
     dim = 2
@@ -155,7 +156,7 @@ def SchemeUniform_OptInner(u,SB,f,bc,oracle=None):
     m = lp.dot_VV(SB,SB)
     
     m = bc.as_field(m)
-    from NumericalSchemes.FiniteDifferences import as_field
+    from agd.FiniteDifferences import as_field
     Q = as_field(Q,m.shape[1:])
     
     dim = 2

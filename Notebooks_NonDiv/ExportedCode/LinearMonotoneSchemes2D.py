@@ -1,9 +1,9 @@
-# Code automatically exported from notebook LinearMonotoneSchemes2D.ipynb# Do not modifyimport sys; sys.path.append("../..") # Allow imports from parent directory
+# Code automatically exported from notebook Notebooks_NonDiv/LinearMonotoneSchemes2D.ipynb# Do not modifyimport sys; sys.path.append("../..") # Allow imports from parent directory
 
-from NumericalSchemes import Selling
-from NumericalSchemes import LinearParallel as lp
-from NumericalSchemes import AutomaticDifferentiation as ad
-from NumericalSchemes import Domain
+from agd import Selling
+from agd import LinearParallel as lp
+from agd import AutomaticDifferentiation as ad
+from agd import Domain
 
 import numpy as np
 import matplotlib.pyplot as plt

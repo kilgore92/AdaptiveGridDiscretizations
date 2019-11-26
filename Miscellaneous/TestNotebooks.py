@@ -9,9 +9,12 @@ result_path = "test_results/"
 
 # --------- Generic ---------
 
-def ListNotebooks():
-	filenames_extensions = [os.path.splitext(f) for f in os.listdir()]
-	return [filename for filename,extension in filenames_extensions if extension==".ipynb"]
+def ListNotebooks(dir=None):
+	filenames_extensions = [os.path.splitext(f) for f in os.listdir(dir)]
+	filenames = [filename for filename,extension in filenames_extensions if extension==".ipynb"]
+	subdirectories = [filename for filename,extension in filenames_extensions if extension=="" and filename.startswith("Notebooks_")]
+	subfilenames = [os.path.join(subdir,file) for subdir in subdirectories for file in ListNotebooks(subdir)]
+	return filenames+subfilenames
 
 
 def TestNotebook(notebook_filename, result_path):
