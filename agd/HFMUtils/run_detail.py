@@ -9,7 +9,7 @@ def RunRaw(hfmIn):
 	"""Raw call to the HFM library"""
 	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
 
-def RunSmart(hfmIn,returns="out",co_output=None):
+def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 	"""
 	Calls the HFM library, with pre-processing and post-processing of data.
 
@@ -41,17 +41,46 @@ def RunSmart(hfmIn,returns="out",co_output=None):
 		setkey_safe(hfmIn_raw,'inspectSensitivity',positions)
 		setkey_safe(hfmIn_raw,'inspectSensitivityWeights',weights)
 		setkey_safe(hfmIn_raw,'inspectSensitivityLengths',[len(weights)])
-		
+	
+	# Dealing with cached data
+	verbosity = hfmIn_raw.get('verbosity',1)
+	cache_request = []
+	if hfmIn_raw.get('exportValues',False): 		cache_request.append('values')
+	if hfmIn_raw.get('exportActiveNeighs',False):	cache_request.append('activeNeighs')
+	if cache is not None:
+		assert isinstance(cache,dict)
+		if not cache:
+			if verbosity>=1: print("Requesting cacheable data")
+			hfmIn_raw['exportValues']=True
+			hfmIn_raw['exportActiveNeighs']=True
+		else:
+			if verbosity>=1: print("Providing cached data")
+			for key,value in cache.items():
+				setkey_safe(hfmIn_raw,key,value)
+				# Note : all points set as accepted
+
+
+	# Call to the HFM library
 	if returns=='in_raw': return hfmIn_raw
 	hfmOut_raw = RunDispatch(hfmIn_raw,GetBinaryDir("FileHFM","HFMpy"))
 	if returns=='out_raw': return hfmOut_raw
 	
-	hfmOut = {}
+	# Dealing with cached data
+	if cache is not None:
+		if not cache:
+			if verbosity>=1 : print("Filling cache data")
+			for key in ('values','activeNeighs'):
+				cache[key] = hfmOut_raw[key]
+		else:
+			for key in cache_request:
+				setkey_safe(hfmOut_raw,key,cache[key]) 
 
 	# Post process
+	hfmOut = {}
 	for key,val in hfmOut_raw.items():
 		PostProcess(key,val,hfmOut_raw,hfmOut)
 
+	# Reverse automatic differentiation
 	if co_output is not None:
 		result=[]
 		for key,value in hfmIn.items():
