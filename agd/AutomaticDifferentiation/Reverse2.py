@@ -85,9 +85,10 @@ class reverseAD2(object):
 		assert(isinstance(a,Sparse2.spAD2) and a.shape==tuple())
 		coef = Sparse.spAD(a.value,a.coef1,self._index_rev(a.index)).to_dense().coef
 		for outputshapes,func,args,kwargs in reversed(self._states):
-			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes,self.output_iterables)
+			co_output_value = misc._to_shapes(coef[self.size_ad:],outputshapes,self.output_iterables)
 			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2,self.input_iterables)
-			co_args = func(*_args,**_kwargs,co_output=co_output)
+			co_arg_request = [a for _,a in corresp]
+			co_args = func(*_args,**_kwargs,co_output=misc.pair(co_output_value,co_arg_request))
 			for a_sparse,a_value2 in corresp:
 				found = False
 				for a_value,a_adjoint in co_args:
@@ -164,9 +165,10 @@ class reverseAD2(object):
 			if coef2.size<size_total:  coef2 = misc._pad_last(coef2,size_total)
 			if not(coef2_init is None): coef2 += misc._pad_last(coef2_init,size_total)
 			for (outputshapes,func,_,_),(_args,_kwargs,corresp) in zip(reversed(self._states),reversed(denseArgs)):
-				co_output1 = misc._to_shapes(coef1[self.size_ad:],outputshapes,self.output_iterables)
-				co_output2 = misc._to_shapes(coef2[self.size_ad:],outputshapes,self.output_iterables)
-				co_args = func(*_args,**_kwargs,co_output=misc.pair(co_output1,co_output2))
+				co_output_value1 = misc._to_shapes(coef1[self.size_ad:],outputshapes,self.output_iterables)
+				co_output_value2 = misc._to_shapes(coef2[self.size_ad:],outputshapes,self.output_iterables)
+				co_arg_request = [a for _,a in corresp]
+				co_args = func(*_args,**_kwargs,co_output=misc.pair(misc.pair(co_output_value1,co_output_value2),co_arg_request))
 				for a_value,a_adjoint1,a_adjoint2 in co_args:
 					for a_sparse,a_value2 in corresp:
 						if a_value is a_value2:
@@ -198,9 +200,9 @@ class reverseAD2(object):
 		assert not(self.operator_data is None)
 		if self.operator_data is "PassThrough":
 			return a
-		inputs,(co_output1,co_output2),dir_hessian = self.operator_data
-		_a = misc.sumprod(a,co_output1,self.output_iterables)
-		_a2 = misc.sumprod(a,co_output2,self.output_iterables,to_first=True)
+		inputs,((co_output_value1,co_output_value2),_),dir_hessian = self.operator_data
+		_a = misc.sumprod(a,co_output_value1,self.output_iterables)
+		_a2 = misc.sumprod(a,co_output_value2,self.output_iterables,to_first=True)
 		coef2_init = Sparse.spAD(_a2.value,_a2.coef,self._index_rev(_a2.index)).to_dense().coef
 
 		hess = self.hessian(_a)

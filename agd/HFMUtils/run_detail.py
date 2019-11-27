@@ -63,8 +63,9 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 
 	# Reverse automatic differentiation
 	if co_output is not None:
-		assert hfmIn.get('extractValues',False) and co_output[0] is None
-		co_value = co_output[1] 
+		assert ad.misc.reverse_mode(co_output)=="Reverse"
+		[co_hfmOut,co_value],_ = co_output
+		assert hfmIn.get('extractValues',False) and co_hfmOut is None
 		indices = np.nonzero(co_value)
 		positions = PointFromIndex(hfmIn_raw,np.array(indices).T)
 		weights = co_value[indices]

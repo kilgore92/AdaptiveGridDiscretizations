@@ -124,9 +124,10 @@ class reverseAD(object):
 		size_total = self.size_ad+self.size_rev
 		if coef.size<size_total:  coef = misc._pad_last(coef,size_total)
 		for outputshapes,func,args,kwargs in reversed(self._states):
-			co_output = misc._to_shapes(coef[self.size_ad:],outputshapes,self.output_iterables)
+			co_output_value = misc._to_shapes(coef[self.size_ad:],outputshapes,self.output_iterables)
 			_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse.spAD,self.input_iterables)
-			co_args = func(*_args,**_kwargs,co_output=co_output)
+			co_arg_request = [a for _,a in corresp]
+			co_args = func(*_args,**_kwargs,co_output=misc.pair(co_output_value,co_arg_request))
 			for a_sparse,a_value2 in corresp:
 				found=False
 				for a_value,a_adjoint in co_args:
@@ -148,8 +149,8 @@ class reverseAD(object):
 		assert not(self.operator_data is None)
 		if self.operator_data is "PassThrough":
 			return a
-		inputs,co_output = self.operator_data
-		grad = self.gradient(misc.sumprod(a,co_output,self.output_iterables))
+		inputs,(co_output_value,_) = self.operator_data
+		grad = self.gradient(misc.sumprod(a,co_output_value,self.output_iterables))
 		grad = self.to_inputshapes(grad)
 		co_arg=[]
 		def f(input):
@@ -197,8 +198,8 @@ def linear_inverse_with_adjoint(solver,matrix,niter=1):
 	def method(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
 		if mode is "Forward":	return operator(u)
-		elif mode is "Reverse": return [(u,adjoint(co_output))]
-		elif mode is "Reverse2":co0,co1 = co_output; return [(u,adjoint(co0),adjoint(co1))]
+		elif mode is "Reverse": c,_ 		= co_output; return [(u,adjoint(c))]
+		elif mode is "Reverse2":(c1,c2),_ 	= co_output; return [(u,adjoint(c1),adjoint(c2))]
 	return method
 
 def linear_mapping_with_adjoint(matrix,niter=1):
@@ -208,12 +209,12 @@ def linear_mapping_with_adjoint(matrix,niter=1):
 	def method(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
 		if mode is "Forward":	return operator(u)
-		elif mode is "Reverse": return [(u,adjoint(co_output))]
-		elif mode is "Reverse2":co0,co1 = co_output; return [(u,adjoint(co0),adjoint(co1))]
+		elif mode is "Reverse": c,_ 		= co_output; return [(u,adjoint(c))]
+		elif mode is "Reverse2":(c1,c2),_ 	= co_output; return [(u,adjoint(c1),adjoint(c2))]
 	return method
 
 def identity_with_adjoint(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
 		if mode is "Forward":	return u
-		elif mode is "Reverse": return [(u,co_output)]
-		elif mode is "Reverse2":co0,co1 = co_output; return [(u,co0,co1)]
+		elif mode is "Reverse": c,_ 		= co_output; return [(u,c)]
+		elif mode is "Reverse2":(c1,c2),_ 	= co_output; return [(u,c1,c2)]

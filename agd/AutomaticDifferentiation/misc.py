@@ -229,9 +229,15 @@ def sumprod(u,v,iterables,to_first=False):
 	"""
 
 def reverse_mode(co_output):
-	if co_output is None: return "Forward"
-	elif isinstance(co_output,pair): return "Reverse2"
-	else: return "Reverse"
+	if co_output is None: 
+		return "Forward"
+	else:
+		assert isinstance(co_output,pair)
+		c,_ = co_output
+		if isinstance(c,pair):
+			return "Reverse2"
+		else: 
+			return "Reverse"
 
 # ----- Functionnal -----
 
