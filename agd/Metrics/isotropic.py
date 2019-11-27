@@ -6,8 +6,10 @@ class Isotropic(Base):
 	An isotropic metric, defined through a cost function.
 	"""
 
-	def __init__(self,cost):
-		self.cost = cost
+	def __init__(self,cost,ndim=None):
+		self.cost = ad.toarray(cost)
+		if ndim is not None:
+			self.ndim = ndim
 
 	@classmethod
 	def from_speed(cls,speed):

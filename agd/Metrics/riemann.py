@@ -82,7 +82,7 @@ class Riemann(Base):
 	def from_cast(cls,metric):
 		if isinstance(metric,cls): return metric
 		isotropic = Isotropic.from_cast(metric)
-		return Riemann.from_diagonal( (isotropic.cost,)*isotropic.ndim )
+		return Riemann.from_diagonal( *(isotropic.cost,)*isotropic.ndim )
 
 	def __iter__(self):
 		yield self.m

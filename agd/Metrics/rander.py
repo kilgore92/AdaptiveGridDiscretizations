@@ -67,7 +67,7 @@ The dual norm is defined as
 	def from_cast(cls,metric): 
 		if isinstance(metric,cls):	return metric
 		riemann = Riemann.from_cast(metric)
-		return cls(riemann.m,(0,)*riemann.ndim)
+		return cls(riemann.m,(0.,)*riemann.ndim)
 
 	def __iter__(self):
 		yield self.m
