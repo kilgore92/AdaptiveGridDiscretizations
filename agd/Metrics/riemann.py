@@ -20,7 +20,10 @@ class Riemann(Base):
 		return Riemann(lp.inverse(self.m))
 
 	@property
-	def ndim(self): return len(self.m)
+	def vdim(self): return len(self.m)
+
+	@property
+	def shape(self): return self.shape.m[2:]	
 
 	def eigvals(self):
 		return np.moveaxis(np.linalg.eigvals(np.moveaxis(self.m,(0,1),(-2,-1))),-1,0)
@@ -41,7 +44,7 @@ class Riemann(Base):
 		return cls(misc.expand_symmetric_matrix(arr))
 
 	def model_HFM(self):
-		return "Riemann"+str(self.ndim)
+		return "Riemann"+str(self.vdim)
 
 	@classmethod
 	def needle(cls,u,cost_parallel,cost_orthogonal,ret_u=False):
@@ -73,16 +76,16 @@ class Riemann(Base):
 
 	@classmethod
 	def from_diagonal(cls,*args):
-		z = np.zeros_like(args[0])
-		ndim = len(args)
-		arr = np.array([[z if i!=j else args[i] for i in range(ndim)] for j in range(ndim)])
+		z = np.zeros(args[0].shape)
+		vdim = len(args)
+		arr = ad.array([[z if i!=j else args[i] for i in range(vdim)] for j in range(vdim)])
 		return cls(arr)
 
 	@classmethod
 	def from_cast(cls,metric):
 		if isinstance(metric,cls): return metric
 		isotropic = Isotropic.from_cast(metric)
-		return Riemann.from_diagonal( *(isotropic.cost,)*isotropic.ndim )
+		return Riemann.from_diagonal( *(isotropic.cost,)*isotropic.vdim )
 
 	def __iter__(self):
 		yield self.m

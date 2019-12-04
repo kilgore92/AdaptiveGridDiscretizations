@@ -30,7 +30,7 @@ def RawToFiles(params,prefix='input'):
             f.write('\n')
             data.append(val.flatten())
         else:
-            raise ValueError('Invalid type for key ' + key);
+            raise ValueError(f"Invalid type for key {key} : {type(val)}")
     f.close()
     np.concatenate(data).astype('d').tofile(prefix+'_Data.dat')
     

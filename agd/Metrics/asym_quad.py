@@ -24,7 +24,10 @@ class AsymQuad(Base):
 		return AsymQuad(M,W)
 
 	@property
-	def ndim(self): return len(self.m)
+	def vdim(self): return len(self.m)
+
+	@property
+	def shape(self): return self.m.shape[2:]	
 
 	def is_definite(self):
 		return Riemann(self.m).is_definite()
@@ -46,7 +49,7 @@ class AsymQuad(Base):
 		return cls(rd.m,rd.w)
 
 	def model_HFM(self):
-		return "AsymmetricQuadratic"+str(self.ndim)
+		return "AsymmetricQuadratic"+str(self.vdim)
 
 
 	@classmethod
@@ -64,7 +67,7 @@ class AsymQuad(Base):
 	def from_cast(cls,metric): 
 		if isinstance(metric,cls):	return metric
 		riemann = Riemann.from_cast(metric)
-		return cls(riemann.m,(0.,)*riemann.ndim)
+		return cls(riemann.m,(0.,)*riemann.vdim)
 
 	def __iter__(self):
 		yield self.m

@@ -9,11 +9,11 @@ from ..FiniteDifferences import common_field
 
 class Rander(Base):
 	"""
-A Rander norm takes the form F(x) = sqrt(<x,m.x>) + <w,x>.
-Inputs : 
-- m : Symmetric positive definite matrix.
-- w : Vector, obeying <w,m^(-1).w> < 1
-"""
+	A Rander norm takes the form F(x) = sqrt(<x,m.x>) + <w,x>.
+	Inputs : 
+	- m : Symmetric positive definite matrix.
+	- w : Vector, obeying <w,m^(-1).w> < 1
+	"""
 	def __init__(self,m,w):
 		m,w = (ad.toarray(e) for e in (m,w))
 		self.m,self.w =common_field((m,w),(2,1))
@@ -25,17 +25,20 @@ Inputs :
 
 	def dual(self):
 		"""
-This function returns the dual 
-to a Rander norm, which turns out to have a similar algebraic form.
-The dual norm is defined as 
-	F'(x) = sup{ <x,y>; F(y)<=1 }
-"""
+		This function returns the dual 
+		to a Rander norm, which turns out to have a similar algebraic form.
+		The dual norm is defined as 
+		F'(x) = sup{ <x,y>; F(y)<=1 }
+		"""
 		s = lp.inverse(self.m-lp.outer_self(self.w))
 		omega = lp.dot_AV(s,self.w)
 		return Rander((1+lp.dot_VV(self.w,omega))*s, omega)
 
 	@property
-	def ndim(self): return len(self.m)
+	def vdim(self): return len(self.m)
+
+	@property
+	def shape(self): return self.m.shape[2:]	
 	
 	def is_definite(self):
 		return np.logical_and(Riemann(self.m).is_definite(),
@@ -61,13 +64,13 @@ The dual norm is defined as
 		return cls(m,w)
 
 	def model_HFM(self):
-		return "Rander"+str(self.ndim)
+		return "Rander"+str(self.vdim)
 
 	@classmethod
 	def from_cast(cls,metric): 
 		if isinstance(metric,cls):	return metric
 		riemann = Riemann.from_cast(metric)
-		return cls(riemann.m,(0.,)*riemann.ndim)
+		return cls(riemann.m,(0.,)*riemann.vdim)
 
 	def __iter__(self):
 		yield self.m

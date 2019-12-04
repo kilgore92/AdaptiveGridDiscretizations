@@ -5,35 +5,44 @@ from .. import AutomaticDifferentiation as ad
 from .Grid import PointFromIndex
 
 class Cache(object):
-	def __init__(self):
+	def __init__(self,needsflow=False):
 		self.contents = dict()
 		self.verbosity = None
 		self.requested = None
+		self.needsflow = needsflow
 	def PreProcess(self,hfmIn_raw):
 		self.verbosity = hfmIn_raw.get('verbosity',1)
 		self.requested = []
 		if hfmIn_raw.get('exportValues',False): 		self.requested.append('values')
 		if hfmIn_raw.get('exportActiveNeighs',False):	self.requested.append('activeNeighs')
+		if hfmIn_raw.get('exportGeodesicFlow',False):	self.requested.append('geodesicFlow')
 		if not self.contents:
 			if self.verbosity>=1: print("Requesting cacheable data")
 			hfmIn_raw['exportValues']=True
 			hfmIn_raw['exportActiveNeighs']=True
+			if self.needsflow: hfmIn_raw['exportGeodesicFlow']=True
 		else:
 			if self.verbosity>=1: print("Providing cached data")
-			for key,value in self.contents.items():
-				setkey_safe(hfmIn_raw,key,value)
+			for key in ('values','activeNeighs'):
+				setkey_safe(hfmIn_raw,key,self.contents[key])
 			# Note : all points set as accepted in HFM algorithm
 			hfmIn_raw['exportValues']=False
 			hfmIn_raw['exportActiveNeighs']=False
+			hfmIn_raw['exportGeodesicFlow']=self.needsflow and ('geodesicFlow' not in self.contents)
 
 	def PostProcess(self,hfmOut_raw):
 		if not self.contents:
 			if self.verbosity>=1 : print("Filling cache data")
 			for key in ('values','activeNeighs'):
 				self.contents[key] = hfmOut_raw[key]
+			if self.needsflow:
+				self.contents['geodesicFlow'] = hfmOut_raw['geodesicFlow']
 		else:
 			for key in self.requested:
-				setkey_safe(hfmOut_raw,key,self.contents[key]) 
+				if key not in hfmOut_raw:
+					setkey_safe(hfmOut_raw,key,self.contents[key])
+				if self.needsflow and 'geodesicFlow' not in self.contents:
+					self.contents['geodesicFlow'] = hfmOut_raw['geodesicFlow']
 
 def RunRaw(hfmIn):
 	"""Raw call to the HFM library"""
@@ -51,15 +60,15 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 	
 	#TODO : 
 	#	- geometryFirst (default : all but seeds)
-	#   - cache argument for faster output
 
 	assert(returns in ('in_raw','out_raw','out'))
+
 	hfmIn_raw = {}
 
 	# Pre-process usual arguments
 	for key,value in hfmIn.items():
 #		if key not in tupleInKeys:
-		PreProcess(key,value,hfmIn,hfmIn_raw)
+		PreProcess(key,value,hfmIn,hfmIn_raw,cache)
 
 	# Reverse automatic differentiation
 	if co_output is not None:
@@ -94,11 +103,23 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 	# Reverse automatic differentiation
 	if co_output is not None:
 		result=[]
-		for key,value in hfmIn.items():
-			if key=='cost':
+		for key,value in hfmIn.items(): 
+			if key in ('cost','speed'):
 				if isinstance(value,Metrics.Isotropic):
 					value = value.to_HFM()
-				result.append((value,hfmOut['costSensitivity_0']))
+				result.append((value,
+					hfmOut['costSensitivity_0'] if key=='cost' else (hfmOut['costSensitivity_0']/value**2)))
+			if key in ('metric','dualMetric'):
+				value_ad = ad.Dense.register(value,iterables=(Metrics.Base,),shape_factor=value.shape)
+				metric_ad = value_ad if key=='metric' else value_ad.dual()
+				flow_norm_ad = metric_ad.norm(np.moveaxis(cache.contents['geodesicFlow'],-1,0))
+				flow_variation = flow_norm_ad.gradient()/flow_norm_ad.value
+				shift = 0
+				size_factor = np.prod(shape_factor,dtype=int)
+				for x in value:
+					xsize_free = x.size//size_factor
+					result.append((x,flow_variation[shift:(shift+xsize_free)].reshape(x.shape)) )
+					shift+=xsize_free
 			elif key=='seedValues':
 				sens = hfmOut['seedSensitivity_0']
 				# Match the seeds with their approx given in sensitivity
@@ -120,7 +141,7 @@ def setkey_safe(dico,key,value):
 		dico[key]=value
 
 # ----------------- Preprocessing ---------------
-def PreProcess(key,value,refined_in,raw_out):
+def PreProcess(key,value,refined_in,raw_out,cache):
 	"""
 	copies key,val from refined to raw, with adequate treatment
 	"""
@@ -136,7 +157,13 @@ def PreProcess(key,value,refined_in,raw_out):
 			value = np.array(value)
 		setkey_safe(raw_out,key,value)
 	elif key in ('metric','dualMetric'):
-		if isinstance(value,Metrics.Base): # AD not handled yet
+		if isinstance(value,Metrics.Base): 
+			if ad.is_ad(value,iterables=(Metrics.Base,)):
+				metric = value if key=='metric' else metric.dual()
+				flow_norm_ad = metric.norm(np.moveaxis(cache.contents['geodesicFlow'],-1,0))
+				flow_norm_variation = flow_norm_ad.coef/np.expand_dims(flow_norm_ad.value,axis=-1)
+				flow_norm_variation[np.isnan(flow_norm_variation)]=0.
+				setkey_safe(raw_out,'costVariation',flow_norm_variation)
 			value = value.to_HFM()
 		setkey_safe(raw_out,key,value)
 
@@ -150,6 +177,7 @@ def PreProcess(key,value,refined_in,raw_out):
 		setkey_safe(raw_out,'exportValues',value)
 	else:
 		setkey_safe(raw_out,key,value)
+
 
 #	if isinstance(value,Metrics.Base): 
 		# ---------- Set the metric ----------

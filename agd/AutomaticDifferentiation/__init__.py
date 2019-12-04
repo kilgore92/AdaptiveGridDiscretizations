@@ -26,8 +26,22 @@ def reload_submodules():
 def is_adtype(t):
 	return t in (Sparse.spAD, Dense.denseAD, Sparse2.spAD2, Dense2.denseAD2)
 
-def is_ad(array):
-	return is_adtype(type(array)) 
+def is_ad(data,iterables=tuple()):
+	if is_adtype(type(data)): return True
+	for type_iterable in iterables:
+		if isinstance(data,type_iterable):
+			if issubclass(type_iterable,dict):
+				for _,value in data.items(): 
+					if is_ad(value,iterables): return True
+			else:
+				for value in data: 
+					if is_ad(value,iterables): return True
+	return False
+
+def remove_ad(data,iterables=tuple()):
+	def f(a):
+		return a.value if is_ad(a) else a
+	return misc.map_iterables(f,data,iterables)
 
 def simplify_ad(a):
 	if type(a) in (Sparse.spAD,Sparse2.spAD2): 
@@ -50,6 +64,15 @@ def array(a):
 	if isinstance(a,np.ndarray): return a
 	elif hasattr(a,'__iter__'): return stack([array(e) for e in a],axis=0)
 	else: return np.array(a)
+
+def full_like(a,*args,**kwargs):
+	if is_ad(a):
+		return type(a)(np.full_like(a.value,*args,**kwargs))
+	else:
+		return np.full_like(a,*args,**kwargs)
+
+def zeros_like(a,*args,**kwargs): return full_like(a,0.,*args,**kwargs)
+def ones_like(a,*args,**kwargs):  return full_like(a,1.,*args,**kwargs)
 
 def broadcast_to(array,shape):
 	if is_ad(array): return array.broadcast_to(shape)
@@ -171,48 +194,3 @@ def apply_linear_inverse(solver,matrix,rhs,niter=1):
 		return solver(matrix,x)
 	operator = misc.recurse(step,niter)
 	return rhs.apply_linear_operator(operator) if is_ad(rhs) else operator(rhs)
-
-"""
-	if isinstance(a,Dense.denseAD) and (isinstance(b,Sparse.spAD) or all(isinstance(e,Sparse.spAD) for e in b)):
-		elem = None
-		size_factor = np.prod(shape_bound)
-		if shape_bound is None:
-			if not isinstance(b,Sparse.spAD):
-				raise ValueError("Compose error : unspecified shape_bound")
-			elem = b
-		elif isinstance(b,Sparse.spAD):
-			elem = b.reshape( (b.size//size_factor,)+shape_bound)
-		else:
-			elem = stack(e.reshape( (e.size//size_factor,)+shape_bound) for e in b)
-
-		if elem.shape[0]!=a.size_ad:
-			raise ValueError("Compose error : incompatible shapes")
-		coef = np.moveaxis(a.coef,-1,0)
-		first_order = sum(x*y for x,y in zip(coef,elem))
-		return Sparse.spAD(a.value,first_order.coef,first_order.index)
-	else:
-		raise ValueError("Only Dense-Sparse composition is implemented")
-
-def dense_eval(f,b,shape_bound):
-	if isinstance(b,Sparse.spAD):
-		b_dense = Dense.identity(b.shape,shape_bound,constant=b)
-		return compose(f(b_dense),b,shape_bound=shape_bound)
-	elif all(isinstance(e,Sparse.spAD) for e in b):
-		size_factor = np.prod(shape_bound)
-		size_ad_all = tuple(e.size/size_factor for e in b)
-		size_ad = sum(size_ad_all)
-		size_ad_cumsum = np.cumsum(size_ad_all)
-		size_ad_cumsum=(0,)+size_ad_cumsum[:-1]
-		size_ad_revsum = np.cumsum(reversed(size_ad_all))
-		size_ad_revsum=(0,)+size_ad_revsum[:-1] 
-
-		b_dense = stack(tuple(
-			Dense.identity(e.shape,shape_bound,constant=e,padding=(padding_before,padding_after))
-				for e,padding_before,padding_after in zip(b,size_ad_cumsum,size_ad_revsum) 
-				))
-		return compose(f(b_dense),b,shape_bound=shape_bound)
-	else:
-		return f(b)
-"""
-
-

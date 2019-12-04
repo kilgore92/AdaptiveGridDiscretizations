@@ -116,16 +116,17 @@ def from_generator(iterable_type):
 
 def map_iterables(f,a,iterables,split=False): 
 	"""Apply f to variable 'a' exploring recursively certain iterables"""
-	for type_iterable in iterables:
-		if isinstance(a,type_iterable):
-			if issubclass(type_iterable,dict):
-				result = type_iterable({key:map_iterables(f,val,iterables,split=split) for key,val in a.items()})
-				if split: return type_iterable({key:a for key,(a,_) in a.items()}), type_iterable({key:a for key,(_,a) in a.items()})
-				else: return result
-			else: 
-				result = from_generator(type_iterable)(map_iterables(f,val,iterables,split=split) for val in a)
-				if split: return type_iterable(a for a,_ in result), type_iterable(a for _,a in result)
-				else: return result 
+	if isinstance(a,iterables):
+		type_a = type(a)
+		if issubclass(type(a),dict):
+			result = type_a({key:map_iterables(f,val,iterables,split=split) for key,val in a.items()})
+			if split: return type_a({key:a for key,(a,_) in a.items()}), type_a({key:a for key,(_,a) in a.items()})
+			else: return result
+		else: 
+			ctor_a = from_generator(type_a)
+			result = ctor_a(map_iterables(f,val,iterables,split=split) for val in a)
+			if split: return ctor_a(a for a,_ in result), ctor_a(a for _,a in result)
+			else: return result 
 	return f(a)
 
 def map_iterables2(f,a,b,iterables):

@@ -25,9 +25,20 @@ class Base(object):
 		raise ValueError("dual is not implemented for this norm")
 
 	@property
-	def ndim(self):
+	def vdim(self):
+		"""
+		Ambient vector space dimension
+		"""
 		raise ValueError("ndim is not implemented for this norm")
 
+	@property
+	def shape(self):
+		"""
+		Dimensions of the underlying domain.
+		Expected to be the empty tuple, or a tuple of length vdim.
+		"""
+		raise ValueError("Shape not implemented for this norm")
+	
 # ---- Well posedness related methods -----
 	def is_definite(self):
 		"""
@@ -117,10 +128,10 @@ class Base(object):
 
 	def to_HFM(self):
 		"""
-Formats a metric for the HFM library. 
-This may include flattening some symmetric matrices, 
-concatenating with vector fields, and moving the first axis last.
-"""
+		Formats a metric for the HFM library. 
+		This may include flattening some symmetric matrices, 
+		concatenating with vector fields, and moving the first axis last.
+		"""
 		return np.moveaxis(self.flatten(),0,-1)
 
 	def model_HFM(self):

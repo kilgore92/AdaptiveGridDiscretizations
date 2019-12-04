@@ -21,11 +21,14 @@ Often encountered in seismic traveltime tomography.
 		return Riemann(self.hooke).is_definite()
 
 	@property
-	def ndim(self):
+	def vdim(self):
 		if len(self.hooke)==3: return 2
 		elif len(self.hooke)==6: return 3
 		else: raise ValueError("Incorrect hooke tensor")
 
+	@property
+	def shape(self): return self.hooke.shape[2:]
+	
 	def flatten(self):
 		return misc.flatten_symmetric_matrix(self.hooke)
 
@@ -38,7 +41,7 @@ Often encountered in seismic traveltime tomography.
 	Extract a two dimensional Hooke tensor from a three dimensional one, 
 	corresponding to a slice through the X and Z axes.
 	"""
-		assert(self.ndim==3)
+		assert(self.vdim==3)
 		h=self.hooke
 		return Hooke(np.array([ 
 			[h[0,0], h[0,2], h[0,4] ],
@@ -87,11 +90,11 @@ Often encountered in seismic traveltime tomography.
 		Voigt3 = np.array([[0,5,4],[5,1,3],[4,3,2]])
 		Voigt3i = np.array([[0,0],[1,1],[2,2],[1,2],[0,2],[0,1]])
 
-		Voigt,Voigti = (Voigt2,Voigt2i) if self.ndim==2 else (Voigt3,Voigt3i)
+		Voigt,Voigti = (Voigt2,Voigt2i) if self.vdim==2 else (Voigt3,Voigt3i)
 
 		return Hooke(np.sum(np.array([ [ [
 			hooke[Voigt[i,j],Voigt[k,l]]*r[ii,i]*r[jj,j]*r[kk,k]*r[ll,l]
-			for (i,j,k,l) in itertools.product(range(self.ndim),repeat=4)]
+			for (i,j,k,l) in itertools.product(range(self.vdim),repeat=4)]
 			for (ii,jj) in Voigti] 
 			for (kk,ll) in Voigti]
 			), axis=2))

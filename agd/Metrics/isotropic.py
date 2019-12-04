@@ -6,10 +6,10 @@ class Isotropic(Base):
 	An isotropic metric, defined through a cost function.
 	"""
 
-	def __init__(self,cost,ndim=None):
+	def __init__(self,cost,vdim=None):
 		self.cost = ad.toarray(cost)
-		if ndim is not None:
-			self.ndim = ndim
+		if vdim is not None:
+			self.vdim = vdim
 
 	@classmethod
 	def from_speed(cls,speed):
@@ -28,21 +28,24 @@ class Isotropic(Base):
 		return 1.
 
 	@property
-	def ndim(self): 
+	def vdim(self): 
 		if self.cost.ndim>0:
 			return self.cost.ndim
-		elif hasattr(self,'_ndim'):
-			return self._ndim
+		elif hasattr(self,'_vdim'):
+			return self._vdim
 		else:
 			raise ValueError("Could not determine dimension of isotropic metric")
 
-	@ndim.setter
-	def ndim(self,ndim):
+	@vdim.setter
+	def vdim(self,vdim):
 		if self.cost.ndim>0:
-			assert(self.cost.ndim==ndim)
+			assert(self.cost.ndim==vdim)
 		else:
-			self._ndim = ndim
+			self._vdim = vdim
 
+	@property
+	def shape(self): return self.cost.shape
+	
 	def rotate(self,a):
 		return self
 
@@ -55,7 +58,7 @@ class Isotropic(Base):
 	def from_HFM(cls,arr):	return cls(arr)
 
 	def model_HFM(self):
-		return "Isotropic"+str(self.ndim)
+		return "Isotropic"+str(self.vdim)
 
 	@classmethod
 	def from_cast(cls,metric):
