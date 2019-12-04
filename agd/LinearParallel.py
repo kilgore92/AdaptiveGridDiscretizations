@@ -123,25 +123,31 @@ def det(a):
 		raise ValueError("det error : unsupported dimension") 
 
 def inverse(a):
-	assert(not ad.is_ad(a))
-	return np.moveaxis(np.linalg.inv(np.moveaxis(a,(0,1),(-2,-1))),(-2,-1),(0,1))
-#	dim = a.shape[0]
-#	if a.shape[1]!=dim:
-#		raise ValueError("inverse error : incompatible dimensions")
-#	if dim==1:
-#		return 1./a[0,0]
-#	elif dim==2:
-#		d=det(a)
-#		return np.array( ((a[1,1]/d,-a[0,1]/d),(-a[1,0]/d,a[0,0]/d)) )
-#	elif dim==3:
-#		d=det(a)
-#		return np.array([[(
-#		a[(i+1)%3,(j+1)%3]*a[(i+2)%3,(j+2)%3]-
-#		a[(i+2)%3,(j+1)%3]*a[(i+1)%3,(j+2)%3]
-#		)/d
-#		for i in range(3)] for j in range(3)])
-#	else: 
-#		raise ValueError("inverse error : unsupported dimension")
+	print(type(a))
+	if isinstance(a,ad.Dense.denseAD):
+		b = inverse(a.value)
+		b_ = fd.as_field(b,(a.size_ad,),conditional=False) #np.expand_dims(b,axis=-1)
+		h = a.coef
+		return ad.Dense.denseAD(b,-dot_AA(b_,dot_AA(h,b_)))
+	elif isinstance(a,ad.Dense2.denseAD2):
+		b = inverse(a.value)
+		b1 = fd.as_field(b,(a.size_ad,),conditional=False)
+		h = a.coef1
+		h2 = a.coef2
+
+		bh = dot_AA(b1,h)
+		bhb = dot_AA(bh,b1)
+		bhbhb = dot_AA(np.broadcast_to(np.expand_dims(bh,-1),h2.shape),
+			np.broadcast_to(np.expand_dims(bhb,-2),h2.shape))
+
+		b2 = fd.as_field(b,(a.size_ad,a.size_ad),conditional=False)
+		bh2b = dot_AA(b2,dot_AA(h2,b2))
+		return ad.Dense2.denseAD2(b,-bhb,bhbhb+np.swapaxes(bhbhb,-1,-2)-bh2b)
+	elif ad.is_ad(a):
+		d=len(a)
+		return ad.apply(inverse,a,shape_bound=a.shape[2:])
+	else:
+		return np.moveaxis(np.linalg.inv(np.moveaxis(a,(0,1),(-2,-1))),(-2,-1),(0,1))
 
 def solve_AV(a,v):
 	if ad.is_ad(v): return dot_AV(inverse(a),v) # Inefficient, but compatible with ndarray subclasses

@@ -149,8 +149,8 @@ def apply(f,*args,**kwargs):
 		_,oracle = f(*[to_np(a) for a in args],**{key:to_np(val) for key,val in kwargs.items()})
 		result,_ = apply(f,*args,**kwargs,oracle=oracle,envelope=False,shape_bound=shape_bound)
 		return result,oracle
-	if shape_bound:
-		size_factor = np.prod(shape_bound)
+	if shape_bound is not None:
+		size_factor = np.prod(shape_bound,dtype=int)
 		t = tuple(b.reshape((b.size//size_factor,)+shape_bound) 
 			for b in itertools.chain(args,kwargs.values()) if is_ad(b)) # Tuple containing the original AD vars
 		lens = tuple(len(b) for b in t)
