@@ -72,6 +72,9 @@ class dictIn(dict):
 	def SetRect(self,*args,**kwargs):
 		self.update(Rect(*args,**kwargs))
 
+	def copy(self):
+		return dictIn(dict.copy(self))
+
 	Axes=GetAxes
 	Grid=GetGrid
 	PointFromIndex=PointFromIndex

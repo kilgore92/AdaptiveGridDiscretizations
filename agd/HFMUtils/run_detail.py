@@ -10,13 +10,23 @@ class Cache(object):
 		self.verbosity = None
 		self.requested = None
 		self.needsflow = needsflow
+		self.dummy = False
+	
+	def empty(self):
+		"""Wether the cache lacks data needed to bypass computation"""
+		return not self.contents 
+
+#	def full(self): 
+#		return self.contents and ('geodesicFlow' in self.contents or not needsflow)
+	
 	def PreProcess(self,hfmIn_raw):
+		if self.dummy: return
 		self.verbosity = hfmIn_raw.get('verbosity',1)
 		self.requested = []
 		if hfmIn_raw.get('exportValues',False): 		self.requested.append('values')
 		if hfmIn_raw.get('exportActiveNeighs',False):	self.requested.append('activeNeighs')
 		if hfmIn_raw.get('exportGeodesicFlow',False):	self.requested.append('geodesicFlow')
-		if not self.contents:
+		if self.empty():
 			if self.verbosity>=1: print("Requesting cacheable data")
 			hfmIn_raw['exportValues']=True
 			hfmIn_raw['exportActiveNeighs']=True
@@ -31,7 +41,8 @@ class Cache(object):
 			hfmIn_raw['exportGeodesicFlow']=self.needsflow and ('geodesicFlow' not in self.contents)
 
 	def PostProcess(self,hfmOut_raw):
-		if not self.contents:
+		if self.dummy: return
+		if self.empty():
 			if self.verbosity>=1 : print("Filling cache data")
 			for key in ('values','activeNeighs'):
 				self.contents[key] = hfmOut_raw[key]
@@ -44,9 +55,32 @@ class Cache(object):
 				if self.needsflow and 'geodesicFlow' not in self.contents:
 					self.contents['geodesicFlow'] = hfmOut_raw['geodesicFlow']
 
+	def geodesicFlow(self,hfmIn=None):
+		if 'geodesicFlow' in self.contents:
+			return self.contents['geodesicFlow']
+		elif hfmIn is None:
+			raise ValueError("geodesicFlow not cached and lacking hfm input data")
+		else:
+			self.dummy = False
+			self.needsflow = True
+
+			hfmIn_ = {key:ad.remove_ad(value,iterables=(Metrics.Base,)) for key,value in hfmIn.items()
+			if key not in [ # Keys useless for evaluating the geodesic flow
+			'tips','tips_Unoriented',
+			'costVariation','seedValueVariation','inspectSensitivity',
+			'exportActiveNeighs']}
+
+			hfmOut_raw = RunSmart(hfmIn_,cache=self,returns='out_raw')
+			if self.verbosity: 
+				print("--- HFM call triggered above to compute geodesic flow ---")
+			self.PostProcess(hfmOut_raw)
+			return self.contents['geodesicFlow']
+
+
 def RunRaw(hfmIn):
 	"""Raw call to the HFM library"""
 	return RunDispatch(hfmIn,GetBinaryDir("FileHFM","HFMpy"))
+
 
 def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 	"""
@@ -64,6 +98,10 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 	assert(returns in ('in_raw','out_raw','out'))
 
 	hfmIn_raw = {}
+
+	if cache is None:
+		cache = Cache()
+		cache.dummy = True
 
 	# Pre-process usual arguments
 	for key,value in hfmIn.items():
@@ -83,8 +121,7 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 		setkey_safe(hfmIn_raw,'inspectSensitivityLengths',[len(weights)])
 	
 	# Dealing with cached data
-	if cache is not None:
-		cache.PreProcess(hfmIn_raw)
+	cache.PreProcess(hfmIn_raw)
 
 	# Call to the HFM library
 	if returns=='in_raw': return hfmIn_raw
@@ -92,8 +129,7 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 	if returns=='out_raw': return hfmOut_raw
 	
 	# Dealing with cached data
-	if cache is not None:
-		cache.PostProcess(hfmOut_raw)
+	cache.PostProcess(hfmOut_raw)
 
 	# Post process
 	hfmOut = {}
@@ -112,7 +148,7 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 			if key in ('metric','dualMetric'):
 				value_ad = ad.Dense.register(value,iterables=(Metrics.Base,),shape_factor=value.shape)
 				metric_ad = value_ad if key=='metric' else value_ad.dual()
-				flow_norm_ad = metric_ad.norm(np.moveaxis(cache.contents['geodesicFlow'],-1,0))
+				flow_norm_ad = metric_ad.norm(np.moveaxis(cache.geodesicFlow(hfmIn),-1,0))
 				flow_variation = flow_norm_ad.gradient()/flow_norm_ad.value
 				shift = 0
 				size_factor = np.prod(shape_factor,dtype=int)
@@ -160,7 +196,7 @@ def PreProcess(key,value,refined_in,raw_out,cache):
 		if isinstance(value,Metrics.Base): 
 			if ad.is_ad(value,iterables=(Metrics.Base,)):
 				metric = value if key=='metric' else metric.dual()
-				flow_norm_ad = metric.norm(np.moveaxis(cache.contents['geodesicFlow'],-1,0))
+				flow_norm_ad = metric.norm(np.moveaxis(cache.geodesicFlow(refined_in),-1,0))
 				flow_norm_variation = flow_norm_ad.coef/np.expand_dims(flow_norm_ad.value,axis=-1)
 				flow_norm_variation[np.isnan(flow_norm_variation)]=0.
 				setkey_safe(raw_out,'costVariation',flow_norm_variation)
