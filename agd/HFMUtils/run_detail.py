@@ -119,6 +119,9 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 		setkey_safe(hfmIn_raw,'inspectSensitivity',positions)
 		setkey_safe(hfmIn_raw,'inspectSensitivityWeights',weights)
 		setkey_safe(hfmIn_raw,'inspectSensitivityLengths',[len(weights)])
+		if 'metric' in hfmIn or 'dualMetric' in hfmIn:
+			cache.needsflow = True
+			cache.dummy = False
 	
 	# Dealing with cached data
 	cache.PreProcess(hfmIn_raw)
@@ -146,15 +149,24 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 				result.append((value,
 					hfmOut['costSensitivity_0'] if key=='cost' else (hfmOut['costSensitivity_0']/value**2)))
 			if key in ('metric','dualMetric'):
-				value_ad = ad.Dense.register(value,iterables=(Metrics.Base,),shape_factor=value.shape)
+				shape_bound = value.shape
+				value_ad = ad.Dense.register(value,iterables=(Metrics.Base,),shape_bound=shape_bound)
 				metric_ad = value_ad if key=='metric' else value_ad.dual()
-				flow_norm_ad = metric_ad.norm(np.moveaxis(cache.geodesicFlow(hfmIn),-1,0))
-				flow_variation = flow_norm_ad.gradient()/flow_norm_ad.value
+
+				costSensitivity = np.moveaxis(flow_variation(cache.geodesicFlow(hfmIn),metric_ad),-1,0)*hfmOut['costSensitivity_0']
+#				flow = np.moveaxis(cache.geodesicFlow(hfmIn),-1,0)
+#				zeros = hfmOut['costSensitivity_0']==0
+#				flow.__setitem__((slice(None),zeros),np.nan)
+#				flow_norm_ad = metric_ad.norm(flow)
+#				flow_norm_variation = flow_norm_ad.gradient()/flow_norm_ad.value
+#				costSensitivity = flow_norm_variation * hfmOut['costSensitivity_0']
+#				costSensitivity.__setitem__((slice(None),zeros),0.)
+
 				shift = 0
-				size_factor = np.prod(shape_factor,dtype=int)
+				size_bound = np.prod(shape_bound,dtype=int)
 				for x in value:
-					xsize_free = x.size//size_factor
-					result.append((x,flow_variation[shift:(shift+xsize_free)].reshape(x.shape)) )
+					xsize_free = x.size//size_bound
+					result.append((x,costSensitivity[shift:(shift+xsize_free)].reshape(x.shape)) )
 					shift+=xsize_free
 			elif key=='seedValues':
 				sens = hfmOut['seedSensitivity_0']
@@ -176,6 +188,15 @@ def setkey_safe(dico,key,value):
 	else:
 		dico[key]=value
 
+def flow_variation(flow,metric):
+	flow = np.moveaxis(flow,-1,0)
+	zeros = np.all(flow==0.,axis=0)
+	flow.__setitem__((slice(None),zeros),np.nan)
+	norm = metric.norm(flow)
+	variation = norm.coef/np.expand_dims(norm.value,axis=-1)
+	variation.__setitem__((zeros,slice(None)),0.)
+	return variation
+
 # ----------------- Preprocessing ---------------
 def PreProcess(key,value,refined_in,raw_out,cache):
 	"""
@@ -195,11 +216,11 @@ def PreProcess(key,value,refined_in,raw_out,cache):
 	elif key in ('metric','dualMetric'):
 		if isinstance(value,Metrics.Base): 
 			if ad.is_ad(value,iterables=(Metrics.Base,)):
-				metric = value if key=='metric' else metric.dual()
-				flow_norm_ad = metric.norm(np.moveaxis(cache.geodesicFlow(refined_in),-1,0))
-				flow_norm_variation = flow_norm_ad.coef/np.expand_dims(flow_norm_ad.value,axis=-1)
-				flow_norm_variation[np.isnan(flow_norm_variation)]=0.
-				setkey_safe(raw_out,'costVariation',flow_norm_variation)
+				metric_ad = value if key=='metric' else value.dual()
+#				flow_norm_ad = metric.norm(np.moveaxis(cache.geodesicFlow(refined_in),-1,0))
+#				flow_norm_variation = flow_norm_ad.coef/np.expand_dims(flow_norm_ad.value,axis=-1)
+#				flow_norm_variation[np.isnan(flow_norm_variation)]=0.
+				setkey_safe(raw_out,'costVariation',flow_variation(cache.geodesicFlow(refined_in),metric_ad))
 			value = value.to_HFM()
 		setkey_safe(raw_out,key,value)
 
@@ -213,31 +234,6 @@ def PreProcess(key,value,refined_in,raw_out,cache):
 		setkey_safe(raw_out,'exportValues',value)
 	else:
 		setkey_safe(raw_out,key,value)
-
-
-#	if isinstance(value,Metrics.Base): 
-		# ---------- Set the metric ----------
-#		assert(key in ['cost','speed','metric','dualMetric'])
-
-#		# Set the model if unspecified
-#		if 'model' not in refined_in:
-#			modelName = value.name_HFM()
-#				modelName=modelName[0]
-#				if verbosity>=1:
-#					print('model defaults to ',modelName[0])
-#			setkey_safe(raw_out,'model',modelName)
-		
-		# Set the metric
-#		metricValues = value.to_HFM()
-
-#		if ad.is_ad(metricValues):
-			# Interface for forward automatic differentiation
-#			assert(key=='cost' and isinstance(metricValues,Metrics.Isotropic))
-#			setkey_safe(raw_out,'costVariation',metricValues.gradient())
-#			for i,dvalue in enumerate(metricValues.gradient()):
-#				setkey_safe(raw_out,'costVariation_'+str(i),dvalue)
-#		else:
-#			setkey_safe(raw_out,key,metricValues)
 
 #---------- Post processing ------------
 def PostProcess(key,value,raw_in,refined_out):

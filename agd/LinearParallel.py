@@ -123,7 +123,6 @@ def det(a):
 		raise ValueError("det error : unsupported dimension") 
 
 def inverse(a):
-	print(type(a))
 	if isinstance(a,ad.Dense.denseAD):
 		b = inverse(a.value)
 		b_ = fd.as_field(b,(a.size_ad,),conditional=False) #np.expand_dims(b,axis=-1)

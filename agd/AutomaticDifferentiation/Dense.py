@@ -309,24 +309,27 @@ def register(inputs,iterables=None,shape_bound=None,shift=(0,0),ident=identity):
 	boundsize = 1 if shape_bound is None else np.prod(shape_bound,dtype=int)
 
 	start=shift[0]
+	starts = []
 	def setstart(a):
-		nonlocal start
+		nonlocal start,starts
 		a,to_ad = misc.ready_ad(a)
 		if to_ad: 
-			result = misc.pair(a,start)
+			starts.append(start)
 			start += a.size//boundsize
-			return result
-		else: 
-			return misc.pair(a,None)
-	starts = misc.map_iterables(setstart,inputs,iterables)
+		else:
+			starts.append(None)
+		return a
+	inputs = misc.map_iterables(setstart,inputs,iterables)
+
 	end = start+shift[1]
 
-	def setad(b):
-		a,start = b
+	starts_it = iter(starts)
+	def setad(a):
+		start = next(starts_it)
 		if start is None:
 			return a
 		else:
 			return ident(constant=a,shift=(start,end-start-a.size//boundsize),
 				shape_bound=shape_bound)
-	return misc.map_iterables(setad,starts,iterables)
+	return misc.map_iterables(setad,inputs,iterables)
 
