@@ -11,11 +11,11 @@ def identity(shape):
 
 def rotation(theta,axis=None):
 	"""
-Dimension 2 : by a given angle.
-Dimension 3 : by a given angle, along a given axis.
-Three dimensional rotation matrix, with given axis and angle.
-Adapted from https://stackoverflow.com/a/6802723
-"""
+	Dimension 2 : by a given angle.
+	Dimension 3 : by a given angle, along a given axis.
+	Three dimensional rotation matrix, with given axis and angle.
+	Adapted from https://stackoverflow.com/a/6802723
+	"""
 	if axis is None:
 		c,s=np.cos(theta),np.sin(theta)
 		return np.array([[c,-s],[s,c]])
@@ -40,11 +40,6 @@ def dot_VV(v,w):
 
 def dot_AV(a,v):
 	if a.shape[1]!=v.shape[0]: raise ValueError("dot_AV : Incompatible shapes")
-#	m,n = a.shape[:2]
-#	bounds = a.shape[2:]
-#	if v.shape != (n,)+bounds:
-#		raise ValueError("dot_AV : Incompatible shapes")
-
 	return (a*np.expand_dims(v,axis=0)).sum(1)
 
 def dot_VA(v,a):
