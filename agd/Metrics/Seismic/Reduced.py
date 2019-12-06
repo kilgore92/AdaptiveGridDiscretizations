@@ -17,9 +17,10 @@ class Reduced(ImplicitBase):
 	"""
 
 	def __init__(self,linear,quadratic=None,cubic=None):
-		self.linear=linear
-		self.quadratic=quadratic
-		self.cubic=cubic
+		super(Reduced,self).__init__()
+		self.linear=ad.array(linear)
+		self.quadratic=None if quadratic is None else ad.array(quadratic)
+		self.cubic=None if cubic is None else ad.array(cubic)
 
 	@property
 	def vdim(self):
@@ -29,18 +30,18 @@ class Reduced(ImplicitBase):
 	def shape(self):
 		return self.linear.shape[1:]
 
-	def _dual_level(self,v,params=None):
+	def _dual_level(self,v,params=None,relax=1.):
 		l,q,c = (self.linear,self.quadratic,self.cubic) if params is None else params
 		v2 = v**2
 		result = lp.dot_VV(l,v2) - 1
 		if q is not None:
-			result += lp.dot_VAV(v2,q,v2)
+			result += relax*lp.dot_VAV(v2,q,v2)
 		if c is not None:
-			result += c*v2.prod()
+			result += relax**2*c*v2.prod()
 		return result
 
-	def _dual_params():
-		return (linear,quadratic,cubic)
+	def _dual_params(self):
+		return (self.linear,self.quadratic,self.cubic)
 
 	@classmethod
 	def from_cast(cls,metric):

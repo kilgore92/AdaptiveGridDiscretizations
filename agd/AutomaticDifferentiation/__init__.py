@@ -27,16 +27,29 @@ def is_adtype(t):
 	return t in (Sparse.spAD, Dense.denseAD, Sparse2.spAD2, Dense2.denseAD2)
 
 def is_ad(data,iterables=tuple()):
-	if is_adtype(type(data)): return True
+	"""
+	Returns None if no ad variable found, 
+	- the adtype if one is found
+	"""
+	adtype=None
+	def check(t):
+		nonlocal adtype
+		if is_adtype(t):
+			if adtype is None:
+				adtype = t
+			elif adtype!=t:
+				raise ValueError("Incompatible adtypes found")
+
+	check(type(data))
 	for type_iterable in iterables:
 		if isinstance(data,type_iterable):
 			if issubclass(type_iterable,dict):
 				for _,value in data.items(): 
-					if is_ad(value,iterables): return True
+					check(is_ad(value,iterables))
 			else:
 				for value in data: 
-					if is_ad(value,iterables): return True
-	return False
+					check(is_ad(value,iterables))
+	return adtype
 
 def remove_ad(data,iterables=tuple()):
 	def f(a):

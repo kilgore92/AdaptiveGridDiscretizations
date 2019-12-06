@@ -54,15 +54,19 @@ class stop_default(object):
 	"""	
 	def __init__(
 		self,residue_tol=1e-8,niter_max=50,raise_on_abort=True,
-		niter_print=itertools.chain(range(1,6),range(6,16,2),itertools.count(16,4)),
+		niter_print="Default",
 		verbosity=3
 		):
 		self.residue_tol	=residue_tol
 		self.niter_max 		=niter_max
 		self.raise_on_abort	=raise_on_abort
+
+		if niter_print=="Default":
+			niter_print = itertools.chain(range(1,6),range(6,16,2),itertools.count(16,4))
 		self.niter_print_iter =iter(copy.deepcopy(niter_print))
 		self.niter_print_next = next(self.niter_print_iter) # Next iteration to print
 		self.niter_print_last = None # Last iteration printed
+
 		self.residue_norms = []
 		self.verbosity=verbosity
 
@@ -178,9 +182,6 @@ def newton_root(func,x0,params=None,stop="Default",
 
 		step = 1. if damping is None else damping(np.array(x),direction,*params)
 		x += step*direction
-
-
-
 
 
 #def newton_min():
