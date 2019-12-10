@@ -81,10 +81,20 @@ def _test_or_broadcast_ad(array,shape,broadcast,ad_depth=1):
 def squeeze_shape(shape,axis):
 	if axis is None:
 		return shape
-	elif axis==-1:
+	assert shape[axis]==1
+	if axis==-1:
 		return shape[:-1]
 	else:
 		return shape[:axis]+shape[(axis+1):]
+
+def expand_shape(shape,axis):
+	if axis is None:
+		return shape
+	if axis==-1:
+		return shape+(1,)
+	if axis<0:
+		axis+=1
+	return shape[:axis]+(1,)+shape[axis:]
 
 # -------- For Dense and Dense2 -----
 

@@ -260,12 +260,13 @@ class denseAD(np.ndarray):
 		np.concatenate(tuple(e.value for e in elems2), axis=axis), 
 		np.concatenate(tuple(e.coef if e.size_ad==size_ad else np.zeros(e.shape+(size_ad,)) for e in elems2),axis=axis1))
 
-	def associate(self,singleton_axis=-1):
+	def associate(self,squeeze_free_dims=-1,squeeze_bound_dims=-1):
 		from . import associate
-		singleton_axis1 = singleton_axis if singleton_axis>=0 else (singleton_axis-1)
-		value = associate(self.value,singleton_axis)
-		coef = associate(self.coef,singleton_axis1)
-		coef = np.moveaxis(coef,self.ndim if singleton_axis1 is None else (self.ndim-1),-1)
+		sq_free = squeeze_free_dims
+		sq_free1= sq_free if sq_free>=0 else (sq_free-1)
+		value = associate(self.value,sq_free, squeeze_bound_dims)
+		coef  = associate(self.coef, sq_free1,squeeze_bound_dims)
+		coef = np.moveaxis(coef,self.ndim if sq_free is None else (self.ndim-1),-1)
 		return denseAD(value,coef)
 
 	def apply_linear_operator(self,op):

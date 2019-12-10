@@ -5,6 +5,7 @@ from .. import misc
 from ..riemann import Riemann
 from ... import LinearParallel as lp
 from ...FiniteDifferences import common_field
+from .implicit_base import ImplicitBase
 
 
 

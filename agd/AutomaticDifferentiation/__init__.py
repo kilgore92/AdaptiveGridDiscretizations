@@ -145,18 +145,22 @@ def disassociate(array,shape_free=None,shape_bound=None,
 	- (optional) expand_free_dims, expand_bound_dims. 
 	"""
 	shape_free,shape_bound = misc._set_shape_free_bound(array.shape,shape_free,shape_bound)
+	shape_free  = misc.expand_shape(shape_free, expand_free_dims)
+	shape_bound = misc.expand_shape(shape_bound,expand_bound_dims)
+	
 	size_free = np.prod(shape_free)
-	if expand_bound_dims is not None:
-		shape_bound = shape_bound[:expand_bound_dims]+(1,)+shape_bound[expand_bound_dims:]
 	array = array.reshape((size_free,)+shape_bound)
 	result = np.zeros(size_free,object)
 	for i in range(size_free): result[i] = array[i]
-	result = result.reshape(shape_free)
-	if expand_free_dims is not None:
-		result=np.expand_dims(result,expand_free_dims)
-	return result
+	return result.reshape(shape_free)
 
 def associate(array,squeeze_free_dims=-1,squeeze_bound_dims=-1):
+	"""
+	Turns an array of shape shape_free, whose elements 
+	are arrays of shape shape_bound, into an array 
+	of shape shape_free+shape_bound.
+	Inverse opeation to disassociate.
+	"""
 	if is_ad(array): 
 		return array.associate(squeeze_free_dims,squeeze_bound_dims)
 	result = stack(array.flatten(),axis=0)

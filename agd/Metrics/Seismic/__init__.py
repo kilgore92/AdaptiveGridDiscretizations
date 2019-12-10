@@ -16,7 +16,7 @@ def reload_submodules():
 	Reduced = seismic.Reduced
 
 	global Hooke
-	metrics.hooke = reload(metrics.hooke)
+	seismic.hooke = reload(seismic.hooke)
 	Hooke = hooke.Hooke
 
 
