@@ -30,14 +30,15 @@ class Reduced(ImplicitBase):
 	def shape(self):
 		return self.linear.shape[1:]
 
-	def _dual_level(self,v,params=None,relax=1.):
+	def _dual_level(self,v,params=None,relax=0.):
+		s = 2**-relax
 		l,q,c = (self.linear,self.quadratic,self.cubic) if params is None else params
 		v2 = v**2
 		result = lp.dot_VV(l,v2) - 1
 		if q is not None:
-			result += relax*lp.dot_VAV(v2,q,v2)
+			result += s*lp.dot_VAV(v2,q,v2)
 		if c is not None:
-			result += relax**2*c*v2.prod()
+			result += s**2*c*v2.prod()
 		return result
 
 	def _dual_params(self):

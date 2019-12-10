@@ -15,7 +15,7 @@ class ImplicitBase(Base):
 	def __init__(self):
 		self.a = None 
 		self.niter_sqp = 6
-		self.relax_sqp = []
+		self.relax_sqp = ()
 
 	def norm(self,v):
 		return lp.dot_VV(v,self.gradient(v))
@@ -43,11 +43,11 @@ class ImplicitBase(Base):
 			niter=self.niter_sqp,relax=self.relax_sqp)
 
 
-	def _dual_level(self,v,params=None,relax=1.):
+	def _dual_level(self,v,params=None,relax=0):
 		"""
 		A level set function for the dual unit ball, ignoring self.a.
 		Some parameters of the instance can be passed in argument, for AD purposes.
-		Parameter s is for a relaxation of the level set. 1->exact, 0->easy (quadratic).
+		Parameter s is for a relaxation of the level set. 0->exact, np.inf->easy (quadratic).
 		"""
 		raise ValueError('_dual_level is not implemented for this class')
 		
@@ -58,34 +58,29 @@ class ImplicitBase(Base):
 		return None
 
 
-def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=None):
+def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
 	"""
 	Maximizes <x,v> subject to the constraint f(x,*params)<=0, 
 	using sequential quadratic programming.
 	x : initial guess.
-	relax : relaxation parameters to be passed in first iterations.
+	relax : relaxation parameters to be used in a preliminary path following phase.
 	params : to be passed to evaluated function. Special treatment if ad types.
 	"""
-	if x is None:
-		x=np.zeros(v.shape)
-
-	if relax is None: relax = [1.]*niter
-	elif len(relax)<niter: relax+=[1.]*(niter-len(relax))
-	else: relax = relax[:niter]
+	if x is None: x=np.zeros(v.shape)
 
 	params_noad = tuple(ad.remove_ad(val) for val in params) 
 
 	x_ad = ad.Dense2.identity(constant=x,shape_free=(len(x),))
 
 	# Fixed point iterations 
-	for r in relax:
-		f_ad = f(x_ad,params_noad,relax=r)
+	def step(val,V,D,v):
+		M = lp.inverse(D)
+		k = np.sqrt((lp.dot_VAV(V,M,V)-2*val)/lp.dot_VAV(v,M,v))
+		return lp.dot_AV(M,k*v-V)
 
-		val = f_ad.value
-		V = f_ad.gradient()
-		M = lp.inverse(f_ad.hessian())
-		k = np.sqrt((lp.dot_VAV(V,M,V)-2*val)/lp.dot_VAV(v,M,v)) 
-		x_ad += lp.dot_AV(M,k*v-V)
+	for r in relax + (0.,)*niter:
+		f_ad = f(x_ad,params_noad,relax=r)
+		x_ad += step(f_ad.value,f_ad.gradient(),f_ad.hessian(),v)
 
 	x=x_ad.value
 
@@ -94,16 +89,11 @@ def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=None):
 	if adtype:
 		shape_bound = x.shape[1:]
 		params_dis = tuple(ad.disassociate(value,shape_bound=shape_bound) 
-			if isinstance(value,np.ndarray) else value 
-			for value in params)
-		x_ad = ad.Dense2.identity(constant=ad.disassociate(adtype(x),shape_bound=shape_bound))
+			if isinstance(value,np.ndarray) else value for value in params)
+		x_ad = ad.Dense2.identity(constant=ad.disassociate(x,shape_bound=shape_bound))
 
 		f_ad = f(x_ad,params_dis,1.)
-		val = ad.associate(f_ad.value)
-		V = ad.associate(f_ad.gradient())
-		M = lp.inverse(ad.associate(f_ad.hessian()))
-		k = np.sqrt((lp.dot_VAV(V,M,V)-2*val)/lp.dot_VAV(v,M,v))
-		x = x + lp.dot_AV(M,k*v-V)
+		x = x + step(ad.associate(f_ad.value), ad.associate(f_ad.gradient()), ad.associate(f_ad.hessian()), v)
 
 	return x
 
