@@ -129,29 +129,40 @@ def concatenate(elems,axis=0):
 		if is_ad(e): return type(e).concatenate(elems,axis)
 	return np.concatenate(elems,axis)
 
-def disassociate(array,shape_free=None,shape_bound=None,singleton_axis=-1):
+def disassociate(array,shape_free=None,shape_bound=None,
+	expand_free_dims=-1,expand_bound_dims=-1):
+	"""
+	Turns an array of shape shape_free + shape_bound 
+	into an array of shape shape_free whose elements 
+	are arrays of shape shape_bound.
+	Typical usage : recursive automatic differentiation.
+	Caveat : by defaut, singleton dimensions are introduced 
+	to avoid numpy's "clever" treatment of scalar arrays.
+
+	Arguments: 
+	- array : reshaped array
+	- (optional) shape_free, shape_bound : outer and inner array shapes. One is deduced from the other.
+	- (optional) expand_free_dims, expand_bound_dims. 
+	"""
 	shape_free,shape_bound = misc._set_shape_free_bound(array.shape,shape_free,shape_bound)
 	size_free = np.prod(shape_free)
+	if expand_bound_dims is not None:
+		shape_bound = shape_bound[:expand_bound_dims]+(1,)+shape_bound[expand_bound_dims:]
 	array = array.reshape((size_free,)+shape_bound)
 	result = np.zeros(size_free,object)
 	for i in range(size_free): result[i] = array[i]
 	result = result.reshape(shape_free)
-	if singleton_axis is not None:
-		result=np.expand_dims(result,singleton_axis)
+	if expand_free_dims is not None:
+		result=np.expand_dims(result,expand_free_dims)
 	return result
 
-def associate(array,singleton_axis=-1):
+def associate(array,squeeze_free_dims=-1,squeeze_bound_dims=-1):
 	if is_ad(array): 
-		return array.associate(singleton_axis)
+		return array.associate(squeeze_free_dims,squeeze_bound_dims)
 	result = stack(array.flatten(),axis=0)
-	shape_free = array.shape
-	if singleton_axis is not None: 
-		assert shape_free[singleton_axis]==1
-		if singleton_axis==-1:
-			shape_free=shape_free[:-1]
-		else: 
-			shape_free=shape_free[:singleton_axis]+shape_free[(singleton_axis+1):]
-	return result.reshape(shape_free+result.shape[1:])
+	shape_free  = misc.squeeze_shape(array.shape,squeeze_free_dims)
+	shape_bound = misc.squeeze_shape(result.shape[1:],squeeze_bound_dims) 
+	return result.reshape(shape_free+shape_bound)
 
 def apply(f,*args,**kwargs):
 	envelope,shape_bound,reverse_history = (kwargs.pop(s,None) for s in ('envelope','shape_bound','reverse_history'))

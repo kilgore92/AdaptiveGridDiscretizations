@@ -78,6 +78,14 @@ def _test_or_broadcast_ad(array,shape,broadcast,ad_depth=1):
 		assert array.shape[:-ad_depth]==shape
 		return array
 
+def squeeze_shape(shape,axis):
+	if axis is None:
+		return shape
+	elif axis==-1:
+		return shape[:-1]
+	else:
+		return shape[:axis]+shape[(axis+1):]
+
 # -------- For Dense and Dense2 -----
 
 def apply_linear_operator(op,rhs,flatten_ndim=0):

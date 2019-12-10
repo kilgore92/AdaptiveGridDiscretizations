@@ -1,15 +1,14 @@
 import numpy as np
 import itertools
 
-from .base import Base
-from . import misc
-from .riemann import Riemann
-from .. import LinearParallel as lp
-from ..FiniteDifferences import common_field
+from .. import misc
+from ..riemann import Riemann
+from ... import LinearParallel as lp
+from ...FiniteDifferences import common_field
 
 
 
-class Hooke(Base):
+class Hooke(ImplicitBase):
 	"""
 A norm defined by a Hooke tensor. 
 Often encountered in seismic traveltime tomography.
