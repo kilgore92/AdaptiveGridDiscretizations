@@ -1,5 +1,6 @@
 from .implicit_base import ImplicitBase
 from .reduced import Reduced
+from .hooke 	import Hooke
 
 def reload_submodules():
 	from importlib import reload
@@ -13,6 +14,11 @@ def reload_submodules():
 	global Reduced
 	seismic.reduced = reload(seismic.reduced)
 	Reduced = seismic.Reduced
+
+	global Hooke
+	metrics.hooke = reload(metrics.hooke)
+	Hooke = hooke.Hooke
+
 
 
 
