@@ -3,7 +3,9 @@ import itertools
 
 from .. import misc
 from ..riemann import Riemann
+from ... import AutomaticDifferentiation as ad
 from ... import LinearParallel as lp
+from ... import FiniteDifferences as fd
 from ...FiniteDifferences import common_field
 from .implicit_base import ImplicitBase
 
@@ -14,7 +16,8 @@ class Hooke(ImplicitBase):
 A norm defined by a Hooke tensor. 
 Often encountered in seismic traveltime tomography.
 """
-	def __init__(self,hooke):
+	def __init__(self,hooke,**kwargs):
+		super(Hooke,self).__init__(**kwargs)
 		self.hooke = hooke 
 
 	def is_definite(self):
@@ -35,6 +38,32 @@ Often encountered in seismic traveltime tomography.
 	@classmethod
 	def expand(cls,arr):
 		return cls(misc.expand_symmetric_matrix(arr))
+
+
+	def __iter__(self):
+		yield self.hooke
+		for x in super(Hooke,self).__iter__(): 
+			yield x
+
+	def _dual_params(self):
+		return (self.hooke,)
+
+	def _dual_level(self,v,params=None,relax=0.):
+		if params is None: params = self._dual_params()
+
+		# Contract the hooke tensor and covector
+		hooke, = params
+		Voigt,Voigti = self._Voigt,self._Voigti
+		d = self.vdim
+		m = ad.array([[
+			sum(ad.toarray(v[j]*v[l]) * hooke[Voigt[i,j],Voigt[k,l]]
+				for j in range(d) for l in range(d))
+			for i in range(d)] for k in range(d)])
+
+		# Evaluate det
+		s = np.exp(-relax)
+		ident = fd.as_field(np.eye(d),self.shape,conditional=False)
+		return ad.toarray(1.-s) - lp.det(ident - m*s) 
 
 	def extract_xz(self):
 		"""
@@ -63,12 +92,12 @@ Often encountered in seismic traveltime tomography.
 		return cls(np.array( [ [c11,c13,zero], [c13,c33,zero], [zero,zero,c44] ] ))
 
 	@classmethod
-	def from_Riemann(m):
+	def from_Ellipse(cls,m):
 		"""
-	Rank deficient Hooke tensor,
-	equivalent, for pressure waves, to the Riemannian metric defined by m squared.
-	Shear waves are infinitely slow.
-	"""
+		Rank deficient Hooke tensor,
+		equivalent, for pressure waves, to the Riemannian metric defined by m ** -2.
+		Shear waves are infinitely slow.
+		"""
 		assert(len(m)==2)
 		a,b,c=m[0,0],m[1,1],m[0,1]
 		return Hooke(np.array( [ [a*a, a*b,a*c], [a*b, b*b, b*c], [a*c, b*c, c*c] ] ))
@@ -77,20 +106,33 @@ Often encountered in seismic traveltime tomography.
 	def from_cast(cls,metric): 
 		if isinstance(metric,cls):	return metric
 		riemann = Riemann.from_cast(metric)
-		return cls.from_Riemann(riemann.m)
+		
+		m = riemann.dual().m
+		assert not ad.is_ad(m)
+		from scipy.linalg import sqrtm
+		return cls.from_Ellipse(sqrtm(m))
 
-	def __iter__(self):
+	def _iter_implicit(self):
 		yield self.hooke
+
+	@property	
+	def _Voigt(self):
+		"""Direct Voigt indices"""
+		if self.vdim==2:   return np.array([[0,2],[2,1]])
+		elif self.vdim==3: return np.array([[0,5,4],[5,1,3],[4,3,2]])
+		else: raise ValueError("Unsupported dimension")
+	@property
+	def _Voigti(self):
+		"""Inverse Voigt indices"""
+		if self.vdim==2:   return np.array([[0,0],[1,1],[0,1]])
+		elif self.vdim==3: return np.array([[0,0],[1,1],[2,2],[1,2],[0,2],[0,1]])
+		else: raise ValueError("Unsupported dimension")
+
 
 	def rotate(self,r):
 		hooke,r = common_field((self.hooke,r),(2,2))
-		Voigt2 = np.array([[0,2],[2,1]])
-		Voigt2i = np.array([[0,0],[1,1],[0,1]])
 
-		Voigt3 = np.array([[0,5,4],[5,1,3],[4,3,2]])
-		Voigt3i = np.array([[0,0],[1,1],[2,2],[1,2],[0,2],[0,1]])
-
-		Voigt,Voigti = (Voigt2,Voigt2i) if self.vdim==2 else (Voigt3,Voigt3i)
+		Voigt,Voigti = self._Voigt,self._Voigti
 
 		return Hooke(np.sum(np.array([ [ [
 			hooke[Voigt[i,j],Voigt[k,l]]*r[ii,i]*r[jj,j]*r[kk,k]*r[ll,l]
@@ -99,6 +141,18 @@ Often encountered in seismic traveltime tomography.
 			for (kk,ll) in Voigti]
 			), axis=2))
 
+	@staticmethod
+	def _Mandel_factors(vdim,shape):
+		def f(k):	return 1. if k<=vdim else np.sqrt(2.)
+		factors = np.array([[f(i)*f(j) for i in range(vdim)] for j in range(vdim)])
+		return fd.as_field(factors,shape,conditional=False)
+	def to_Mandel(cls):
+		"""Introduces the sqrt(2) and 2 factors involved in Mandel's notation"""
+		return self.hooke*self._Mandel_factors(self.vdim,self.shape)
+	@classmethod
+	def from_Mandel(cls,mandel):
+		"""Removes the sqrt(2) and 2 factors involved in Mandel's notation"""
+		return Hooke(mandel/cls._Mandel_factors(len(mandel),mandel.shape[2:]))
 
 	@classmethod
 	def from_orthorombic(cls,a,b,c,d,e,f,g,h,i):

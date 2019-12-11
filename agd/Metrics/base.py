@@ -148,6 +148,12 @@ class Base(object):
 	def from_generator(cls,gen):
 		return cls(*gen)
 
+#	def is_ad(self):
+#		return ad.is_ad(self,iterables=(Base,))
+
+#	def remove_ad(self):
+#		return self.from_generator(ad.remove_ad(x) for x in self)
+
 """ 
 Possible additions : 
  - shoot geodesic (with a grid), 

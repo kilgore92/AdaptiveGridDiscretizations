@@ -76,6 +76,7 @@ class Riemann(Base):
 
 	@classmethod
 	def from_diagonal(cls,*args):
+		args = ad.array(args)
 		z = np.zeros(args[0].shape)
 		vdim = len(args)
 		arr = ad.array([[z if i!=j else args[i] for i in range(vdim)] for j in range(vdim)])

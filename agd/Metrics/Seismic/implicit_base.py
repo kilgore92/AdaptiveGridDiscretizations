@@ -12,27 +12,44 @@ class ImplicitBase(Base):
 	of the dual metric, and of a linear transformation.
 	"""
 
-	def __init__(self):
-		self.a = None 
-		self.niter_sqp = 6
-		self.relax_sqp = ()
+	def __init__(self,inverse_transformation=None,niter_sqp=6,relax_sqp=tuple()):
+		self.inverse_transformation = inverse_transformation
+		self.niter_sqp = niter_sqp
+		self.relax_sqp = relax_sqp
 
 	def norm(self,v):
 		return lp.dot_VV(v,self.gradient(v))
 
 	def gradient(self,v):
-		if self.a is None:
+		a=self.inverse_transformation
+		if a is None:
 			return self._gradient(v)
 		else:
-			v,a = fd.common_field((v,self.a),(1,2))
+			v,a = fd.common_field((v,a),(1,2))
 			return lp.dot_AV(lp.transpose(a),self._gradient(lp.dot_AV(a,v)))
 
 	def inv_transform(self,a):
-		if self.a is None:
-			self.a = a
+		if self.inverse_transformation is None:
+			self.inverse_transformation = a
 		else:
-			self.a = lp.dot_AA(self.a,a)
+			self.inverse_transformation = lp.dot_AA(self.inverse_transformation,a)
 
+	def is_topographic(self,a=None):
+		if a is None: a = self.inverse_transformation
+		if a in None: return True
+		d = self.vdim
+		return np.all([a[i,j]==(i==j) for i in range(d) for j in range(d-1)])
+
+	def flatten_transform(self,topographic=None):
+		a = self.inverse_transformation
+		if a is None: return None
+
+		if topographic is None: topographic = self.is_topographic(a)
+		d=self.vdim
+		if topographic:
+			return ad.array([a[i,-1] in range(d-1)] + [a[d-1,d-1]-1])
+		else:
+			return a.reshape((d*d,)+a.shape[2:])
 
 	def _gradient(self,v):
 		"""
@@ -45,9 +62,11 @@ class ImplicitBase(Base):
 
 	def _dual_level(self,v,params=None,relax=0):
 		"""
-		A level set function for the dual unit ball, ignoring self.a.
-		Some parameters of the instance can be passed in argument, for AD purposes.
-		Parameter s is for a relaxation of the level set. 0->exact, np.inf->easy (quadratic).
+		A level set function for the dual unit ball, ignoring self.inverse_transformation.
+		Parameters
+		- v : co-vector
+		- params : Some parameters of the instance can be passed in argument, for AD purposes.
+		- relax : for a relaxation of the level set. 0->exact, np.inf->easy (quadratic).
 		"""
 		raise ValueError('_dual_level is not implemented for this class')
 		
@@ -56,6 +75,11 @@ class ImplicitBase(Base):
 		The parameters to be passed to _dual_level.
 		"""
 		return None
+
+	def __iter__(self):
+		yield self.inverse_transformation
+		yield self.niter_sqp
+		yield self.relax_sqp
 
 
 def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
