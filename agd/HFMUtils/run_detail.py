@@ -245,7 +245,9 @@ def PostProcess(key,value,raw_in,refined_out):
 		setkey_safe(refined_out,key,value)
 	elif key=='valueVariation':
 		pass
-		
+	
+	elif key=='geodesicFlow':
+		setkey_safe(refined_out,'flow',np.moveaxis(value,-1,0))
 	else:
 		setkey_safe(refined_out,key,value)
 

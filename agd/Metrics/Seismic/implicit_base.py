@@ -29,6 +29,7 @@ class ImplicitBase(Base):
 			return lp.dot_AV(lp.transpose(a),self._gradient(lp.dot_AV(a,v)))
 
 	def inv_transform(self,a):
+		self._to_common_field(a.shape[2:])
 		if self.inverse_transformation is None:
 			self.inverse_transformation = a
 		else:
@@ -56,7 +57,7 @@ class ImplicitBase(Base):
 		Gradient, ignoring self.a
 		"""
 		v=ad.array(v)
-		return sequential_quadratic(v,self._dual_level,params=self._dual_params(),
+		return sequential_quadratic(v,self._dual_level,params=self._dual_params(v.shape[1:]),
 			niter=self.niter_sqp,relax=self.relax_sqp)
 
 
@@ -70,7 +71,7 @@ class ImplicitBase(Base):
 		"""
 		raise ValueError('_dual_level is not implemented for this class')
 		
-	def _dual_params(self):
+	def _dual_params(self,*args,**kwargs):
 		"""
 		The parameters to be passed to _dual_level.
 		"""
@@ -80,6 +81,10 @@ class ImplicitBase(Base):
 		yield self.inverse_transformation
 		yield self.niter_sqp
 		yield self.relax_sqp
+
+	def _to_common_field(self,*args,**kwargs):
+		"""Makes compatible the dimensions of the various fields"""
+		raise ValueError("_to_common_field is not implemented for this class")
 
 
 def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
@@ -93,8 +98,6 @@ def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
 	if x is None: x=np.zeros(v.shape)
 	x_ad = ad.Dense2.identity(constant=x,shape_free=(len(x),))
 
-
-
 	# Fixed point iterations 
 	def step(val,V,D,v):
 		M = lp.inverse(D)
@@ -105,7 +108,7 @@ def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
 	params_noad = tuple(ad.remove_ad(val) for val in params) 
 	for r in relax + (0.,)*niter:
 		f_ad = f(x_ad,params_noad,relax=r)
-		x_ad += step(f_ad.value,f_ad.gradient(),f_ad.hessian(),v)
+		x_ad = x_ad+step(f_ad.value,f_ad.gradient(),f_ad.hessian(),v)
 
 	x=x_ad.value
 

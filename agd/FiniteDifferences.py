@@ -14,14 +14,16 @@ def as_field(u,shape,conditional=True):
 	if conditional and u.ndim>=ndim and u.shape[-ndim:]==shape: return u
 	else: return ad.broadcast_to(u.reshape(u.shape+(1,)*ndim), u.shape+shape)
 
-def common_field(arrays,depths):
-	common_shape=None
+def common_field(arrays,depths,common_shape=tuple()):
 	to_field=[]
 	for arr,d in zip(arrays,depths):
+		if arr is None: 
+			to_field.append(False)
+			continue
 		shape = arr.shape[d:]
 		to_field.append(shape is tuple())
-		if shape is not tuple():
-			if common_shape is not None:
+		if shape:
+			if common_shape:
 				assert(shape==common_shape)
 			else:
 				common_shape=shape

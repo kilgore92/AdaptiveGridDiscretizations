@@ -22,6 +22,7 @@ class Reduced(ImplicitBase):
 		self.quadratic=None if quadratic is None else ad.array(quadratic)
 		self.cubic=None if cubic is None else ad.array(cubic)
 		assert cubic is None or self.vdim==3
+		self._to_common_field()
 
 	@property
 	def vdim(self):
@@ -32,7 +33,7 @@ class Reduced(ImplicitBase):
 		return self.linear.shape[1:]
 
 	def _dual_level(self,v,params=None,relax=0.):
-		if params is None: params = self._dual_params()
+		if params is None: params = self._dual_params(v.shape[1:])
 		s = np.exp(-relax)
 		l,q,c = params
 		v2 = v**2
@@ -44,8 +45,8 @@ class Reduced(ImplicitBase):
 			result += s**2*c*v2.prod()
 		return result
 
-	def _dual_params(self):
-		return (self.linear,self.quadratic,self.cubic)
+	def _dual_params(self,*args,**kwargs):
+		return fd.common_field((self.linear,self.quadratic,self.cubic),(1,2,0),*args,**kwargs)
 
 	def __iter__(self):
 		yield self.linear
@@ -54,6 +55,9 @@ class Reduced(ImplicitBase):
 		for x in super(Reduced,self).__iter__(): 
 			yield x
 
+	def _to_common_field(self,*args,**kwargs):
+		self.linear,self.quadratic,self.cubic,self.inv_transform = fd.common_field(
+			(self.linear,self.quadratic,self.cubic,self.inv_transform),(1,2,0,2),*args,**kwargs)
 
 	@classmethod
 	def from_cast(cls,metric):

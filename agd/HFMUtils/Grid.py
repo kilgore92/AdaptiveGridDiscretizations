@@ -28,12 +28,14 @@ def GetAxes(params,dims=None):
 
 
 def GetGrid(params,dims=None):
+	"""Returns a grid of coordinates for the domain.
+	Calls np.meshgrid, converts to ndarray"""
 	axes = GetAxes(params,dims);
 	ordering = params['arrayOrdering']
 	if ordering=='RowMajor':
-		return np.meshgrid(*axes,indexing='ij')
+		return np.array(np.meshgrid(*axes,indexing='ij'))
 	elif ordering=='YXZ_RowMajor':
-		return np.meshgrid(*axes)
+		return np.array(np.meshgrid(*axes))
 	else: 
 		raise ValueError('Unsupported arrayOrdering : '+ordering)
 

@@ -18,7 +18,8 @@ Often encountered in seismic traveltime tomography.
 """
 	def __init__(self,hooke,*args,**kwargs):
 		super(Hooke,self).__init__(*args,**kwargs)
-		self.hooke = hooke 
+		self.hooke = hooke
+		self._to_common_field()
 
 	def is_definite(self):
 		return Riemann(self.hooke).is_definite()
@@ -32,10 +33,10 @@ Often encountered in seismic traveltime tomography.
 	@property
 	def shape(self): return self.hooke.shape[2:]
 	
-	def model_HFM():
+	def model_HFM(self):
 		d = self.vdim
-		suffix = "" if self.inverse_transformation is None else "Topo"
-		return f"Hooke{suffix}{d}"
+		suffix = "" if self.inverse_transformation is None else "Topographic"
+		return f"Seismic{suffix}{d}"
 
 	def flatten(self):
 		hooke = misc.flatten_symmetric_matrix(self.hooke)
@@ -54,11 +55,15 @@ Often encountered in seismic traveltime tomography.
 		for x in super(Hooke,self).__iter__():
 			yield x
 
-	def _dual_params(self):
-		return (self.hooke,)
+	def _to_common_field(self,*args,**kwargs):
+		self.hooke,self.inverse_transformation = fd.common_field(
+			(self.hooke,self.inverse_transformation),(2,2),*args,**kwargs)
+
+	def _dual_params(self,*args,**kwargs):
+		return fd.common_field((self.hooke,),(2,),*args,**kwargs)
 
 	def _dual_level(self,v,params=None,relax=0.):
-		if params is None: params = self._dual_params()
+		if params is None: params = self._dual_params(v.shape[1:])
 
 		# Contract the hooke tensor and covector
 		hooke, = params
@@ -71,7 +76,7 @@ Often encountered in seismic traveltime tomography.
 
 		# Evaluate det
 		s = np.exp(-relax)
-		ident = fd.as_field(np.eye(d),self.shape,conditional=False)
+		ident = fd.as_field(np.eye(d),m.shape[2:],conditional=False)
 		return ad.toarray(1.-s) - lp.det(ident - m*s) 
 
 	def extract_xz(self):
@@ -140,15 +145,13 @@ Often encountered in seismic traveltime tomography.
 
 	def rotate(self,r):
 		hooke,r = common_field((self.hooke,r),(2,2))
-
 		Voigt,Voigti = self._Voigt,self._Voigti
-
-		return Hooke(np.sum(np.array([ [ [
+		self.hooke = ad.array([ [ [
 			hooke[Voigt[i,j],Voigt[k,l]]*r[ii,i]*r[jj,j]*r[kk,k]*r[ll,l]
 			for (i,j,k,l) in itertools.product(range(self.vdim),repeat=4)]
 			for (ii,jj) in Voigti] 
 			for (kk,ll) in Voigti]
-			), axis=2))
+			).sum(axis=2)
 
 	@staticmethod
 	def _Mandel_factors(vdim,shape):
