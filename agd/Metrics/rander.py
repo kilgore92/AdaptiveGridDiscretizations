@@ -52,7 +52,7 @@ class Rander(Base):
 		return Rander(Riemann(self.m).inv_transform(a),lp.dot_VA(w,a))
 
 	def flatten(self):
-		return np.concatenate((misc.flatten_symmetric_matrix(self.m),self.w),axis=0)
+		return ad.concatenate((misc.flatten_symmetric_matrix(self.m),self.w),axis=0)
 	
 	@classmethod
 	def expand(cls,arr):

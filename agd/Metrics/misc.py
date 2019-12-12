@@ -1,4 +1,4 @@
-import numpy as np
+from .. import AutomaticDifferentiation as ad
 from .. import FiniteDifferences as fd
 
 def flatten_symmetric_matrix(m):
@@ -8,7 +8,7 @@ def flatten_symmetric_matrix(m):
 	"""
 	d=m.shape[0]
 	assert(d==m.shape[1])
-	return np.array([ m[i,j] for i in range(d) for j in range(i+1)])
+	return ad.array([ m[i,j] for i in range(d) for j in range(i+1)])
 
 def expand_symmetric_matrix(arr,d=None,extra_length=False):
 	if d is None:
@@ -20,7 +20,7 @@ def expand_symmetric_matrix(arr,d=None,extra_length=False):
 	def index(i,j):
 		i,j = min(i,j),max(i,j)
 		return (i*(i+1))//2+j
-	return np.array([ [ arr[index(i,j)] for i in range(d)] for j in range(d) ])
+	return ad.array([ [ arr[index(i,j)] for i in range(d)] for j in range(d) ])
 
 
 

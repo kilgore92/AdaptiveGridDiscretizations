@@ -105,7 +105,6 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 
 	# Pre-process usual arguments
 	for key,value in hfmIn.items():
-#		if key not in tupleInKeys:
 		PreProcess(key,value,hfmIn,hfmIn_raw,cache)
 
 	# Reverse automatic differentiation
@@ -154,14 +153,6 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 				metric_ad = value_ad if key=='metric' else value_ad.dual()
 
 				costSensitivity = np.moveaxis(flow_variation(cache.geodesicFlow(hfmIn),metric_ad),-1,0)*hfmOut['costSensitivity_0']
-#				flow = np.moveaxis(cache.geodesicFlow(hfmIn),-1,0)
-#				zeros = hfmOut['costSensitivity_0']==0
-#				flow.__setitem__((slice(None),zeros),np.nan)
-#				flow_norm_ad = metric_ad.norm(flow)
-#				flow_norm_variation = flow_norm_ad.gradient()/flow_norm_ad.value
-#				costSensitivity = flow_norm_variation * hfmOut['costSensitivity_0']
-#				costSensitivity.__setitem__((slice(None),zeros),0.)
-
 				shift = 0
 				size_bound = np.prod(shape_bound,dtype=int)
 				for x in value:
@@ -217,11 +208,10 @@ def PreProcess(key,value,refined_in,raw_out,cache):
 		if isinstance(value,Metrics.Base): 
 			if ad.is_ad(value,iterables=(Metrics.Base,)):
 				metric_ad = value if key=='metric' else value.dual()
-#				flow_norm_ad = metric.norm(np.moveaxis(cache.geodesicFlow(refined_in),-1,0))
-#				flow_norm_variation = flow_norm_ad.coef/np.expand_dims(flow_norm_ad.value,axis=-1)
-#				flow_norm_variation[np.isnan(flow_norm_variation)]=0.
 				setkey_safe(raw_out,'costVariation',flow_variation(cache.geodesicFlow(refined_in),metric_ad))
 			value = value.to_HFM()
+			if ad.is_ad(value):
+				value = np.array(value)
 		setkey_safe(raw_out,key,value)
 
 	elif key=='seedValues':

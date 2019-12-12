@@ -21,6 +21,7 @@ class Reduced(ImplicitBase):
 		self.linear=ad.array(linear)
 		self.quadratic=None if quadratic is None else ad.array(quadratic)
 		self.cubic=None if cubic is None else ad.array(cubic)
+		assert cubic is None or self.vdim==3
 
 	@property
 	def vdim(self):

@@ -91,10 +91,9 @@ def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
 	params : to be passed to evaluated function. Special treatment if ad types.
 	"""
 	if x is None: x=np.zeros(v.shape)
-
-	params_noad = tuple(ad.remove_ad(val) for val in params) 
-
 	x_ad = ad.Dense2.identity(constant=x,shape_free=(len(x),))
+
+
 
 	# Fixed point iterations 
 	def step(val,V,D,v):
@@ -102,13 +101,15 @@ def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
 		k = np.sqrt((lp.dot_VAV(V,M,V)-2*val)/lp.dot_VAV(v,M,v))
 		return lp.dot_AV(M,k*v-V)
 
+	# Initial iterations ignoring AD information in params
+	params_noad = tuple(ad.remove_ad(val) for val in params) 
 	for r in relax + (0.,)*niter:
 		f_ad = f(x_ad,params_noad,relax=r)
 		x_ad += step(f_ad.value,f_ad.gradient(),f_ad.hessian(),v)
 
 	x=x_ad.value
 
-	# Terminal iteration to introduce ad information
+	# Terminal iteration to introduce ad information from params
 	adtype = ad.is_ad(params,iterables=(tuple,))
 	if adtype:
 		shape_bound = x.shape[1:]
