@@ -13,9 +13,9 @@ from .implicit_base import ImplicitBase
 
 class Hooke(ImplicitBase):
 	"""
-A norm defined by a Hooke tensor. 
-Often encountered in seismic traveltime tomography.
-"""
+	A norm defined by a Hooke tensor. 
+	Often encountered in seismic traveltime tomography.
+	"""
 	def __init__(self,hooke,*args,**kwargs):
 		super(Hooke,self).__init__(*args,**kwargs)
 		self.hooke = hooke
@@ -24,11 +24,17 @@ Often encountered in seismic traveltime tomography.
 	def is_definite(self):
 		return Riemann(self.hooke).is_definite()
 
+	@staticmethod
+	def _vdim(hdim):
+		"""Vector dimension from hooke tensor dimension"""
+		vdim = int(np.sqrt(2*hdim))
+		if (vdim*(vdim+1))//2!=hdim:
+			raise ValueError("Incorrect hooke tensor")
+		return vdim
+
 	@property
 	def vdim(self):
-		if len(self.hooke)==3: return 2
-		elif len(self.hooke)==6: return 3
-		else: raise ValueError("Incorrect hooke tensor")
+		return self._vdim(len(self.hooke))
 
 	@property
 	def shape(self): return self.hooke.shape[2:]
@@ -81,9 +87,9 @@ Often encountered in seismic traveltime tomography.
 
 	def extract_xz(self):
 		"""
-	Extract a two dimensional Hooke tensor from a three dimensional one, 
-	corresponding to a slice through the X and Z axes.
-	"""
+		Extract a two dimensional Hooke tensor from a three dimensional one, 
+		corresponding to a slice through the X and Z axes.
+		"""
 		assert(self.vdim==3)
 		h=self.hooke
 		return Hooke(np.array([ 
@@ -95,9 +101,9 @@ Often encountered in seismic traveltime tomography.
 	@classmethod
 	def from_VTI_2(cls,Vp,Vs,eps,delta):
 		"""
-	X,Z slice of a Vertical Transverse Isotropic medium
-	based on Thomsen parameters
-	"""
+		X,Z slice of a Vertical Transverse Isotropic medium
+		based on Thomsen parameters
+		"""
 		c33=Vp**2
 		c44=Vs**2
 		c11=c33*(1+2*eps)
@@ -154,17 +160,18 @@ Often encountered in seismic traveltime tomography.
 			).sum(axis=2)
 
 	@staticmethod
-	def _Mandel_factors(vdim,shape):
-		def f(k):	return 1. if k<=vdim else np.sqrt(2.)
-		factors = np.array([[f(i)*f(j) for i in range(vdim)] for j in range(vdim)])
+	def _Mandel_factors(vdim,shape=tuple()):
+		def f(k):	return 1. if k<vdim else np.sqrt(2.)
+		hdim = (vdim*(vdim+1))//2
+		factors = np.array([[f(i)*f(j) for i in range(hdim)] for j in range(hdim)])
 		return fd.as_field(factors,shape,conditional=False)
-	def to_Mandel(cls):
+	def to_Mandel(self):
 		"""Introduces the sqrt(2) and 2 factors involved in Mandel's notation"""
 		return self.hooke*self._Mandel_factors(self.vdim,self.shape)
 	@classmethod
 	def from_Mandel(cls,mandel):
 		"""Removes the sqrt(2) and 2 factors involved in Mandel's notation"""
-		return Hooke(mandel/cls._Mandel_factors(len(mandel),mandel.shape[2:]))
+		return Hooke(mandel/cls._Mandel_factors(cls._vdim(len(mandel)),mandel.shape[2:]))
 
 	@classmethod
 	def from_orthorombic(cls,a,b,c,d,e,f,g,h,i):
