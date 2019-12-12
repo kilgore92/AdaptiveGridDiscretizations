@@ -16,8 +16,8 @@ class Reduced(ImplicitBase):
 	X,Y,Z are the coefficients of the input vector, perhaps subject to a linear transformation.
 	"""
 
-	def __init__(self,linear,quadratic=None,cubic=None,**kwargs):
-		super(Reduced,self).__init__(**kwargs)
+	def __init__(self,linear,quadratic=None,cubic=None,*args,**kwargs):
+		super(Reduced,self).__init__(*args,**kwargs)
 		self.linear=ad.array(linear)
 		self.quadratic=None if quadratic is None else ad.array(quadratic)
 		self.cubic=None if cubic is None else ad.array(cubic)
@@ -64,3 +64,35 @@ class Reduced(ImplicitBase):
 		result = Reduced(e)
 		result.inv_transform(a)
 		return result
+
+	@classmethod
+	def from_Hooke(cls,metric):
+		"""
+		Generate reduced algebraic form from full Hooke tensor.
+		Warning : Hooke to Reduced conversion requires that some 
+		coefficients of the Hooke tensor vanish, and may induce approximations.
+		"""
+		from .hooke import Hooke
+		hooke = metric.hooke
+		if metric.vdim==2:
+			linear = ad.array([hooke[0,0],hooke[1,1]])
+			quadratic = ad.array([[hooke[0,0],hooke[0,2]],[hooke[2,0],hooke[2,2]]])
+			cubic = None
+			raise ValueError("TODO : correct implementation")
+		elif metric.vdim==3:
+			linear = ad.array([hooke[0,0],hooke[1,1],hooke[2,2]])
+			quadratic = None
+			cubic = None
+			if np.any((hooke[1,3]!=0.,hooke[2,4]!=0.)):
+				raise ValueError("Impossible conversion")
+			raise ValueError("TODO : correct implementation")
+		else:
+			raise ValueError("Unsupported dimension")
+
+		return cls(linear,quadratic,cubic,*super(Hooke,metric).__iter__())
+
+
+
+
+
+

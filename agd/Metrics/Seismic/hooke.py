@@ -16,8 +16,8 @@ class Hooke(ImplicitBase):
 A norm defined by a Hooke tensor. 
 Often encountered in seismic traveltime tomography.
 """
-	def __init__(self,hooke,**kwargs):
-		super(Hooke,self).__init__(**kwargs)
+	def __init__(self,hooke,*args,**kwargs):
+		super(Hooke,self).__init__(*args,**kwargs)
 		self.hooke = hooke 
 
 	def is_definite(self):
@@ -32,17 +32,26 @@ Often encountered in seismic traveltime tomography.
 	@property
 	def shape(self): return self.hooke.shape[2:]
 	
+	def model_HFM():
+		d = self.vdim
+		suffix = "" if self.inverse_transformation is None else "Topo"
+		return f"Hooke{suffix}{d}"
+
 	def flatten(self):
-		return misc.flatten_symmetric_matrix(self.hooke)
+		hooke = misc.flatten_symmetric_matrix(self.hooke)
+		if self.inverse_transformation is None: 
+			return hooke
+		else: 
+			inv_trans= self.inverse_transformation.reshape((self.vdim**2,)+self.shape)
+			return ad.concatenate((hooke,inv_trans),axis=0)
 
 	@classmethod
 	def expand(cls,arr):
 		return cls(misc.expand_symmetric_matrix(arr))
 
-
 	def __iter__(self):
 		yield self.hooke
-		for x in super(Hooke,self).__iter__(): 
+		for x in super(Hooke,self).__iter__():
 			yield x
 
 	def _dual_params(self):
@@ -193,5 +202,38 @@ Often encountered in seismic traveltime tomography.
 		metric = cls.from_orthorombic(323.7,66.4,71.6,197.6,75.6,235.1,64.6,78.7,79.0)
 		olivine_rho = 3.311
 		return (metric,rho) if density else metric
+
+	@classmethod
+	def from_Reduced(cls,metric):
+		"""Generate full Hooke tensor from reduced algebraic form.
+		Warning : Reduced to Hooke conversion may induce approximations."""
+		from .reduced import Reduced
+		l,q,c = metric.linear,metric.quadratic,metric.cubic
+		z = np.zeros(l.shape[1:])
+		if metric.vdim==2:
+			hooke = ad.array([ 
+				[l[0],z],
+				[z,l[1]]
+				])
+			raise ValueError("TODO : correct implementation") #Note : hooke shape should be 3x3
+		elif metric.vdim==3:
+			hooke = ad.array([
+				[l[0],z,z],
+				[z,l[1],z],
+				[z,z,l[2]]
+				])
+			raise ValueError("TODO : correct implementation") #Note : hooke shape should be 6x6
+		else:
+			raise ValueError("Unsupported dimension")
+		return cls(hooke,*super(Reduced,metric).__iter__())
+
+
+
+
+
+
+
+
+
 
 
