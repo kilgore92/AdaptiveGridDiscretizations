@@ -55,10 +55,16 @@ class ImplicitBase(Base):
 	def _gradient(self,v):
 		"""
 		Gradient, ignoring self.a
+		Note : modifies v where null
 		"""
 		v=ad.array(v)
-		return sequential_quadratic(v,self._dual_level,params=self._dual_params(v.shape[1:]),
+		zeros = np.all(v==0.,axis=0)
+		v[:,zeros]=np.nan
+		grad = sequential_quadratic(v,self._dual_level,params=self._dual_params(v.shape[1:]),
 			niter=self.niter_sqp,relax=self.relax_sqp)
+		grad[:,zeros]=0.
+		v[:,zeros]=0.
+		return grad
 
 
 	def _dual_level(self,v,params=None,relax=0):
