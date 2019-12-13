@@ -149,16 +149,18 @@ def RunSmart(hfmIn,returns="out",co_output=None,cache=None):
 					hfmOut['costSensitivity_0'] if key=='cost' else (hfmOut['costSensitivity_0']/value**2)))
 			if key in ('metric','dualMetric'):
 				shape_bound = value.shape
-				value_ad = ad.Dense.register(value,iterables=(Metrics.Base,),shape_bound=shape_bound)
+				considered = co_output.second
+				value_ad = ad.Dense.register(value,iterables=(Metrics.Base,),shape_bound=shape_bound,considered=considered)
 				metric_ad = value_ad if key=='metric' else value_ad.dual()
 
 				costSensitivity = np.moveaxis(flow_variation(cache.geodesicFlow(hfmIn),metric_ad),-1,0)*hfmOut['costSensitivity_0']
 				shift = 0
 				size_bound = np.prod(shape_bound,dtype=int)
 				for x in value:
-					xsize_free = x.size//size_bound
-					result.append((x,costSensitivity[shift:(shift+xsize_free)].reshape(x.shape)) )
-					shift+=xsize_free
+					if any(x is val for val in considered):
+						xsize_free = x.size//size_bound
+						result.append((x,costSensitivity[shift:(shift+xsize_free)].reshape(x.shape)) )
+						shift+=xsize_free
 			elif key=='seedValues':
 				sens = hfmOut['seedSensitivity_0']
 				# Match the seeds with their approx given in sensitivity

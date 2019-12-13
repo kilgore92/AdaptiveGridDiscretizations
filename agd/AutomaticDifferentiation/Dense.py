@@ -300,7 +300,7 @@ def identity(shape=None,shape_free=None,shape_bound=None,constant=None,shift=(0,
 		coef1 = np.broadcast_to(coef1,shape+(size_ad,))
 	return denseAD(constant,coef1)
 
-def register(inputs,iterables=None,shape_bound=None,shift=(0,0),ident=identity):
+def register(inputs,iterables=None,shape_bound=None,shift=(0,0),ident=identity,considered=None):
 	"""
 	Creates a series of dense AD variables with independent symbolic perturbations for each coordinate,
 	and adequate intermediate shifts.
@@ -308,17 +308,20 @@ def register(inputs,iterables=None,shape_bound=None,shift=(0,0),ident=identity):
 	if iterables is None:
 		iterables = (tuple,)
 	boundsize = 1 if shape_bound is None else np.prod(shape_bound,dtype=int)
+	def is_considered(a):
+		return considered is None or a in considered
 
 	start=shift[0]
 	starts = []
 	def setstart(a):
 		nonlocal start,starts
-		a,to_ad = misc.ready_ad(a)
-		if to_ad: 
-			starts.append(start)
-			start += a.size//boundsize
-		else:
-			starts.append(None)
+		if considered is None or any(a is val for val in considered):
+			a,to_ad = misc.ready_ad(a)
+			if to_ad: 
+				starts.append(start)
+				start += a.size//boundsize
+				return a
+		starts.append(None)
 		return a
 	inputs = misc.map_iterables(setstart,inputs,iterables)
 

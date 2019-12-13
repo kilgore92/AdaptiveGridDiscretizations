@@ -18,7 +18,7 @@ def rotation(theta,axis=None):
 	"""
 	if axis is None:
 		c,s=np.cos(theta),np.sin(theta)
-		return np.array([[c,-s],[s,c]])
+		return ad.array([[c,-s],[s,c]])
 	else:
 		theta,axis = (ad.toarray(e) for e in (theta,axis))
 		axis = axis / np.linalg.norm(axis,axis=0)
@@ -27,7 +27,7 @@ def rotation(theta,axis=None):
 		b, c, d = -axis * np.sin(theta / 2.0)
 		aa, bb, cc, dd = a * a, b * b, c * c, d * d
 		bc, ad_, ac, ab, bd, cd = b * c, a * d, a * c, a * b, b * d, c * d
-		return np.array([
+		return ad.array([
 			[aa + bb - cc - dd, 2 * (bc + ad_), 2 * (bd - ac)],
 			[2 * (bc - ad_), aa + cc - bb - dd, 2 * (cd + ab)],
 			[2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
@@ -74,12 +74,12 @@ def mult(k,x):
 def perp(v):
 	if v.shape[0]!=2:
 		raise ValueError("perp error : Incompatible dimension")		
-	return np.array( (-v[1],v[0]) )
+	return ad.array( (-v[1],v[0]) )
 	
 def cross(v,w):
 	if v.shape[0]!=3 or v.shape!=w.shape:
 		raise ValueError("cross error : Incompatible dimensions")
-	return np.array( (v[1]*w[2]-v[2]*w[1], \
+	return ad.array( (v[1]*w[2]-v[2]*w[1], \
 	v[2]*w[0]-v[0]*w[2], v[0]*w[1]-v[1]*w[0]) )
 	
 def outer(v,w):

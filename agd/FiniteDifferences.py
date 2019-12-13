@@ -30,7 +30,7 @@ def common_field(arrays,depths,common_shape=tuple()):
 	if common_shape is None:
 		return arrays
 	else:
-		return (as_field(arr,common_shape,conditional=False) if b else arr 
+		return tuple(as_field(arr,common_shape,conditional=False) if b else arr 
 			for arr,b in zip(arrays,to_field))
 
 # ----- Utilities for finite differences ------

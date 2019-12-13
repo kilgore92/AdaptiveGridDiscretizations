@@ -101,7 +101,7 @@ def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
 	# Fixed point iterations 
 	def step(val,V,D,v):
 		M = lp.inverse(D)
-		k = np.sqrt((lp.dot_VAV(V,M,V)-2*val)/lp.dot_VAV(v,M,v))
+		k = np.sqrt((lp.dot_VAV(V,M,V)-2.*val)/lp.dot_VAV(v,M,v))
 		return lp.dot_AV(M,k*v-V)
 
 	# Initial iterations ignoring AD information in params
@@ -120,7 +120,7 @@ def sequential_quadratic(v,f,niter,x=None,params=tuple(),relax=tuple()):
 			if isinstance(value,np.ndarray) else value for value in params)
 		x_ad = ad.Dense2.identity(constant=ad.disassociate(x,shape_bound=shape_bound))
 
-		f_ad = f(x_ad,params_dis,1.)
+		f_ad = f(x_ad,params_dis,0.)
 		x = x + step(ad.associate(f_ad.value), ad.associate(f_ad.gradient()), ad.associate(f_ad.hessian()), v)
 
 	return x
