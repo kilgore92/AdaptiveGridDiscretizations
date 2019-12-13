@@ -67,6 +67,7 @@ class Riemann(Base):
 		# Eigenvector normalization
 		nu = ad.Optimization.norm(u,ord=2,axis=0)
 		mask = nu>0
+		if not u.flags.writeable: u = u.copy()
 		u[:,mask] /= nu[mask]
 
 		ident = fd.as_field(np.eye(len(u)),cost_parallel.shape,conditional=False)
