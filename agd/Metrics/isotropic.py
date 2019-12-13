@@ -16,7 +16,9 @@ class Isotropic(Base):
 		return cls(1./speed)
 
 	def dual(self):
-		return self.from_speed(self.cost)
+		other = self.from_speed(self.cost)
+		if hasattr(self,'_vdim'): other._vdim = self._vdim
+		return other
 
 	def norm(self,v):
 		return self.cost*ad.Optimization.norm(v,ord=2,axis=0)

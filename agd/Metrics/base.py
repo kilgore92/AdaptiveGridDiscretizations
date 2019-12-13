@@ -16,8 +16,13 @@ class Base(object):
 
 	def gradient(self,v):
 		"""
-		Gradient of the norm defined by the metric
+		Gradient of the norm defined by the metric.
 		"""
+		if ad.is_ad(v) or ad.is_ad(self,iterables=(Base,)):
+			v_dis = ad.disassociate(v,shape_bound=v.shape[1:])
+			grad_dis = self.disassociate().gradient(v_dis)
+			return ad.associate(grad_dis)
+
 		v_ad = ad.Dense.identity(constant=v,shape_free=(len(v),))
 		return np.moveaxis(self.norm(v_ad).coef,-1,0)
 	
@@ -39,6 +44,12 @@ class Base(object):
 		"""
 		raise ValueError("Shape not implemented for this norm")
 	
+	def disassociate(self):
+		def dis(x):
+			if isinstance(x,np.ndarray) and x.shape[-self.vdim:]==self.shape:
+				return ad.disassociate(x,shape_bound=self.shape)
+			return x
+		return self.from_generator(dis(x) for x in self)
 # ---- Well posedness related methods -----
 	def is_definite(self):
 		"""

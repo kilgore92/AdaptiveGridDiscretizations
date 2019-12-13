@@ -20,10 +20,9 @@ def norm(arr,ord=2,axis=None,keepdims=False,averaged=False):
 
 	Compatible with automatic differentiation.
 	"""
-	if ord==np.inf:
-		return np.max(np.abs(arr),axis=axis,keepdims=keepdims)
-
-	sum_pow = np.sum(np.abs(arr)**ord,axis=axis,keepdims=keepdims)
+	if ord==np.inf: return np.max(np.abs(arr),axis=axis,keepdims=keepdims)
+	if ord%2!=0:    arr = np.abs(arr)
+	sum_pow = np.sum(arr**ord,axis=axis,keepdims=keepdims)
 	
 	if averaged:
 		size = arr.size if axis is None else arr.shape[axis]

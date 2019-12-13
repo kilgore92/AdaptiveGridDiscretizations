@@ -32,7 +32,7 @@ class Rander(Base):
 		"""
 		s = lp.inverse(self.m-lp.outer_self(self.w))
 		omega = lp.dot_AV(s,self.w)
-		return Rander((1+lp.dot_VV(self.w,omega))*s, omega)
+		return Rander((1+lp.dot_VV(self.w,omega))*s, -omega)
 
 	@property
 	def vdim(self): return len(self.m)

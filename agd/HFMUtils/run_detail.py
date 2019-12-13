@@ -68,7 +68,7 @@ class Cache(object):
 			if key not in [ # Keys useless for evaluating the geodesic flow
 			'tips','tips_Unoriented',
 			'costVariation','seedValueVariation','inspectSensitivity',
-			'exportActiveNeighs']}
+			'exportActiveNeighs','exportActiveOffsets']}
 
 			hfmOut_raw = RunSmart(hfmIn_,cache=self,returns='out_raw')
 			if self.verbosity: 
@@ -250,6 +250,28 @@ def PostProcess(key,value,raw_in,refined_out):
 	
 	elif key=='geodesicFlow':
 		setkey_safe(refined_out,'flow',np.moveaxis(value,-1,0))
+	elif key=='activeOffsets':
+		setkey_safe(refined_out,'offsets',CastOffsets(value))
 	else:
 		setkey_safe(refined_out,key,value)
+
+def CastOffsets(raw_offsets):
+	"""Offsets are exported with their coefficients bundled together in a double.
+	This function unpacks them."""
+	raw_shape = raw_offsets.shape
+	d = len(raw_shape)-1
+	nOffsets = raw_shape[-1]
+	refined_shape = (d,nOffsets)+raw_shape[:-1]
+	refined_offsets = np.zeros(refined_shape,dtype=int)
+	def coef(x,i):
+		x = x//256**(d-i-1)
+		x = x%256
+		return np.where(x<128,x,x-256)
+
+	for j in range(nOffsets):
+		raw = raw_offsets[...,j].astype(np.int64)
+		for i in range(d):
+			refined_offsets[i,j] = coef(raw,i)
+	return refined_offsets
+
 
