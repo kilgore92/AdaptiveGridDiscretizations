@@ -91,7 +91,7 @@ Inputs :
 Outputs : 
 - the Rander metric.
 """
-		return cls(lp.inverse(metric),-drift).dual()
+		return cls(lp.inverse(metric),drift).dual()
 
 	def to_Zermelo(self):
 		"""
@@ -100,7 +100,7 @@ Output : Parameters of the corresponding Zermelo problem, of motion on a
 Riemannian manifold with a drift.
 """
 		self_dual = self.dual()
-		return lp.inverse(self_dual.m), -self_dual.w
+		return lp.inverse(self_dual.m), self_dual.w
 
 	def to_Varadhan(eps=1):
 		"""
