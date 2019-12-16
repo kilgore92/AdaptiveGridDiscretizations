@@ -218,7 +218,7 @@ def PreProcess(key,value,refined_in,raw_out,cache):
 
 	elif key=='seedValues':
 		if ad.is_ad(value):
-			setkey_safe(raw_out,'seedValueVariation',value.coef)
+			setkey_safe(raw_out,'seedValueVariation',value.gradient())
 			value=np.array(value)
 		setkey_safe(raw_out,key,value)
 
