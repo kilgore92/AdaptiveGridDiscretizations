@@ -232,6 +232,9 @@ class Hooke(ImplicitBase):
 				[z,l[1],z],
 				[z,z,l[2]]
 				])
+
+
+
 			raise ValueError("TODO : correct implementation") #Note : hooke shape should be 6x6
 		else:
 			raise ValueError("Unsupported dimension")
