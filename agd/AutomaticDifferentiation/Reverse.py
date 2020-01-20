@@ -65,7 +65,7 @@ class reverseAD(object):
 		Applies a function on the given args, saving adequate data
 		for reverse AD.
 		"""
-		if self.operator_data is "PassThrough": return func(*args,**kwargs)
+		if self.operator_data == "PassThrough": return func(*args,**kwargs)
 		_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse.spAD,self.input_iterables)
 		if len(corresp)==0: return func(*args,**kwargs)
 		_output = func(*_args,**_kwargs)
@@ -147,7 +147,7 @@ class reverseAD(object):
 	def output(self,a):
 		"""Computes the gradient of the output a, times the co_state, for an operator_like reverseAD"""
 		assert not(self.operator_data is None)
-		if self.operator_data is "PassThrough":
+		if self.operator_data == "PassThrough":
 			return a
 		inputs,(co_output_value,_) = self.operator_data
 		grad = self.gradient(misc.sumprod(a,co_output_value,self.output_iterables))
@@ -182,12 +182,12 @@ def operator_like(inputs=None,co_output=None,**kwargs):
 	- has a fixed co_output
 	"""
 	mode = misc.reverse_mode(co_output)
-	if mode is "Forward": 
+	if mode == "Forward": 
 		return reverseAD(operator_data="PassThrough",**kwargs),inputs
-	elif mode is "Reverse":
+	elif mode == "Reverse":
 		rev = reverseAD(operator_data=(inputs,co_output),**kwargs)
 		return rev,rev.register(inputs)
-	elif mode is "Reverse2": 
+	elif mode == "Reverse2": 
 		from . import Reverse2
 		return Reverse2.operator_like(inputs,co_output,**kwargs)
 
@@ -197,9 +197,9 @@ def linear_inverse_with_adjoint(solver,matrix,niter=1):
 	def adjoint(x): 	return apply_linear_inverse(solver,matrix.T,x,niter=niter)
 	def method(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
-		if mode is "Forward":	return operator(u)
-		elif mode is "Reverse": c,_ 		= co_output; return [(u,adjoint(c))]
-		elif mode is "Reverse2":(c1,c2),_ 	= co_output; return [(u,adjoint(c1),adjoint(c2))]
+		if mode == "Forward":	return operator(u)
+		elif mode == "Reverse": c,_ 		= co_output; return [(u,adjoint(c))]
+		elif mode == "Reverse2":(c1,c2),_ 	= co_output; return [(u,adjoint(c1),adjoint(c2))]
 	return method
 
 def linear_mapping_with_adjoint(matrix,niter=1):
@@ -208,13 +208,13 @@ def linear_mapping_with_adjoint(matrix,niter=1):
 	def adjoint(x): 	return apply_linear_mapping(matrix.T,x,niter=niter)
 	def method(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
-		if mode is "Forward":	return operator(u)
-		elif mode is "Reverse": c,_ 		= co_output; return [(u,adjoint(c))]
-		elif mode is "Reverse2":(c1,c2),_ 	= co_output; return [(u,adjoint(c1),adjoint(c2))]
+		if mode == "Forward":	return operator(u)
+		elif mode == "Reverse": c,_ 		= co_output; return [(u,adjoint(c))]
+		elif mode == "Reverse2":(c1,c2),_ 	= co_output; return [(u,adjoint(c1),adjoint(c2))]
 	return method
 
 def identity_with_adjoint(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
-		if mode is "Forward":	return u
-		elif mode is "Reverse": c,_ 		= co_output; return [(u,c)]
-		elif mode is "Reverse2":(c1,c2),_ 	= co_output; return [(u,c1,c2)]
+		if mode == "Forward":	return u
+		elif mode == "Reverse": c,_ 		= co_output; return [(u,c)]
+		elif mode == "Reverse2":(c1,c2),_ 	= co_output; return [(u,c1,c2)]

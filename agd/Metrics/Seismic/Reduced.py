@@ -1,6 +1,8 @@
 import numpy as np
 from ... import LinearParallel as lp
 from ... import AutomaticDifferentiation as ad
+from ... import FiniteDifferences as fd
+from .. import misc
 from ..riemann import Riemann
 from .implicit_base import ImplicitBase
 
@@ -37,12 +39,12 @@ class Reduced(ImplicitBase):
 		s = np.exp(-relax)
 		l,q,c = params
 		v2 = v**2
-		result = lp.dot_VV(l,v2) - 1
+		result = lp.dot_VV(l,v2) - 1.
 		if q is not None:
-			result += s*lp.dot_VAV(v2,q,v2)
+			result += lp.dot_VAV(v2,q,v2)*s
 		if c is not None:
 			assert self.vdim==3
-			result += s**2*c*v2.prod()
+			result += v2.prod()*(c*s**2)
 		return result
 
 	def _dual_params(self,*args,**kwargs):
@@ -56,8 +58,9 @@ class Reduced(ImplicitBase):
 			yield x
 
 	def _to_common_field(self,*args,**kwargs):
-		self.linear,self.quadratic,self.cubic,self.inv_transform = fd.common_field(
-			(self.linear,self.quadratic,self.cubic,self.inv_transform),(1,2,0,2),*args,**kwargs)
+		self.linear,self.quadratic,self.cubic,self.inverse_transformation = fd.common_field(
+			(self.linear,self.quadratic,self.cubic,self.inverse_transformation),
+			(1,2,0,2),*args,**kwargs)
 
 	@classmethod
 	def from_cast(cls,metric):
@@ -68,6 +71,52 @@ class Reduced(ImplicitBase):
 		result = Reduced(e)
 		result.inv_transform(a)
 		return result
+
+	def is_TTI(self):
+		if self.vdim==2: return True
+		assert(self.vdim==3)
+		return ( 
+			np.all(self.linear[1]==self.linear[2]) 
+			and (self.quadratic is None or (
+				np.all(self.quadratic[1,1]==self.quadratic[1,2])
+				and np.all(self.quadratic[1,1]==self.quadratic[2,2])
+				and np.all(self.quadratic[0,1]==self.quadratic[0,2]) ) )
+			and (self.cubic is None or np.all(self.cubic==0.) ) 
+			)
+
+	def model_HFM(self):
+		return f"TTI{self.vdim}"
+	
+	def flatten(self):
+		assert(self.is_TTI()) # Only the TTI type is handle by HFM
+		quad = (np.zeros( (2,2)+self.shape) # Note the factor 2, used in HFM
+			if self.quadratic is None else 2.*self.quadratic[0:2,0:2])
+		trans = (fd.as_field(np.eye(self.vdim),self.shape,conditional=False) 
+			if self.inverse_transformation is None else self.inverse_transformation)
+		return ad.concatenate(
+			(self.linear[0:2],misc.flatten_symmetric_matrix(quad),
+				trans.reshape((self.vdim**2,)+self.shape)),
+			axis=0)
+
+	@classmethod
+	def expand(cls,arr):
+		#Only TTI norms are supported
+		vdim = np.sqrt(len(arr)-(2+3))
+		shape = arr.shape[1:]
+		assert(vdim==int(vdim))
+		linear = arr[0:2]
+		quadratic = 0.5*misc.expand_symmetric_matrix(arr[2:5])
+		inv_trans = arr[5:].reshape((vdim,vdim)+shape)
+		if vdim==2:
+			return cls(linear,quadratic,inverse_transformation=inv_trans)
+		else:
+			assert(vdim==3)
+			return cls(ad.array([linear[0],linear[1],linear[1]]),
+				ad.array([[quadratic[0,0],quadratic[0,1],quadratic[0,1]],
+					[quadratic[1,0],quadratic[1,1],quadratic[1,1]],
+					[quadratic[1,0],quadratic[1,1],quadratic[1,1]]]),
+				inverse_transformation=inv_trans)
+
 
 	@classmethod
 	def from_Hooke(cls,metric):

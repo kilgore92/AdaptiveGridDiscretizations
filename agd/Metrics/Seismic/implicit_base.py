@@ -18,9 +18,11 @@ class ImplicitBase(Base):
 		self.relax_sqp = relax_sqp
 
 	def norm(self,v):
+		v=ad.array(v)
 		return lp.dot_VV(v,self.gradient(v))
 
 	def gradient(self,v):
+		v=ad.array(v)
 		a=self.inverse_transformation
 		if a is None:
 			return self._gradient(v)

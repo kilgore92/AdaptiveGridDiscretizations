@@ -4,10 +4,11 @@ channels:
   - agd-lbr
 dependencies:
 #  - mayavi # Incompatibility found with scipy
-  - python=3.7
+  - python=3.8
   - jupyter
   - hfm
-#  - agd # Not able to build yet ...
   - matplotlib
   - notebook
   - scipy
+  - ffmpeg
+

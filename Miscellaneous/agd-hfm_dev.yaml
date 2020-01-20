@@ -2,6 +2,7 @@ name: agd-hfm_dev
 channels:
   - conda-forge
 dependencies:
+  - python=3.8
   - matplotlib
   - notebook
   - scipy
@@ -9,4 +10,6 @@ dependencies:
   - conda-verify
   - anaconda-client
   - nbformat
+  - nbdime
+  - ffmpeg
 #  - ipywidgets

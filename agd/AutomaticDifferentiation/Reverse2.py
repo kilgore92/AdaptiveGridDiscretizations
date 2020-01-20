@@ -62,7 +62,7 @@ class reverseAD2(object):
 		Applies a function on the given args, saving adequate data
 		for reverse AD.
 		"""
-		if self.operator_data is "PassThrough": return func(*args,**kwargs)
+		if self.operator_data == "PassThrough": return func(*args,**kwargs)
 		_args,_kwargs,corresp = misc._apply_input_helper(args,kwargs,Sparse2.spAD2,self.input_iterables)
 		if len(corresp)==0: return f(args,kwargs)
 		_output = func(*_args,**_kwargs)
@@ -198,7 +198,7 @@ class reverseAD2(object):
 
 	def output(self,a):
 		assert not(self.operator_data is None)
-		if self.operator_data is "PassThrough":
+		if self.operator_data == "PassThrough":
 			return a
 		inputs,((co_output_value1,co_output_value2),_),dir_hessian = self.operator_data
 		_a = misc.sumprod(a,co_output_value1,self.output_iterables)
@@ -234,9 +234,9 @@ def operator_like(inputs=None,co_output=None,**kwargs):
 	- gets dir_hessian from inputs
 	"""
 	mode = misc.reverse_mode(co_output)
-	if mode=="Forward":
+	if mode == "Forward":
 		return reverseAD2(operator_data="PassThrough",**kwargs),inputs
-	elif mode=="Reverse":
+	elif mode == "Reverse":
 		from . import Reverse
 		return Reverse.operator_like(inputs,co_output,**kwargs)
 	elif mode=="Reverse2":

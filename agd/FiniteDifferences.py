@@ -99,7 +99,8 @@ def TakeAtOffset(u,offset, padding=np.nan, **kwargs):
 
 def AlignedSum(u,offset,multiples,weights,**kwargs):
 	"""Returns sum along the direction offset, with specified multiples and weights"""
-	return sum(TakeAtOffset(u,mult*np.array(offset),**kwargs)*weight for mult,weight in zip(multiples,weights))
+	return sum(TakeAtOffset(u,mult*np.array(offset),**kwargs)*weight 
+		for mult,weight in zip(multiples,weights))
 
 
 # --------- Degenerate elliptic finite differences -------
@@ -141,7 +142,8 @@ def DiffUpwind3(u,offset,gridScale=1.,**kwargs):
 Approximates <d u, offset> with third order accuracy.
 Upwind finite difference scheme, but lacking the degenerate ellipticity property.
 """
-	return AlignedSum(u,offset,(3,2,1,0),np.array((1./3.,-1.5,3.,-11./6.))/gridScale,**kwargs)
+	return AlignedSum(u,offset,(3,2,1,0),
+		np.array((1./3.,-1.5,3.,-11./6.))/gridScale,**kwargs)
 
 def DiffCross(u,offset0,offset1,gridScale=1.,**kwargs):
 	"""
@@ -149,7 +151,8 @@ Approximates <offsets0, (d^2 u) offset1> with second order accuracy.
 Centered finite differences scheme, but lacking the degenerate ellipticity property.
 """
 	weights = np.array((1,1))/(4*gridScale**2)
-	return AlignedSum(u,offset0+offset1,(1,-1),weights,**kwargs) - AlignedSum(u,offset0-offset1,(1,-1),weights,**kwargs)
+	return (AlignedSum(u,offset0+offset1,(1,-1),weights,**kwargs) 
+		- AlignedSum(u,offset0-offset1,(1,-1),weights,**kwargs) )
 
 # ------------ Composite finite differences ----------
 
@@ -241,7 +244,8 @@ def UniformGridInterpolator(grid,values,mode='clip'):
 	return _UniformGridInterpolator(lbounds,ubounds,values,mode=mode,axes=axes)
 
 
-def _UniformGridInterpolator(lbounds,ubounds,values,mode='clip',axes=None,cell_centered=False):
+def _UniformGridInterpolator(lbounds,ubounds,values,
+	mode='clip',axes=None,cell_centered=False):
 	"""
 	bounds : np.ndarray containing the bounds for each variable. [[x[0],x[-1]],[y[0],y[-1]],[z[0],z[-1]],...]
 	values : data to be interpolated. Can be vector data.
@@ -272,7 +276,8 @@ def _UniformGridInterpolator(lbounds,ubounds,values,mode='clip',axes=None,cell_c
 		endpoint = not (mode=='wrap')
 		pos_shape = position.shape[1:]
 		lbd,ubd = as_field(lbounds,pos_shape,False),as_field(ubounds,pos_shape,False)
-		index_continuous = as_field(dom_shape-int(endpoint),pos_shape,False)*(position-lbd)/(ubd-lbd)
+		index_continuous = (as_field(dom_shape-int(endpoint),pos_shape,False) 
+			*(position-lbd)/(ubd-lbd) )
 		index0 = np.floor(index_continuous).astype(int)
 		index1 = np.ceil(index_continuous).astype(int)
 		index_rem = index_continuous-index0
@@ -289,11 +294,13 @@ def _UniformGridInterpolator(lbounds,ubounds,values,mode='clip',axes=None,cell_c
 				index1[i] = np.clip(index1[i],0,s-1)
 
 		def contrib(mask):
-			weight = functools.reduce(operator.mul,( (1.-r) if m else r for m,r in zip(mask,index_rem)) )
+			weight = functools.reduce(operator.mul,( (1.-r) if m else r 
+				for m,r in zip(mask,index_rem)) )
 			index = tuple(i0 if m else i1 for m,i0,i1 in zip(mask,index0,index1))
 			return ad.toarray(weight)*val[index] 
 
-		result = sum(contrib(mask) for mask in itertools.product((True,False),repeat=ndim_interp))
+		result = sum(contrib(mask) 
+			for mask in itertools.product((True,False),repeat=ndim_interp))
 
 		if mode=='fill': 
 			result[fill_indices] = fill_value

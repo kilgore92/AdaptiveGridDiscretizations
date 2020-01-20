@@ -144,15 +144,15 @@ def newton_root(func,x0,params=None,stop="Default",
 	   - a shape_bound given as a tuple, for Dense AD with few independent variables
 	"""
 
-	if stop is "Default": 	stop = stop_default()
-	if ad is "Dense":		ad = tuple()
+	if stop == "Default": 	stop = stop_default()
+	if ad == "Dense":		ad = tuple()
 
 	# Create a variable featuring AD information
 	def ad_var(x0):
 		if not in_place:
 			x0=np.copy(x0)
 
-		if ad is "Sparse":			
+		if ad == "Sparse":			
 			return Sparse.identity(constant=x0)
 		elif isinstance(ad,tuple):	
 			return Dense.identity(constant=x0,shape_bound=ad)						
@@ -166,7 +166,7 @@ def newton_root(func,x0,params=None,stop="Default",
 
 		if solver is not None:
 			return solver(residue)
-		elif ad is "Sparse":
+		elif ad == "Sparse":
 			return residue.solve()
 		elif isinstance(ad,tuple): # Dense ad
 			return residue.solve(shape_bound=ad)
