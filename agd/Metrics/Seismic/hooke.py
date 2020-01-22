@@ -92,7 +92,7 @@ class Hooke(ImplicitBase):
 		"""
 		assert(self.vdim==3)
 		h=self.hooke
-		return Hooke(np.array([ 
+		return Hooke(ad.array([ 
 			[h[0,0], h[0,2], h[0,4] ],
 			[h[2,0], h[2,2], h[2,4] ],
 			[h[4,0], h[4,2], h[4,4] ]
@@ -109,7 +109,7 @@ class Hooke(ImplicitBase):
 		c11=c33*(1+2*eps)
 		c13=-c44+np.sqrt( (c33-c44)**2+2*delta*c33*(c33-c44) )
 		zero = 0.*Vs
-		return cls(np.array( [ [c11,c13,zero], [c13,c33,zero], [zero,zero,c44] ] ))
+		return cls(ad.array( [ [c11,c13,zero], [c13,c33,zero], [zero,zero,c44] ] ))
 
 	@classmethod
 	def from_Ellipse(cls,m):
@@ -120,7 +120,7 @@ class Hooke(ImplicitBase):
 		"""
 		assert(len(m)==2)
 		a,b,c=m[0,0],m[1,1],m[0,1]
-		return Hooke(np.array( [ [a*a, a*b,a*c], [a*b, b*b, b*c], [a*c, b*c, c*c] ] ))
+		return Hooke(ad.array( [ [a*a, a*b,a*c], [a*b, b*b, b*c], [a*c, b*c, c*c] ] ))
 
 	@classmethod
 	def from_cast(cls,metric): 
@@ -176,7 +176,7 @@ class Hooke(ImplicitBase):
 	@classmethod
 	def from_orthorombic(cls,a,b,c,d,e,f,g,h,i):
 		z=0.*a
-		return cls(np.array([
+		return cls(ad.array([
 		[a,b,c,z,z,z],
 		[b,d,e,z,z,z],
 		[c,e,f,z,z,z],
