@@ -72,7 +72,27 @@ class Reduced(ImplicitBase):
 		result.inv_transform(a)
 		return result
 
+	@classmethod
+	def from_TTI3(cls,linear,quadratic=None):
+		"""Produces a three dimensional norm of tilted transversally isotropic type, 
+		from two dimensional linear and quadratic coefficients."""
+		linear=ad.array(linear)
+		assert(len(linear)==2)
+		lin = ad.array((linear[0],linear[1],linear[1]))
+
+		if quadratic is None: 
+			return cls(lin)
+
+		quadratic = ad.array(quadratic)
+		assert(quadratic.shape[:2]==(2,2))
+		quad = ad.array( (
+			(quadratic[0,0],quadratic[0,1],quadratic[0,1]),
+			(quadratic[1,0],quadratic[1,1],quadratic[1,1]),
+			(quadratic[1,0],quadratic[1,1],quadratic[1,1]) ) )
+		return cls(lin,quad)
+
 	def is_TTI(self):
+		"""Wether the norm is of tilted transversally isotropic type"""
 		if self.vdim==2: return True
 		assert(self.vdim==3)
 		return ( 
