@@ -72,24 +72,25 @@ class Reduced(ImplicitBase):
 		result.inv_transform(a)
 		return result
 
-	@classmethod
-	def from_TTI3(cls,linear,quadratic=None):
-		"""Produces a three dimensional norm of tilted transversally isotropic type, 
-		from two dimensional linear and quadratic coefficients."""
-		linear=ad.array(linear)
-		assert(len(linear)==2)
-		lin = ad.array((linear[0],linear[1],linear[1]))
+	def to_TTI3(self):
+		"""
+		Produces a three dimensional norm of TTI type (tilted transversally isotropic), 
+		from two dimensional one.
+		"""
+		assert(self.inverse_transformation is None)
+		assert(self.vdim==2)
 
-		if quadratic is None: 
-			return cls(lin)
+		l = self.linear
+		linear = ad.array((l[0],l[1],l[1]))
+		if self.quadratic is None: return Reduced(linear)
 
-		quadratic = ad.array(quadratic)
-		assert(quadratic.shape[:2]==(2,2))
-		quad = ad.array( (
-			(quadratic[0,0],quadratic[0,1],quadratic[0,1]),
-			(quadratic[1,0],quadratic[1,1],quadratic[1,1]),
-			(quadratic[1,0],quadratic[1,1],quadratic[1,1]) ) )
-		return cls(lin,quad)
+		q=self.quadratic
+		quadratic = ad.array( (
+			(q[0,0],q[0,1],q[0,1]),
+			(q[1,0],q[1,1],q[1,1]),
+			(q[1,0],q[1,1],q[1,1]) ) )
+		return Reduced(linear,quadratic,
+			niter_sqp=self.niter_sqp,relax_sqp=self.relax_sqp)
 
 	def is_TTI(self):
 		"""Wether the norm is of tilted transversally isotropic type"""
@@ -164,7 +165,162 @@ class Reduced(ImplicitBase):
 
 		return cls(linear,quadratic,cubic,*super(Hooke,metric).__iter__())
 
+	@classmethod
+	def from_Thomsen(cls,Vp,Vs,eps,delta,rho=1):
+		"""
+		Constructs a VTI (vertical transversely anisotropic) metric from Thomsen 
+		parameters. See  "Weak elastic anisotropy" (Thomsen, 1986).
+		- Vp (m/s)
+		- Vs (m/s)
+		- eps (dimensionless)
+		- delta (dimensionless)
+		- rho (g/cm^3)
+		"""
+		aa = -(1+2*eps)*Vp**2*Vs**2
+		bb = -Vp**2*Vs**2
+		cc = -(1+2*eps)*Vp**4-Vs**4+(Vp**2-Vs**2)*(Vp**2*(1+2*delt)-Vs**2)
+		dd = Vs**2+(1+2*eps)*Vp**2
+		ee = Vp**2+Vs**2
 
+		linear = ad.array([dd,dd,ee])
+		quadratic = ad.array([[aa,2*aa,cc],[2*aa,aa,cc],[cc,cc,bb]])
+		cubic = None
+
+		# TODO: Tensor normalization
+		assert(rho==1)
+
+		return cls(linear,quadratic,cubic)
+
+	@classmethod
+	def ThomsenExample(cls,i=None):
+		"""
+		List of VTI examples taken from article "Weak elastic anisotropy" (Thomsen, 1986), 
+		with Thomsen parameters [Vp,Vs,epsilon,delta]. 
+		"""
+		# Code by F. Desquilbet, 2020
+		# TODO : put the densities, and the names
+		Vp_Vs_eps_delta_tab = np.array([
+			[3368,1829,0.110,-0.035],
+		    [4529,2703,0.034,0.211],
+		    [4476,2814,0.097,0.091],
+		    [4099,2346,0.077,0.010],
+		    [4972,2899,0.056,-0.003],
+		    [4349,2571,0.091,0.148],
+		    [3928,2055,0.334,0.730],
+		    [4539,2706,0.060,0.143],
+		    [4449,2585,0.091,0.565],
+		    [4672,2833,0.023,0.002],
+		    [3794,2074,0.189,0.204],
+		    [5460,3219,0.000,-0.264],
+		    [4418,2587,0.053,0.158],
+		    [4405,2542,0.080,-0.003],
+		    [5073,2998,0.010,0.012],
+		    [4869,2911,0.033,0.040],
+		    [4296,2471,0.081,0.129],
+		    
+		    [3383,2438,0.065,0.059],
+		    [3688,2774,0.081,0.057],
+		    [3901,2682,0.137,-0.012],
+		    [4237,3018,0.036,-0.039],
+		    [4846,3170,0.063,0.008],
+		    [4633,3231,-0.026,-0.033],
+		    [4359,3048,0.172,0.000],
+		    [3962,2926,0.055,-0.089],
+		    [3749,2621,0.128,0.078],
+		    [1875,826,0.225,0.100],
+		    [1058,387,0.215,0.315],
+		    [4130,2380,0.085,0.120],
+		    [4721,2890,0.135,0.205],
+		    [2074,869,0.110,0.090],
+		    [2106,887,0.195,0.175],
+		    [2202,969,0.015,0.060],
+		    [3048,1490,0.255,-0.050],
+		    
+		    [3377,1490,0.200,-0.075],
+		    [4231,2539,0.200,0.100],
+		    [4167,2432,0.040,0.010],
+		    [4404,2582,0.025,0.055],
+		    [4206,2664,0.002,0.020],
+		    [3810,2368,0.030,0.045],
+		    [3292,1768,0.195,-0.220],
+		    [5029,2987,-0.005,-0.015],
+		    [4877,2941,0.045,-0.045],
+		    [4846,1856,0.020,-0.030],
+		    [4420,2091,1.12,-0.235],
+		    [6096,4481,-0.096,0.273],
+		    [5334,3353,0.369,0.579],
+		    [4054,1341,1.222,-0.388],
+		    [6340,4389,0.097,0.586],
+		    [3627,1676,-0.038,-0.164],
+		    [2868,1350,0.97,0.09],
+		    
+		    [3009,1654,0.013,-0.001],
+		    [3009,1654,0.059,-0.001],
+		    [3306,1819,0.134,0.000],
+		    [3306,1819,0.169,0.000],
+		    [2745,1508,0.103,-0.001],
+		    [1409,780,0.022,0.018],
+		    [1911,795,1.161,-0.140]
+		    ])
+
+		if i is None: 
+			return Vp_Vs_eps_delta_tab
+		else:
+			return cls.from_Thomsen(*Vp_Vs_eps_delta_tab[i])
+
+
+	@classmethod
+	def from_Hooke(cls,metric):
+		"""
+		Generate reduced algebraic form from full Hooke tensor.
+		Warning : Hooke to Reduced conversion requires that some 
+		coefficients of the Hooke tensor vanish, and may induce approximations.
+		"""
+		from .hooke import Hooke
+		hooke = metric.hooke
+		
+		assert(metric.is_reduced_VTI(metric))
+	
+		if metric.vdim==2:
+
+			Vp = np.sqrt(hooke[1,1])
+			Vs = np.sqrt(hooke[2,2])
+			eps = (hooke[0,0]-hooke[1,1])/(2*hooke[1,1])
+			delt = ((hooke[0,1]+hooke[2,2])**2-(hooke[1,1]-hooke[2,2])**2)/(
+					2*hooke[1,1]*(hooke[1,1]-hooke[2,2]))
+			
+			aa = -(1+2*eps)*Vp**2*Vs**2
+			bb = -Vp**2*Vs**2
+			cc = -(1+2*eps)*Vp**4-Vs**4+(Vp**2-Vs**2)*(Vp**2*(1+2*delt)-Vs**2)
+			dd = Vs**2+(1+2*eps)*Vp**2
+			ee = Vp**2+Vs**2
+
+			linear = ad.array([dd,ee])
+			quadratic = ad.array([[aa,cc],[cc,bb]])
+			cubic = None
+
+		elif metric.vdim==3:
+			
+			Vp = np.sqrt(hooke[2,2])
+			Vs = np.sqrt(hooke[3,3])
+			eps = (hooke[0,0]-hooke[2,2])/(2*hooke[2,2])
+			delt = ((hooke[0,2]+hooke[3,3])**2-(hooke[2,2]-hooke[3,3])**2)/(
+					2*hooke[2,2]*(hooke[2,2]-hooke[3,3]))
+			
+			aa = -(1+2*eps)*Vp**2*Vs**2
+			bb = -Vp**2*Vs**2
+			cc = -(1+2*eps)*Vp**4-Vs**4+(Vp**2-Vs**2)*(Vp**2*(1+2*delt)-Vs**2)
+			dd = Vs**2+(1+2*eps)*Vp**2
+			ee = Vp**2+Vs**2
+
+			linear = ad.array([dd,dd,ee])
+			quadratic = ad.array([[aa,2*aa,cc],[2*aa,aa,cc],[cc,cc,bb]])
+			cubic = None
+
+		else:
+			raise ValueError("Unsupported dimension")
+
+		return cls(linear,quadratic,cubic,*super(Hooke,metric).__iter__())
 
 
 

@@ -214,31 +214,96 @@ class Hooke(ImplicitBase):
 		return (metric,rho) if density else metric
 
 	@classmethod
-	def from_Reduced(cls,metric):
+	def from_Reduced_VTI_to_Hooke(cls,metric):
 		"""Generate full Hooke tensor from reduced algebraic form.
 		Warning : Reduced to Hooke conversion may induce approximations."""
+		# Original code by F. Desquilbet, 2020
 		from .reduced import Reduced
 		l,q,c = metric.linear,metric.quadratic,metric.cubic
 		z = np.zeros(l.shape[1:])
 		if metric.vdim==2:
-			hooke = ad.array([ 
-				[l[0],z],
-				[z,l[1]]
-				])
-			raise ValueError("TODO : correct implementation") #Note : hooke shape should be 3x3
-		elif metric.vdim==3:
+
+			aa = q[0,0]
+			bb = q[1,1]
+			cc = q[0,1]
+			dd = l[0]
+			ee = l[1]
+
+			Vp = np.sqrt((ee+np.sqrt(ee**2+4*bb))/2)
+			Vs = np.sqrt((ee-np.sqrt(ee**2+4*bb))/2)
+			eps = -1/2*(1+aa/(Vp**2*Vs**2))
+			delt = 1/2*(-1+1/Vp**2*(Vs**2+(cc+Vp**4*(1+2*eps)+Vs**4)/(Vp**2-Vs**2)))
+
+			c11 = Vp**2
+			c22 = Vs**2
+			c00 = (1+2*eps)*Vp**2
+			c10 = np.sqrt(2*delt*c11*(c11-c22)+(c11-c22)**2)-c22
+			c01 = c10
+			z = np.zeros(c00.shape)
+			
 			hooke = ad.array([
-				[l[0],z,z],
-				[z,l[1],z],
-				[z,z,l[2]]
+				[c00,c01,  z],
+				[c01,c11,  z],
+				[  z,  z,c22]
 				])
 
+		elif metric.vdim==3:
 
+			aa = q[0,0]
+			bb = q[2,2]
+			cc = q[0,2]
+			dd = l[0]
+			ee = l[2]
 
-			raise ValueError("TODO : correct implementation") #Note : hooke shape should be 6x6
+			Vp = np.sqrt((ee+np.sqrt(ee**2+4*bb))/2)
+			Vs = np.sqrt((ee-np.sqrt(ee**2+4*bb))/2)
+			eps = -1/2*(1+aa/(Vp**2*Vs**2))
+			delt = 1/2*(-1+1/Vp**2*(Vs**2+(cc+Vp**4*(1+2*eps)+Vs**4)/(Vp**2-Vs**2)))
+
+			c11 = Vp**2
+			c22 = Vs**2
+			c00 = (1+2*eps)*Vp**2
+			c10 = np.sqrt(2*delt*c11*(c11-c22)+(c11-c22)**2)-c22
+			c01 = c10
+			z=np.zeros(c00.shape)
+
+			hooke = ad.array([
+				[c00,c00,c01,  z,  z,  z],
+				[c00,c00,c01,  z,  z,  z],
+				[c01,c01,c11,  z,  z,  z],
+				[  z,  z,  z,c22,  z,  z],
+				[  z,  z,  z,  z,c22,  z],
+				[  z,  z,  z,  z,  z,  z]
+				])
+
+			#Note: hooke[1,0] can be anything. Then hooke[5,5] should be 
+			# (hooke[0,0]-hooke[1,0])/2 (here, chosen equal to 0)
 		else:
 			raise ValueError("Unsupported dimension")
 		return cls(hooke,*super(Reduced,metric).__iter__())
+
+
+	def is_TTI(self,tol=None):
+		"""
+		Determine if the metric is in a TTI form.
+		"""
+		# Original code by F. Desquilbet, 2020
+		if tol is None: # small value (acts as zero for floats)
+			tol = max(1e-9, MA(hooke)*1e-12)
+
+		def small(arr): return np.max(np.abs(arr))<tol
+		is_Sym = small(hooke-lp.transpose(hooke)) # symmetrical
+
+		if metric.vdim==2:
+			return is_Sym && small(hooke[2,0]) && small(hooke[2,1])
+		if metric.vdim==3:
+			return (is_Sym 
+				&& small((hooke[0,0]-hooke[0,1])/2-hooke[5,5])
+				&& all(small(hooke[i,j]-hooke[k,l]) 
+					for ((i,j),(k,l)) in [((0,0),(1,1)), ((2,0),(2,1)), ((3,3),(4,4))])
+				&& all(small(hooke[i,j]) 
+					for (i,j) in [(3,0),(4,0),(5,0),(3,1),(4,1),(5,1),
+					(3,2),(4,2),(5,2),(4,3),(5,3),(5,4)]) ) 
 
 
 
