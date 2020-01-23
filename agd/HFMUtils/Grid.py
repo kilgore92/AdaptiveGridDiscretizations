@@ -17,8 +17,9 @@ def GetCorners(params):
 		if dim==5: h[-2]=hTheta; origin[-2]=-hTheta/2;
 	return [origin,origin+h*dims]
 
-def CenteredLinspace(a,b,n): 
-	r,dr=np.linspace(a,b,n,endpoint=False,retstep=True)
+def CenteredLinspace(a,b,n):
+	n_=int(n); assert(n==n_) #Allow floats for convenience
+	r,dr=np.linspace(a,b,n_,endpoint=False,retstep=True)
 	return r+dr/2
 
 def GetAxes(params,dims=None):
