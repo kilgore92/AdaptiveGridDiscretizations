@@ -397,6 +397,7 @@ class Hooke(ImplicitBase):
 		"""
 		Constructs a Hooke tensor from the Lame coefficients, in dimension 2 or 3.
 		"""
+		assert(not (ad.is_ad(Lambda) or ad.is_ad(Mu)) )
 		hdim = cls._hdim(vdim)
 		hooke = np.zeros((hdim,hdim))
 		hooke[:vdim,:vdim] += Lambda

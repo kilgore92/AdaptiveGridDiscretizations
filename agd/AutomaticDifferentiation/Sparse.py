@@ -344,7 +344,8 @@ class spAD(np.ndarray):
 
 	# Memory optimization
 	def simplify_ad(self):
-		if len(self.shape)==0: # Workaround for scalar-like arrays
+		if self.size_ad==0: return # Nothing to simplify
+		if len(self.shape)==0: # Add dimension to scalar-like arrays
 			other = self.reshape((1,))
 			other.simplify_ad()
 			other = other.reshape(tuple())
