@@ -211,9 +211,11 @@ class spAD2(np.ndarray):
 			self.coef2[ekey] = 0.
 
 	def reshape(self,shape,order='C'):
-		shape1 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad1,)
-		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad2,)
-		return spAD2(self.value.reshape(shape,order=order),self.coef1.reshape(shape1,order=order), self.index.reshape(shape1,order=order),
+		shape = misc._to_tuple(shape)
+		shape1 = shape+(self.size_ad1,)
+		shape2 = shape+(self.size_ad2,)
+		return spAD2(self.value.reshape(shape,order=order),
+			self.coef1.reshape(shape1,order=order), self.index.reshape(shape1,order=order),
 			self.coef2.reshape(shape2,order=order),self.index_row.reshape(shape2,order=order),self.index_col.reshape(shape2,order=order))
 
 	def flatten(self):	return self.reshape( (self.size,) )
@@ -222,7 +224,8 @@ class spAD2(np.ndarray):
 	def broadcast_to(self,shape):
 		shape1 = shape+(self.size_ad1,)
 		shape2 = shape+(self.size_ad2,)
-		return spAD2(np.broadcast_to(self.value,shape), np.broadcast_to(self.coef1,shape1), np.broadcast_to(self.index,shape1),
+		return spAD2(np.broadcast_to(self.value,shape), 
+			np.broadcast_to(self.coef1,shape1), np.broadcast_to(self.index,shape1),
 			np.broadcast_to(self.coef2,shape2), np.broadcast_to(self.index_row,shape2), np.broadcast_to(self.index_col,shape2))
 
 	@property
@@ -231,7 +234,8 @@ class spAD2(np.ndarray):
 	def transpose(self,axes=None):
 		if axes is None: axes = tuple(reversed(range(self.ndim)))
 		axes2 = tuple(axes) +(self.ndim,)
-		return spAD2(self.value.transpose(axes),self.coef1.transpose(axes2),self.index.transpose(axes2),
+		return spAD2(self.value.transpose(axes),
+			self.coef1.transpose(axes2),self.index.transpose(axes2),
 			self.coef2.transpose(axes2),self.index_row.transpose(axes2),self.index_col.transpose(axes2))
 
 	# Reductions

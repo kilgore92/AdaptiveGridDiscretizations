@@ -27,11 +27,16 @@ class Hooke(ImplicitBase):
 
 	@staticmethod
 	def _vdim(hdim):
-		"""Vector dimension from hooke tensor dimension"""
+		"""Vector dimension from Hooke tensor size"""
 		vdim = int(np.sqrt(2*hdim))
-		if (vdim*(vdim+1))//2!=hdim:
+		if Hooke._hdim(vdim)!=hdim:
 			raise ValueError("Incorrect hooke tensor")
 		return vdim
+
+	@staticmethod
+	def _hdim(vdim):
+		"""Hooke tensor size from vector dimension"""
+		return (vdim*(vdim+1))//2
 
 	@property
 	def vdim(self):
@@ -163,7 +168,7 @@ class Hooke(ImplicitBase):
 	@staticmethod
 	def _Mandel_factors(vdim,shape=tuple(),a=np.sqrt(2)):
 		def f(k):	return 1. if k<vdim else a
-		hdim = (vdim*(vdim+1))//2
+		hdim = Hooke._hdim(vdim)
 		factors = np.array([[f(i)*f(j) for i in range(hdim)] for j in range(hdim)])
 		return fd.as_field(factors,shape,conditional=False)
 
@@ -309,30 +314,53 @@ class Hooke(ImplicitBase):
 					for (i,j) in [(3,0),(4,0),(5,0),(3,1),(4,1),(5,1),
 					(3,2),(4,2),(5,2),(4,3),(5,3),(5,4)]) ) 
 
-	def inner(self,m1,m2=None,sym=True):
+	def _Voigt_m2v(self,m,sym=True):
+		"""
+		Turns a symmetric matrix into a vector, based on Voigt convention.
+		"""
+		assert(self.inverse_transformation is None)
+		m=ad.array(m)
+		vdim = self.vdim
+		assert(m.shape[:2]==(vdim,vdim))
+		if vdim==1:
+			return m[0]
+		elif vdim==2:
+			if sym: return ad.array((m[0,0],m[1,1],2*m[0,1]))
+			else:   return ad.array((m[0,0],m[1,1],m[0,1]+m[1,0]))
+		elif vdim==3:
+			if sym: return ad.array((m[0,0],m[1,1],m[2,2],
+				2*m[1,2],2*m[0,2],2*m[0,1]))
+			else:   return ad.array((m1[0,0],m1[1,1],m[2,2],
+				m[1,2]+m[2,1],m[0,2]+m[2,0],m[0,1]+m[1,0]))
+		else:
+			raise ValueError("Unsupported dimension")
+
+
+	def dot_A(self,m,sym=True):
+		"""
+		Dot product associated with a Hooke tensor, which turns a strain tensor epsilon
+		into a stress tensor sigma.
+		- m : the strain tensor
+		- sym : if false, the strain is symmetrized
+		"""
+		
+		v,hooke = fd.common_field((self._Voigt_m2v(m),self.hooke),(1,2))
+		w = lp.dot_AV(hooke,v)
+		return ad.array( ((w[0],w[2]),(w[2],w[1])) )
+
+	def dot_AA(self,m1,m2=None,sym=True):
 		"""
 		Inner product associated with a Hooke tensor, on the space of symmetric matrices.
-		- m1 first symmetric matrix
-		- m2 second symmetric matrix. Defaults to m1.
-		- sym if false, the matrices are symmetrized.
+		- m1 : first symmetric matrix
+		- m2 : second symmetric matrix. Defaults to m1.
+		- sym : if false, the matrices are symmetrized.
 		"""
-		vdim = self.vdim
-		assert(u.shape[:2]==(vdim,vdim))
-		assert(self.inverse_transformation is None)
-		def m2v(m):
-			if vdim==1:
-				return m[0]
-			elif vdim==2:
-				if sym: return ad.array((m[0,0],m[1,1],2*m[0,1]))
-				else:   return ad.array((m[0,0],m[1,1],m[0,1]+m[1,0]))
-			elif vdim==3:
-				if sym: return ad.array((m[0,0],m[1,1],m[2,2],
-					2*m[1,2],2*m[0,2],2*m[0,1]))
-				else:   return ad.array((m1[0,0],m1[1,1],m[2,2],
-					m[1,2]+m[2,1],m[0,2]+m[2,0],m[0,1]+m[1,0]))
-		v1 = m2v(m1)
-		v2 = v1 if m2 is None else m2v(m2)
-		v1,v2,hooke = fd.common_field((v1,v2,self.hooke),(1,1,2))
+		if m2 is None: 
+			v1,hooke = fd.common_field((self._Voigt_m2v(m1),self.hooke),(1,2))
+			v2=v1
+		else: 
+			v1,v2,hooke = fd.common_field(
+				(self._Voigt_m2v(m1),self._Voigt_m2v(m2),self.hooke),(1,1,2))
 		return lp.dot_VV(v1,lp.dot_AV(hooke,v2))
 
 	def Selling(self):
@@ -344,7 +372,7 @@ class Hooke(ImplicitBase):
 		"""
 		assert(self.vdim<=2)
 		assert(self.inverse_transformation is None)
-		coefs,offsets = Selling.Decomposition(self.to_Mandel(a=2.))
+		coefs,offsets = Selling.Decomposition(self.hooke)
 		if self.vdim==1: 
 			moffsets = np.expand_dims(offsets,axis=0)
 		elif self.vdim==2:
@@ -364,10 +392,17 @@ class Hooke(ImplicitBase):
 		self.inverse_transformation = None
 		self.rotate(lp.transpose(r)) 
 
-
-
-
-
+	@classmethod
+	def from_Lame(cls,Lambda,Mu,vdim=2):
+		"""
+		Constructs a Hooke tensor from the Lame coefficients, in dimension 2 or 3.
+		"""
+		hdim = cls._hdim(vdim)
+		hooke = np.zeros((hdim,hdim))
+		hooke[:vdim,:vdim] += Lambda
+		for i in range(hdim): 
+			hooke[i,i] += Mu*(1.+(i<vdim))
+		return cls(hooke)
 
 
 

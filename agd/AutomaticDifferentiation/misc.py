@@ -15,6 +15,8 @@ def _getitem(a,where):
 def _add_dim(a):		return np.expand_dims(a,axis=-1)	
 def _add_dim2(a):		return _add_dim(_add_dim(a))
 
+def _to_tuple(a): return tuple(a) if hasattr(a,"__iter__") else (a,)
+
 def key_expand(key,depth=1): 
 	"""Modifies a key to access an array with more dimensions. Needed if ellipsis is used."""
 	if isinstance(key,tuple):

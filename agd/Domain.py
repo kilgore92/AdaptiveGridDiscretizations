@@ -457,7 +457,8 @@ class Dirichlet(object):
 		else:
 			if interior_radius is None:
 #				interior_radius = 0.5 * self.gridscale
-				interior_radius = self.gridscale * 1e-8 # Tiny value, for numerical stability. Ideally 0.
+				# Tiny value, for numerical stability. Ideally 0.
+				interior_radius = self.gridscale * 1e-8 
 			self.interior = self.domain.contains_ball(self.grid,interior_radius)
 
 		if isinstance(grid_values,float) or isinstance(grid_values,np.ndarray):
@@ -538,7 +539,8 @@ class Dirichlet(object):
 		offsets = fd.as_field(np.array(offsets),u.shape)
 		um = ad.broadcast_to(u,offsets.shape[1:])[mask]
 		om = offsets[:,mask]
-		gm = ad.broadcast_to(grid.reshape( (len(grid),)+(1,)*(offsets.ndim-grid.ndim)+u.shape),offsets.shape)[:,mask]
+		gm = ad.broadcast_to(grid.reshape( 
+			(len(grid),)+(1,)*(offsets.ndim-grid.ndim)+u.shape),offsets.shape)[:,mask]
 #		um,om,gm = u[mask], offsets[:,mask], grid[:,mask]
 		if not reth: 
 			du[mask] = self._DiffUpwindDirichlet(um,om,gm,reth=reth)

@@ -135,7 +135,8 @@ class denseAD(np.ndarray):
 			self.coef[ekey] = 0.
 
 	def reshape(self,shape,order='C'):
-		shape2 = (shape if isinstance(shape,tuple) else (shape,))+(self.size_ad,)
+		shape = misc._to_tuple(shape)
+		shape2 = shape+(self.size_ad,)
 		return denseAD(self.value.reshape(shape,order=order),self.coef.reshape(shape2,order=order))
 
 	def flatten(self):	return self.reshape( (self.size,) )
