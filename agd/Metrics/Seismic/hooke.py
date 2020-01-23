@@ -8,6 +8,7 @@ from ... import LinearParallel as lp
 from ... import FiniteDifferences as fd
 from ...FiniteDifferences import common_field
 from .implicit_base import ImplicitBase
+from ... import Selling
 
 
 
@@ -160,18 +161,21 @@ class Hooke(ImplicitBase):
 			).sum(axis=2)
 
 	@staticmethod
-	def _Mandel_factors(vdim,shape=tuple()):
-		def f(k):	return 1. if k<vdim else np.sqrt(2.)
+	def _Mandel_factors(vdim,shape=tuple(),a=np.sqrt(2)):
+		def f(k):	return 1. if k<vdim else a
 		hdim = (vdim*(vdim+1))//2
 		factors = np.array([[f(i)*f(j) for i in range(hdim)] for j in range(hdim)])
 		return fd.as_field(factors,shape,conditional=False)
-	def to_Mandel(self):
+
+	def to_Mandel(self,a=np.sqrt(2)):
 		"""Introduces the sqrt(2) and 2 factors involved in Mandel's notation"""
 		return self.hooke*self._Mandel_factors(self.vdim,self.shape)
+
 	@classmethod
-	def from_Mandel(cls,mandel):
+	def from_Mandel(cls,mandel,a=np.sqrt(2)):
 		"""Removes the sqrt(2) and 2 factors involved in Mandel's notation"""
-		return Hooke(mandel/cls._Mandel_factors(cls._vdim(len(mandel)),mandel.shape[2:]))
+		vdim = cls._vdim(len(mandel))
+		return Hooke(mandel/cls._Mandel_factors(vdim,mandel.shape[2:],a))
 
 	@classmethod
 	def from_orthorombic(cls,a,b,c,d,e,f,g,h,i):
@@ -214,7 +218,7 @@ class Hooke(ImplicitBase):
 		return (metric,rho) if density else metric
 
 	@classmethod
-	def from_Reduced_VTI_to_Hooke(cls,metric):
+	def from_Reduced_TTI(cls,metric):
 		"""Generate full Hooke tensor from reduced algebraic form.
 		Warning : Reduced to Hooke conversion may induce approximations."""
 		# Original code by F. Desquilbet, 2020
@@ -295,15 +299,70 @@ class Hooke(ImplicitBase):
 		is_Sym = small(hooke-lp.transpose(hooke)) # symmetrical
 
 		if metric.vdim==2:
-			return is_Sym && small(hooke[2,0]) && small(hooke[2,1])
+			return is_Sym and small(hooke[2,0]) and small(hooke[2,1])
 		if metric.vdim==3:
 			return (is_Sym 
-				&& small((hooke[0,0]-hooke[0,1])/2-hooke[5,5])
-				&& all(small(hooke[i,j]-hooke[k,l]) 
+				and small((hooke[0,0]-hooke[0,1])/2-hooke[5,5])
+				and all(small(hooke[i,j]-hooke[k,l]) 
 					for ((i,j),(k,l)) in [((0,0),(1,1)), ((2,0),(2,1)), ((3,3),(4,4))])
-				&& all(small(hooke[i,j]) 
+				and all(small(hooke[i,j]) 
 					for (i,j) in [(3,0),(4,0),(5,0),(3,1),(4,1),(5,1),
 					(3,2),(4,2),(5,2),(4,3),(5,3),(5,4)]) ) 
+
+	def inner(self,m1,m2=None,sym=True):
+		"""
+		Inner product associated with a Hooke tensor, on the space of symmetric matrices.
+		- m1 first symmetric matrix
+		- m2 second symmetric matrix. Defaults to m1.
+		- sym if false, the matrices are symmetrized.
+		"""
+		vdim = self.vdim
+		assert(u.shape[:2]==(vdim,vdim))
+		assert(self.inverse_transformation is None)
+		def m2v(m):
+			if vdim==1:
+				return m[0]
+			elif vdim==2:
+				if sym: return ad.array((m[0,0],m[1,1],2*m[0,1]))
+				else:   return ad.array((m[0,0],m[1,1],m[0,1]+m[1,0]))
+			elif vdim==3:
+				if sym: return ad.array((m[0,0],m[1,1],m[2,2],
+					2*m[1,2],2*m[0,2],2*m[0,1]))
+				else:   return ad.array((m1[0,0],m1[1,1],m[2,2],
+					m[1,2]+m[2,1],m[0,2]+m[2,0],m[0,1]+m[1,0]))
+		v1 = m2v(m1)
+		v2 = v1 if m2 is None else m2v(m2)
+		v1,v2,hooke = fd.common_field((v1,v2,self.hooke),(1,1,2))
+		return lp.dot_VV(v1,lp.dot_AV(hooke,v2))
+
+	def Selling(self):
+		"""
+		Returns a decomposition of the hooke tensor in the mathematical form
+		hooke = sum_i rho_i m_i x m_i,
+		where rho_i is a non-negative coefficient, m_i is symmetric and has integer 
+		entries, and sum_i rho_i is maximal. 
+		"""
+		assert(self.vdim<=2)
+		assert(self.inverse_transformation is None)
+		coefs,offsets = Selling.Decomposition(self.to_Mandel(a=2.))
+		if self.vdim==1: 
+			moffsets = np.expand_dims(offsets,axis=0)
+		elif self.vdim==2:
+			moffsets = ad.array(((offsets[0],offsets[2]),(offsets[2],offsets[1])))
+		else :
+			raise ValueError("Unsupported dimension")
+		return coefs,moffsets
+
+	def apply_transform(self):
+		"""
+		Applies the transformation, if any stored, to the hooke tensor. 
+		CAUTION : this feature is required for some applications to elasticity, 
+		but is incompatible with the eikonal equation solver.
+		"""
+		r = self.inverse_transformation
+		if r is None: return
+		self.inverse_transformation = None
+		self.rotate(lp.transpose(r)) 
 
 
 
