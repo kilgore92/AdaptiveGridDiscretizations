@@ -56,6 +56,20 @@ def remove_ad(data,iterables=tuple()):
 		return a.value if is_ad(a) else a
 	return misc.map_iterables(f,data,iterables)
 
+def left_operand(data,iterables=tuple()):
+	"""
+	Turns numpy scalars into zero-dimensional arrays, suitable as 
+	left operands in AD operations
+	"""
+	if np.isscalar(data) and not isinstance(data,np.ndarray): 
+		return np.array(data)
+	return data
+
+def toarray(a,array_type=np.ndarray):
+	"""Deprecated"""
+	if isinstance(a,array_type): return a
+	return array_type(a) if is_strict_subclass(array_type,np.ndarray) else np.array(a)
+
 def simplify_ad(a):
 	if type(a) in (Sparse.spAD,Sparse2.spAD2): 
 		a.simplify_ad()
@@ -63,10 +77,6 @@ def simplify_ad(a):
 def is_strict_subclass(type0,type1):
 	return issubclass(type0,type1) and type0!=type1
 
-def toarray(a,array_type=np.ndarray):
-	"""Deprecated"""
-	if isinstance(a,array_type): return a
-	return array_type(a) if is_strict_subclass(array_type,np.ndarray) else np.array(a)
 
 def array(a):
 	"""
