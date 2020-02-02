@@ -5,7 +5,15 @@ jupyter nbconvert InteractiveStencils.ipynb --to slides --post serve
 ```
 See [link](https://medium.com/@mjspeck/presenting-code-using-jupyter-notebook-slides-a8a3c3b59d67)
 
-## End of readme
+## Number of lines of code
+
+```console
+find . "(" -name "*.h" -or -name "*.hxx" -or -name "*.cxx" -or -name "*.hpp" ")" -print0 | xargs -0 wc -l
+```
+
+```console
+find . "(" -name "*.py" ")" -print0 | xargs -0 wc -l
+```
 
 <!---
 All terminal commands presented here assume that the base directory is the directory containing this file.
