@@ -4,6 +4,11 @@ import sys
 import os
 import shutil
 
+def uncomment(source):
+	assert(source[0]=="<!---\n")
+	assert(source[-1]=="--->")
+	return source[1:-1]
+
 def MakeExo(FileName,ExoName):
 	with open(FileName, encoding='utf8') as data_file:
 		data=json.load(data_file)
@@ -14,10 +19,10 @@ def MakeExo(FileName,ExoName):
 			if 'ExoRemove' in c['metadata']['tags']:
 				continue
 			elif 'ExoMarkdown' in tags:
-				c['source']=c['source'][1:-1]
+				c['source']=uncomment(c['source'])
 			elif 'ExoCode' in tags:
+				c['source']=uncomment(c['source'])
 				c['cell_type']='code'
-				c['source']=c['source'][1:-1]
 				c['outputs'] = []
 				c['execution_count'] = None
 		newcells.append(c)
