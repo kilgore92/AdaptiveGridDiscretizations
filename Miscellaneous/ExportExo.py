@@ -1,13 +1,61 @@
-import nbformat 
 import json
 import sys
 import os
-import shutil
 
-def uncomment(source):
-	assert(source[0]=="<!---\n")
-	assert(source[-1]=="--->")
-	return source[1:-1]
+indexExo = 0
+language = 'FR'
+
+def SplitExo(c):
+	text = []
+	statementFR =[]
+	statementEN=[]
+	code = []
+	current = text
+	for line in c['source']:
+		if line == '<!---ExoFR\n':
+			assert current is text
+			current = statementFR
+			continue
+		elif line == '<!---ExoEN\n':
+			assert current is text
+			current = statementEN
+			continue
+		elif line == '<!---ExoCode\n':
+			assert current is text
+			current = code
+			continue
+		elif line == '--->' or line =='--->\n':
+			assert current is not text
+			current = text
+			continue
+		current.append(line)
+	assert current is text
+	c['source'] = text
+	result = [c]
+	global language,indexExo
+	if len(statementFR)!=0 and language=='FR':
+		indexExo+=1
+		result.append({
+			'cell_type':'markdown',
+			'source':["*Question "+str(indexExo)+"*\n","===\n"]+statementFR,
+			'metadata':{}
+			})
+	if len(statementEN)!=0 and language=='EN':
+		indexExo+=1
+		result.append({
+			'cell_type':'markdown',
+			'source':["*Question "+str(indexExo)+"*\n","===\n"]+statementEN,
+			'metadata':{}
+			})
+	if len(code)!=0:
+		result.append({		
+		'cell_type':'code',
+		'source':code,
+		'execution_count':None,
+		'outputs':[],
+		'metadata':{},
+		})
+	return result
 
 def MakeExo(FileName,ExoName):
 	with open(FileName, encoding='utf8') as data_file:
@@ -16,15 +64,12 @@ def MakeExo(FileName,ExoName):
 	for c in data['cells']:
 		if 'tags' in c['metadata']:
 			tags = c['metadata']['tags']
-			if 'ExoRemove' in c['metadata']['tags']:
+			if 'ExoRemove' in tags:
 				continue
-			elif 'ExoMarkdown' in tags:
-				c['source']=uncomment(c['source'])
-			elif 'ExoCode' in tags:
-				c['source']=uncomment(c['source'])
-				c['cell_type']='code'
-				c['outputs'] = []
-				c['execution_count'] = None
+			elif 'ExoSplit' in tags:
+				for x in SplitExo(c):
+					newcells.append(x)
+				continue
 		newcells.append(c)
 	data['cells']=newcells
 
@@ -36,5 +81,4 @@ if __name__ == '__main__':
 		dir,FileName = os.path.split(name)
 		prefix,ext = os.path.splitext(FileName)
 		ExoName = os.path.join(dir,"Exo",prefix+'_Exo.ipynb')
-#		shutil.copy(file,ExoName)
 		MakeExo(FileName,ExoName)
