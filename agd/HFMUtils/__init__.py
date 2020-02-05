@@ -5,25 +5,6 @@ from .Grid import GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint,
 from .LibraryCall import GetBinaryDir
 from .run_detail import RunRaw,RunSmart,Cache
 
-def reload_submodules():
-	from importlib import reload
-	import sys
-	hfm = sys.modules['agd.HFMUtils']
-
-	global GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint,CenteredLinspace
-	hfm.Grid = reload(hfm.Grid)
-	GetCorners,Rect,GetAxes,GetGrid,PointFromIndex,IndexFromPoint,CenteredLinspace = (
-		Grid.GetCorners,Grid.Rect,Grid.GetAxes,Grid.GetGrid,Grid.PointFromIndex,Grid.IndexFromPoint,Grid.CenteredLinspace)
-
-	global GetBinaryDir
-	hfm.LibraryCall = reload(hfm.LibraryCall)
-	GetBinaryDir =  LibraryCall.GetBinaryDir
-
-	global RunRaw,RunSmart
-	hfm.run_detail = reload(hfm.run_detail)
-	RunSmart =  run_detail.RunSmart
-	RunRaw = run_detail.RunRaw
-
 def Run(hfmIn,smart=False,**kwargs):
 	"""
 	Calls to the HFM library, returns output and prints log.

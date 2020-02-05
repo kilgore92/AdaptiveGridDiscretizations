@@ -9,20 +9,6 @@ from . import Optimization
 import numpy as np
 import itertools
 
-def reload_submodules():
-	import importlib
-	import sys
-	ad = sys.modules['agd.AutomaticDifferentiation']
-	ad.misc = importlib.reload(ad.misc)
-	ad.Dense = importlib.reload(ad.Dense)
-	ad.Sparse = importlib.reload(ad.Sparse)
-	ad.Reverse = importlib.reload(ad.Reverse)
-	ad.Sparse2 = importlib.reload(ad.Sparse2)
-	ad.Dense2 = importlib.reload(ad.Dense2)
-	ad.Reverse2 = importlib.reload(ad.Reverse2)
-	ad.Optimization = importlib.reload(ad.Optimization)
-
-
 def is_adtype(t):
 	return t in (Sparse.spAD, Dense.denseAD, Sparse2.spAD2, Dense2.denseAD2)
 
