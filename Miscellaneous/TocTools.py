@@ -55,8 +55,7 @@ VolumeFilenames = {
 'Repro':[],
 }
 
-RepositoryDescription = """
-**Github repository** to run and modify the examples on your computer.
+RepositoryDescription = """**Github repository** to run and modify the examples on your computer.
 [AdaptiveGridDiscretizations](https://github.com/Mirebeau/AdaptiveGridDiscretizations)\n
 """
 

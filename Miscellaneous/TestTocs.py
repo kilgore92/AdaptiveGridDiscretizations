@@ -21,8 +21,13 @@ def ListNotebookFiles(dirname):
 
 def UpdateToc(filepath,data,cell,toc,update=False):
 	if not ( ('tags' in cell['metadata'] and 'TOC' in cell['metadata']['tags'])
-		or cell['source'][0]==toc[0]):
-		return False
+		or (len(cell['source'])>0 and cell['source'][0]==toc[0])): 
+		return False # Not a TOC cell
+
+	toc[-1]=toc[-1].strip()
+	cell['source'][-1] = cell['source'][-1].strip()
+	if toc==cell['source']:
+		return True # No need to update
 
 	print(f"TOC of file {filepath} needs updating")
 	print("------- Old toc -------\n",*cell['source'])
@@ -92,7 +97,6 @@ if __name__ == '__main__':
 #	TestToc("Notebooks_Algo","Dense")
 #	TestTocs("Notebooks_Algo")
 #	TestTocss()
-	print(len(sys.argv))
 	update = len(sys.argv)>=2 and sys.argv[1]=='--update'
 
 	TestTocss(update)
