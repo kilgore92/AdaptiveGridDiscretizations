@@ -2,15 +2,40 @@ import nbformat
 import os
 import json
 import TocTools
+import sys
+
+"""
+This file, when executed as a Python script, tests that the table of contents 
+of the notebooks are all correct, and reports any inconsistency.
+
+With the optional argument --update, the table of contents are updated.
+"""
 
 def ListNotebookDirs():
 	return [dirname for dirname in os.listdir() if dirname[:10]=="Notebooks_"]
 def ListNotebookFiles(dirname):
 	filenames_extensions = [os.path.splitext(f) for f in os.listdir(dirname)]
-	return [filename for filename,extension in filenames_extensions if extension==".ipynb" and filename!="Summary"]
+	return [filename for filename,extension in filenames_extensions 
+	if extension==".ipynb" and filename!="Summary"]
 
-def TestToc(dirname,filename):
-	with open(dirname+"/"+filename+".ipynb", encoding='utf8') as data_file:
+
+def UpdateToc(filepath,data,cell,toc,update=False):
+	if not ( ('tags' in cell['metadata'] and 'TOC' in cell['metadata']['tags'])
+		or cell['source'][0]==toc[0]):
+		return False
+
+	print(f"TOC of file {filepath} needs updating")
+	print("------- Old toc -------\n",*cell['source'])
+	print("------- New toc -------\n ",*toc)
+	if update:
+		cell['source'] = toc
+		with open(filename,'w') as f:
+			json.dump(data,f,ensure_ascii=False)
+	return True
+
+def TestToc(dirname,filename,update=False):
+	filepath = os.path.join(dirname,filename)+".ipynb"
+	with open(filepath, encoding='utf8') as data_file:
 		data = json.load(data_file)
 
 	# Test Header
@@ -38,60 +63,41 @@ def TestToc(dirname,filename):
 		print("directory : ",dirname," file : ",filename,
 			" line1 : ",line1," differs from expexted ",line1_ref)
 
-	toc = TocTools.displayTOC(dirname+"/"+filename,dirname[10:]).strip()
+	toc = TocTools.displayTOC(dirname+"/"+filename,dirname[10:]).splitlines(True)
 	for c in data['cells']:
-		s = "".join(c['source']).strip()
-		if s[:20]==toc[:20]:
-			if s!=toc:
-				print("directory : ",dirname," file : ",filename,
-				" toc needs updating")
-#				print(s)
-#				print(toc)
-			return
+		if UpdateToc(filepath,data,c,toc,update): return
 	print("directory : ",dirname," file : ",filename, " toc not found")
 
 
-
-
-def TestTocs(dirname):
-	with open(dirname+"/Summary.ipynb", encoding='utf8') as data_file:
+def TestTocs(dirname,update=False):
+	filepath = os.path.join(dirname,"Summary.ipynb")
+	with open(filepath, encoding='utf8') as data_file:
 		data = json.load(data_file)
-	toc = TocTools.displayTOCs(dirname[10:],dirname+"/").strip()
+	toc = TocTools.displayTOCs(dirname[10:],dirname+"/").splitlines(True)
 	for c in data['cells']:
-		s = "".join(c['source']).strip()
-		if s[:20]==toc[:20]:
-			if s!=toc:
-				print("directory : ",dirname," Summary toc needs updating")
-#				print(s)
-#				print(toc)
-			return
+		if UpdateToc(filepath,data,c,toc,update): return
 	print("directory : ",dirname," Summary toc not found")
 
-def TestTocss():
-	with open("Summary.ipynb", encoding='utf8') as data_file:
+def TestTocss(update=False):
+	filename = "Summary.ipynb"
+	with open(filename, encoding='utf8') as data_file:
 		data = json.load(data_file)
-	toc = TocTools.displayTOCss().strip()
+	toc = TocTools.displayTOCss().splitlines(True)
 	for c in data['cells']:
-		s = "".join(c['source']).strip()
-		if s[:20]==toc[:20]:
-			if s!=toc:
-				print("Main Summary toc needs updating")
-#				print(s)
-#				print(toc)
-			return
+		if UpdateToc(filename,data,c,toc,update): return
 	print("Main Summary toc not found")
-
 
 
 if __name__ == '__main__':
 #	TestToc("Notebooks_Algo","Dense")
 #	TestTocs("Notebooks_Algo")
 #	TestTocss()
+	print(len(sys.argv))
+	update = len(sys.argv)>=2 and sys.argv[1]=='--update'
 
-
-	TestTocss()
+	TestTocss(update)
 	for dirname in ListNotebookDirs():
-		TestTocs(dirname)
+		TestTocs(dirname,update)
 		for filename in ListNotebookFiles(dirname):
-			TestToc(dirname,filename)
+			TestToc(dirname,filename,update)
 
