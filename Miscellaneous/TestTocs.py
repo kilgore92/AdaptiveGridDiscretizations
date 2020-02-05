@@ -34,7 +34,7 @@ def UpdateToc(filepath,data,cell,toc,update=False,show=False):
 	if toc==cell['source']:
 		return True # No need to update
 
-	print(f"TOC of file {filepath} needs updating")
+	print(f"TOC of file {filepath} {'is being updated ' if update else 'needs updating'}")
 	if show:
 		print("------- Old toc -------\n",*cell['source'])
 		print("------- New toc -------\n ",*toc)

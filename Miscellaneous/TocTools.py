@@ -59,10 +59,34 @@ RepositoryDescription = """**Github repository** to run and modify the examples 
 [AdaptiveGridDiscretizations](https://github.com/Mirebeau/AdaptiveGridDiscretizations)\n
 """
 
+def CheckChapter(next,prev,identifier):
+	if prev is None: prev = "## 0."
+	def split(chap):
+		indent,number = chap.split()[:2]
+		if len(indent)==2:
+			if number[-1]=='.':
+				number = number[:-1]
+		return indent,number
+#		assert number[-1]=='.'
+		
+	indent,number = split(prev)
+	nextPossibilities = [
+	("#"*(len(indent) -i), number[:-(1+2*i)]+str(int(number[-(1+2*i)])+1) ) 
+	for i in range(len(indent)-1)]
+	nextPossibilities.append((indent+"#",number+".1"))
+
+	if split(next) not in nextPossibilities:
+		print(f"Error : {next} does not follow {prev}, see {identifier}") #, considered {nextPossibilities}")
+
+	nextIndent,nextNumber = next.split()[:2]
+
+
+
 def displayTOC(inFName,volume):
 	with open(inFName+".ipynb", encoding='utf8') as data_file:
 		data = json.load(data_file)
 	contents = []
+	prevChapter = None
 	for c in data['cells']:
 		s=c['source']
 		if len(s)==0:
@@ -72,6 +96,8 @@ def displayTOC(inFName,volume):
 			count = line1.count('#')-1
 			plainText = line1[count+1:].strip()
 			if plainText[0].isdigit() and int(plainText[0])!=0:
+				CheckChapter(line1,prevChapter,inFName)
+				prevChapter=line1
 				link = plainText.replace(' ','-')
 				listItem = "  "*count + "* [" + plainText + "](#" + link + ")"
 				contents.append(listItem)
