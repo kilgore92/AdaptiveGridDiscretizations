@@ -1,8 +1,14 @@
 import types
 import sys
 import importlib
+from os.path import realpath
 
 """
+Reload recursively some objects (typically modules, classes, or functions).
+Loosely inspired from https://stackoverflow.com/a/58201660/12508258
+but with significant modifications to allow reloading class hierarchies 
+defined in multiple files.
+
 Recommended usage, within a jupyter notebook.
 
 import A
@@ -27,7 +33,8 @@ def rreload(objects,rootdir,verbose=False):
 		- list of the reloaded objects
 	"""
 	def noreload(mod): 
-		return not (hasattr(mod,'__file__') and mod.__file__.startswith(rootdir))
+		return not (hasattr(mod,'__file__') 
+			and realpath(mod.__file__).startswith(realpath(rootdir)))
 	reloaded = {}
 	reloading = []
 	return [_rreload(x,noreload,reloaded,reloading,verbose) for x in objects]
