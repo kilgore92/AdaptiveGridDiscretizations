@@ -7,7 +7,7 @@ from os.path import realpath
 Reload recursively some objects (typically modules, classes, or functions).
 Loosely inspired from https://stackoverflow.com/a/58201660/12508258
 but with significant modifications to allow reloading class hierarchies 
-defined in multiple files.
+defined in multiple files. See also IPython deepreload
 
 Recommended usage, within a jupyter notebook.
 
