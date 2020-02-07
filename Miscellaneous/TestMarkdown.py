@@ -28,8 +28,8 @@ def TestMath(filepath,update=False,show=False):
 	for cell in data["cells"]:
 		if cell['cell_type']!='markdown': continue
 		eqn = None
+		prevLine="\n"
 		for line in cell['source']:
-			
 			if line=="$$" or line=="$$\n":
 				eqn = "" if eqn is None else None
 				continue
@@ -37,10 +37,14 @@ def TestMath(filepath,update=False,show=False):
 				eqn = eqn+line
 				l = line.lstrip()
 				if line[0]=='<' or (l[0] in ['+','-','*'] and l[1]==' '):
-					print(f"--- Markdown issue in file {filepath} : ---")
+					print(f"--- Markdown displaymath issue in file {filepath} : ---")
 					print(eqn)
 					if show: print("(Cell contents) : \n", *cell["source"])
-			if line.startswith("<!---")
+			if line.startswith("<!---") and prevLine!="\n":
+				print(f"--- Markdown comment issue in file {filepath} : ---")
+				print([prevLine],line)
+				if show: print("(Cell contents) : \n", *cell["source"])
+			prevLine = line
 
 
 if __name__ == '__main__':
