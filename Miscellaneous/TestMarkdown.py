@@ -29,6 +29,7 @@ def TestMath(filepath,update=False,show=False):
 		if cell['cell_type']!='markdown': continue
 		eqn = None
 		for line in cell['source']:
+			
 			if line=="$$" or line=="$$\n":
 				eqn = "" if eqn is None else None
 				continue
@@ -39,6 +40,7 @@ def TestMath(filepath,update=False,show=False):
 					print(f"--- Markdown issue in file {filepath} : ---")
 					print(eqn)
 					if show: print("(Cell contents) : \n", *cell["source"])
+			if line.startswith("<!---")
 
 
 if __name__ == '__main__':
