@@ -2,6 +2,14 @@ import json
 import sys
 import os
 
+"""
+Produce an exercise notebook, from a standard notebook with some special 
+tags in the cell metadata, and comments in the cell source. 
+
+TODO : A comment only version might be preferable, since the use of tags 
+is rather redundant and error prone.
+"""
+
 indexExo = 0
 language = 'FR'
 
