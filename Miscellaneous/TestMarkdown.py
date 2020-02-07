@@ -14,11 +14,20 @@ and not on others (including nbviewer).
 The solution is to replace + with {+} in the start of a line, 
 if the next character is a blank space. Likewise for - and *.
 
+---
 Another issue was encountered in an equation of the form
 $$
 <n
 $$
 
+--- 
+Another issue occurs when a line contains a single starting comment tag, 
+and the previous line is not blank.
+
+blabla.
+<!---
+my comment
+--->
 
 """
 
@@ -40,7 +49,7 @@ def TestMath(filepath,update=False,show=False):
 					print(f"--- Markdown displaymath issue in file {filepath} : ---")
 					print(eqn)
 					if show: print("(Cell contents) : \n", *cell["source"])
-			if line.startswith("<!---") and prevLine!="\n":
+			if line==("<!---\n") and prevLine!="\n":
 				print(f"--- Markdown comment issue in file {filepath} : ---")
 				print([prevLine],line)
 				if show: print("(Cell contents) : \n", *cell["source"])
