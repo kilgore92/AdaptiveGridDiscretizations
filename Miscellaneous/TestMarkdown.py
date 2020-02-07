@@ -14,6 +14,11 @@ and not on others (including nbviewer).
 The solution is to replace + with {+} in the start of a line, 
 if the next character is a blank space. Likewise for - and *.
 
+Another issue was encountered in an equation of the form
+$$
+<n
+$$
+
 
 """
 
@@ -30,7 +35,7 @@ def TestMath(filepath,update=False,show=False):
 			if eqn is not None:
 				eqn = eqn+line
 				l = line.lstrip()
-				if l[0] in ['+','-','*'] and l[1]==' ':
+				if line[0]=='<' or (l[0] in ['+','-','*'] and l[1]==' '):
 					print(f"--- Markdown issue in file {filepath} : ---")
 					print(eqn)
 					if show: print("(Cell contents) : \n", *cell["source"])
