@@ -29,11 +29,17 @@ blabla.
 my comment
 --->
 
+---
+Another issue is that the command \\rm is not interpreted in the same manner depending
+on the markdown front-end : it may apply to all the following characters, on only one. 
+Prefer \\mathrm.
 """
 
 def TestMath(filepath,update=False,show=False):
 	with open(filepath, encoding='utf8') as data_file:
 		data = json.load(data_file)
+	def showcell(cell):
+		if show: print("(Cell contents) : \n", *cell["source"])
 	for cell in data["cells"]:
 		if cell['cell_type']!='markdown': continue
 		eqn = None
@@ -48,11 +54,17 @@ def TestMath(filepath,update=False,show=False):
 				if line[0]=='<' or (l[0] in ['+','-','*'] and l[1]==' '):
 					print(f"--- Markdown displaymath issue in file {filepath} : ---")
 					print(eqn)
-					if show: print("(Cell contents) : \n", *cell["source"])
+					showcell(cell)
 			if line==("<!---\n") and prevLine!="\n":
 				print(f"--- Markdown comment issue in file {filepath} : ---")
 				print([prevLine],line)
-				if show: print("(Cell contents) : \n", *cell["source"])
+				showcell(cell)
+			if "\\rm " in line:
+				print(f"--- Mardown math issue in file {filepath},", 
+					"prefer \\mathrm{bla} to {\\rm bla} ---")
+				print(line)
+				showcell(cell)
+
 			prevLine = line
 
 
