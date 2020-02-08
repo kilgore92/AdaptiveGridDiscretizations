@@ -42,6 +42,7 @@ def TestNotebook(notebook_filename, result_path):
 		success=False
 	finally:
 		subdir,file = os.path.split(filename_out)
+		os.makedirs(os.path.join(subdir,result_path),exist_ok=True)
 		with open(os.path.join(subdir,result_path,file)+extension, mode='wt') as f:
 			nbformat.write(nb, f)
 		return success
