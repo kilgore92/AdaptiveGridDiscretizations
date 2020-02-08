@@ -43,11 +43,12 @@ VolumeFilenames = {
     "Seismic",
 ],
 'NonDiv':[
-	"MonotoneSchemes1D","LinearMonotoneSchemes2D","NonlinearMonotoneFirst2D",
-	"NonlinearMonotoneSecond2D","Time1D_NonDiv",
-	"MongeAmpere","OTBoundary1D","EikonalEulerian"
+	"MonotoneSchemes1D","Time1D_NonDiv","OTBoundary1D",
+	"LinearMonotoneSchemes2D","NonlinearMonotoneFirst2D",
+	"NonlinearMonotoneSecond2D",
+	"MongeAmpere","EikonalEulerian"
 ],
-'Div':["Elliptic","EllipticAsymmetric","Time1D_Div","VaradhanGeodesics"],
+'Div':["Time1D_Div","Elliptic","EllipticAsymmetric","VaradhanGeodesics"],
 'Algo':["TensorSelling","TensorVoronoi",
 "SternBrocot","VoronoiVectors",
 "Dense","Sparse","Reverse","ADBugs",
