@@ -107,17 +107,17 @@ def AlignedSum(u,offset,multiples,weights,**kwargs):
 
 def Diff2(u,offset,gridScale=1.,**kwargs):
 	"""
-Approximates <offset, (d^2 u) offset> with second order accuracy.
-Second order finite difference in the specidied direction.
-"""
+	Approximates <offset, (d^2 u) offset> with second order accuracy.
+	Second order finite difference in the specidied direction.
+	"""
 	return AlignedSum(u,offset,(1,0,-1),np.array((1,-2,1))/gridScale**2,**kwargs)
 
 
 def DiffUpwind(u,offset,gridScale=1.,**kwargs):
 	"""
-Approximates <d u, offset> with first order accuracy.
-Upwind first order finite difference in the specified direction.
-"""
+	Approximates <d u, offset> with first order accuracy.
+	Upwind first order finite difference in the specified direction.
+	"""
 	return AlignedSum(u,offset,(1,0),np.array((1,-1))/gridScale,**kwargs)
 
 
@@ -125,31 +125,31 @@ Upwind first order finite difference in the specified direction.
 
 def DiffCentered(u,offset,gridScale=1.,**kwargs):
 	"""
-Approximates <d u, offset> with second order accuracy.
-Centered first order finite difference in the specified direction.
-"""
+	Approximates <d u, offset> with second order accuracy.
+	Centered first order finite difference in the specified direction.
+	"""
 	return AlignedSum(u,offset,(1,-1),np.array((1,-1))/(2*gridScale),**kwargs)
 
 def DiffUpwind2(u,offset,gridScale=1.,**kwargs):
 	"""
-Approximates <d u, offset> with second order accuracy.
-Upwind finite difference scheme, but lacking the degenerate ellipticity property.
-"""
+	Approximates <d u, offset> with second order accuracy.
+	Upwind finite difference scheme, but lacking the degenerate ellipticity property.
+	"""
 	return AlignedSum(u,offset,(2,1,0),np.array((-0.5,2.,-1.5))/gridScale,**kwargs)
 
 def DiffUpwind3(u,offset,gridScale=1.,**kwargs):
 	"""
-Approximates <d u, offset> with third order accuracy.
-Upwind finite difference scheme, but lacking the degenerate ellipticity property.
-"""
+	Approximates <d u, offset> with third order accuracy.
+	Upwind finite difference scheme, but lacking the degenerate ellipticity property.
+	"""
 	return AlignedSum(u,offset,(3,2,1,0),
 		np.array((1./3.,-1.5,3.,-11./6.))/gridScale,**kwargs)
 
 def DiffCross(u,offset0,offset1,gridScale=1.,**kwargs):
 	"""
-Approximates <offsets0, (d^2 u) offset1> with second order accuracy.
-Centered finite differences scheme, but lacking the degenerate ellipticity property.
-"""
+	Approximates <offsets0, (d^2 u) offset1> with second order accuracy.
+	Centered finite differences scheme, but lacking the degenerate ellipticity property.
+	"""
 	weights = np.array((1,1))/(4*gridScale**2)
 	return (AlignedSum(u,offset0+offset1,(1,-1),weights,**kwargs) 
 		- AlignedSum(u,offset0-offset1,(1,-1),weights,**kwargs) )
@@ -158,11 +158,11 @@ Centered finite differences scheme, but lacking the degenerate ellipticity prope
 
 def AxesOffsets(u=None,offsets=None,dimension=None):
 	"""
-Returns the offsets corresponding to the axes.
-	Inputs : 
- - offsets (optional). Defaults to np.eye(dimension)
- - dimension (optional). Defaults to u.ndim
-"""
+	Returns the offsets corresponding to the axes.
+		Inputs : 
+	 - offsets (optional). Defaults to np.eye(dimension)
+	 - dimension (optional). Defaults to u.ndim
+	"""
 	if offsets is None:
 		if dimension is None:
 			dimension = u.ndim
@@ -173,9 +173,9 @@ Returns the offsets corresponding to the axes.
 
 def DiffHessian(u,offsets=None,dimension=None,**kwargs):
 	"""
-Approximates the matrix (<offsets[i], (d^2 u) offsets[j]> )_{ij}, using AxesOffsets as offsets.
-Centered and cross finite differences are used, thus lacking the degenerate ellipticity property.
-"""
+	Approximates the matrix (<offsets[i], (d^2 u) offsets[j]> )_{ij}, using AxesOffsets as offsets.
+	Centered and cross finite differences are used, thus lacking the degenerate ellipticity property.
+	"""
 	from . import Metrics
 	offsets=AxesOffsets(u,offsets,dimension)
 	return Metrics.misc.expand_symmetric_matrix([
@@ -184,9 +184,9 @@ Centered and cross finite differences are used, thus lacking the degenerate elli
 
 def DiffGradient(u,offsets=None,dimension=None,**kwargs):
 	"""
-Approximates the vector (<d u, offsets[i]>)_i, using AxesOffsets as offsets
-Centered finite differences are used, thus lacking the degerate ellipticity property.
-"""
+	Approximates the vector (<d u, offsets[i]>)_i, using AxesOffsets as offsets
+	Centered finite differences are used, thus lacking the degerate ellipticity property.
+	"""
 	return DiffCentered(u,AxesOffsets(u,offsets,dimension),**kwargs)
 
 # ----------- Interpolation ---------

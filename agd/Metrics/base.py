@@ -159,6 +159,50 @@ class Base(object):
 	def from_generator(cls,gen):
 		return cls(*gen)
 
+# ---- Related with Lagrandian and Hamiltonian interpretation ----
+
+	def norm2(self,v):
+		"""
+		Half squared norm.
+		"""
+		n = self.norm(v)
+		return 0.5*n**2
+
+	def gradient2(self,v):
+		"""
+		Gradient of the half squared norm.
+		"""
+		g = self.gradient(v)
+		return lp.dot_VV(g,v)*g
+
+	def set_interpolation(grid,**kwargs):
+		"""
+		Sets the interpolation_data member, required to specialize the norm 
+		at a given position.
+		Inputs:
+			- grid (optional). Coordinate system (required on first call). 
+			- kwargs (optional). Passed to fd.UniformGridInterpolator
+		"""
+		assert self.vdim = len(grid)
+
+		def make_interp(value):
+			if not isinstance(value,np.ndarray): return value
+			if value.shape[-self.vdim:]!=grid[0].shape: return value
+			return fd.UniformGridInterpolator(grid,value,**kwargs)
+
+		self.interpolation_data = tuple(make_interp(value) for value in self)
+
+	def at(self,x):
+		"""
+		Interpolates the metric to a given position, on a grid given beforehand.
+		Inputs : 
+			- x (optional). Place where interpolation is needed.
+		"""
+		return self.from_generator(
+			field(x) if getattr(field,'__name__',None)=='interp' else field
+			for field in self.interpolation_data)
+	
+
 #	def is_ad(self):
 #		return ad.is_ad(self,iterables=(Base,))
 
