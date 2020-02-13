@@ -177,13 +177,13 @@ class Base(object):
 
 	def set_interpolation(grid,**kwargs):
 		"""
-		Sets the interpolation_data member, required to specialize the norm 
+		Sets interpolation_data, required to specialize the norm 
 		at a given position.
 		Inputs:
 			- grid (optional). Coordinate system (required on first call). 
 			- kwargs (optional). Passed to fd.UniformGridInterpolator
 		"""
-		assert self.vdim = len(grid)
+		assert self.vdim == len(grid)
 
 		def make_interp(value):
 			if not isinstance(value,np.ndarray): return value

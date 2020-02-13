@@ -13,6 +13,8 @@ In written words, the Hamiltonian is the half square of the dual metric.
 """
 
 import scipy.sparse
+import numpy as np
+from copy import copy
 
 from .. import LinearParallel as lp
 from .. import AutomaticDifferentiation as ad
@@ -20,7 +22,7 @@ from .base import Base
 
 lo = ad.left_operand
 
-def fixedpoint(f,x,tol=1e-8,nitermax=100):
+def fixedpoint(f,x,tol=1e-9,nitermax=100):
 	"""
 	Iterates the function f on the data x until a fixed point is found, 
 	up to prescribed tolerance, or the maximum number of iterations is reached.
@@ -29,8 +31,8 @@ def fixedpoint(f,x,tol=1e-8,nitermax=100):
 	x_old = x
 	for i in range(nitermax):
 		x=f(x)
-		if norm_infinity(x-xold)<tol: break
-		xold = x
+		if norm_infinity(x-x_old)<tol: break
+		x_old = x
 	return x
 
 
@@ -44,12 +46,8 @@ class Hamiltonian(object):
 			* a pair of callable functions, for a separable hamiltonian.
 				(in that case, may also be scalars or matrices, for quadratic hamiltonians)
 		- shape_free (optional) : the shape of the position and impulsion
-		"""
-
-#		 - Structure : the hamiltonian structure, w.r.t. the first and second variable.
-#		   Possibilities include "scalar","matrix","sparse" and None
-		
-		is isinstance(H,list): H = tuple(H)
+		"""		
+		if isinstance(H,list): H = tuple(H)
 		self._H = H
 		if self.is_separable: assert len(H)==2
 
@@ -58,25 +56,6 @@ class Hamiltonian(object):
 			self.vdim = self._H.vdim
 		else:
 			self.shape_free = shape_free
-
-#		assert isinstance(structure,tuple) and len(structure)==2
-#		for e in structure: 
-#			assert e in ["scalar","matrix","sparse",None]
-#		self.structure = structure
-#		self.shape_free = shape_free
-#		if isinstance(H,Base):
-#			if self.shape_free is None:
-#				self.shape_free = (H.vdim,)
-#			else:
-#				assert self.shape_free==(H.vdim,)
-
-#		if self.separable:
-#			self._H = tuple(self._check_struct(f,struct) 
-#				for (f,struct) in zip(self._H,self.structure))
-#		else:
-#			struct0,struct = self.structure
-#			assert struct0 is None
-#			assert struct in ["scalar","matrix",None]
 
 	@property
 	def is_separable(self):
@@ -90,61 +69,41 @@ class Hamiltonian(object):
 		"""
 		Dimension of space of positions. 
 		(Also equals the dimension of the space of impulsions)
+		Returns none for a Hamiltonian acting on scalars.
 		"""
-		assert len(self.shape_free)==1
-		return self.shape_free[0]
+		if shape_free is None: raise ValueError("Unspecified space dimensions")
+		elif len(self.shape_free)==0: return None
+		elif len(self.shape_free)==1: return self.shape_free[0]
+		else: raise ValueError(f"Hamiltonian acts on tensors of shape {shape_free}")
 
 	@vdim.setter
 	def vdim(self,vdim):
-		self.shape_free = (vdim,)	
+		if vdim is None:
+			self.shape_free = tuple()
+		else:
+			self.shape_free = (vdim,)	
 
-	def separable_quadratic_set_sparse_matrices():
+	def _checkdim(self,x):
+		"""
+		Checks the dimension of the input variable agains shape_free.
+		(Sets shape_free if it is undefined, assuming depth one of x)
+		"""
+		if self.shape_free is None:
+			self.vdim = x.shape[0]
+		assert self.shape_free==tuple() or x.shape[:len(self.shape_free)]==self.shape_free
+
+	def separable_quadratic_set_sparse_matrices(self):
 		"""
 		If the hamiltonian is separable and quadratic, replace the callable functions
 		with sparse matrices, for faster evaluation.
 		"""
+		assert self.is_separable
 		x_ad = ad.Sparse2.identity(shape=self.shape_free)
 		self._H = tuple(scipy.sparse.coo_matrix(f(x_ad).triplets()).tocsc()
 			if callable(f) else f
 			for f in self._H)
 
-#	def _check_struct(f,struct):
-		"""
-		Checks that the announced structure is present. 
-		In the sparse case, will produce the required matrix from a callable using 
-		automatic differentiation.
-		- output : f, possibly turned into a matrix in the sparse case
-		"""
-#		if struct=="sparse" and callable(f):
-#
-#		if struct is None:
-#			assert callable(f)
-#		elif struct=="scalar":
-#			assert np.isscalar(f)
-#		elif struct=="matrix":
-#			assert f.shape[:2]==shape_free*2
-#		return f
-
-
-#	@staticmethod
-#	def _value(f,x):
-		"""
-		Used in separable case
-		Evaluates a function with the given structure.
-		"""
-#		if callable(f): return f(x)
-#		else: return 0.5*lp.dot_VV(x,ad.apply_linear_mapping(f,x))
-#		if struct is None:
-#			return f(x)
-#		elif struct == "scalar":
-#			return lo(0.5*f)*(x**2).sum()
-#		elif struct == "matrix":
-#			return 0.5*lp.dot_VAV(x,f,x)
-#		elif struct == "sparse":
-#			return 0.5*lp.dot_VV(x,ad.apply_linear_mapping(f,x))
-#		raise "ValueError : unrecognized struct"
-
-	def H(q,p):
+	def H(self,q,p):
 		"""
 		Evaluates the Hamiltonian, for a given position and impulsion.
 		"""
@@ -160,75 +119,88 @@ class Hamiltonian(object):
 		else:
 			return self._H(q,p)
 
-#			_,struct = self.structure
-#			if struct is None:
-#				return self._H(q,p)
-#			else:
-#				h = self._H(q)
-#				return self._value(h,p,struct)
+	def _gradient_ad(self,x):
+		"""
+		Extracts the gradient from an AD variable and reshapes as required.
+		"""
+		g = x.gradient()
+		return g.reshape(self.shape_free+g.shape[1:])
 
-	def _gradient(f,x):
+	def _gradient(self,f,x):
 		"""
 		Differentiates a function with the given structure.
 		"""
 		if callable(f):
 			x_ad = ad.Dense.identity(constant=x,shape_free=self.shape_free) 
-			return f(x_ad).gradient()
+			return self._gradient_ad( f(x_ad) )
 		else:
 			return ad.apply_linear_mapping(f,x)
-#		if struct is None:
-#			x_ad = ad.Dense.identity(constant=x,shape_free=self.shape_free) 
-#			return f(x_ad).gradient()
-#		elif struct == "scalar":
-#			return lo(f)*x
-#		elif struct == "matrix":
-#			return lp.dot_AV(f,x)
-#		elif struct == "sparse":
-#			return ad.apply_linear_mapping(f,x)
 
-	def DqH(q,p):
+	def DqH(self,q,p):
 		"""
 		Differentiates the Hamiltonian, w.r.t. position.
 		"""
+		self._checkdim(q)
 		if self.is_separable:
 			return self._gradient(self._H[0],q)
 
 		q_ad = ad.Dense.identity(constant=q,shape_free=self.shape_free)
 		if self.is_metric:
-			return self._H.at(q_ad).norm2(p).gradient()
+			return self._gradient_ad(self._H.at(q_ad).norm2(p))
 		else: 
-			return self._H(q_ad,p).gradient()
+			return self._gradient_ad(self._H(q_ad,p))
 
-	def DpH(q,p):
+	def DpH(self,q,p):
 		"""
 		Differentiates the Hamiltonian, w.r.t. impulsion.
 		"""
+		self._checkdim(p)
 		if self.is_separable:
 			return self._gradient(self._H[1],p)
 		elif self.is_metric:
 			return self._H.at(q).gradient2(p)
 		else: 
 			p_ad = ad.Dense.identity(constant=p,shape_free=self.shape_free)
-			return self._H(q,p_ad).gradient()
+			return self._gradient_ad(self._H(q,p_ad))
 
-
-#		if self.is_separable:
-#			return self._gradient(self._H[1],p,self.structure[1],
-#				shape_free=self.shape_free)
-#		else:
-#			_,struct = self.structure
-#			if struct is None:
-#				p_ad = ad.Dense.identity(constant=p,shape_free=self.shape_free)
-#				return self._H(q,p_ad).gradient()
-#			else:
-#				h = self._H(q)
-#				return self._gradient(h,p,struct)
-
-	def flow(q,p):
+	def flow(self,q,p):
 		"""
-		Symplectic flow of the Hamiltonian.
+		Symplectic gradient of the Hamiltonian.
 		"""
-		return (DpH(q,p),-DqH(q,p))
+		return (self.DpH(q,p),-self.DqH(q,p))
+
+	def integrate(self,q,p,scheme,niter,T=1,path=False):
+		"""
+		Solves Hamilton's equations by running the scheme niter times.
+		Inputs : 
+			- q,p : Initial position and impulsion.
+			- scheme : ODE integration scheme. (string or callable)
+			- niter : number of steps
+			- T : total time
+			- path : wether to return the intermediate steps
+		Output : 
+			- q,p if path is False. 
+			Otherwise [q0,...,qn],[p0,...,pn],[t0,..tn], with n=niter, tn=T.
+		"""
+		if isinstance(scheme,str):
+			schemes = self.nonsymplectic_schemes()
+			schemes.update(self.symplectic_schemes())
+			scheme = schemes[scheme]
+
+		dt = T/niter
+		q,p = copy(q),copy(p)
+		if path: Q,P = [copy(q)],[copy(p)]
+
+		for i in range(niter):
+			q,p = scheme(q,p,dt)
+			if path: Q.append(copy(q)); P.append(copy(p))
+
+		if path: 
+			ndim_free = len(self.shape_free)
+			return (ad.stack(Q,axis=ndim_free),
+				ad.stack(P,axis=ndim_free),
+				np.linspace(0,T,niter+1))
+		return q,p
 
 	def nonsymplectic_schemes(self):
 		"""
@@ -236,17 +208,20 @@ class Hamiltonian(object):
 		"""
 		def Euler(q,p,dt):
 			dq,dp = self.flow(q,p)
-			return (q+dt*dq, p+dt*dp)
+			return q+dt*dq, p+dt*dp
+
 		def RK2(q,p,dt):
 			dq1,dp1 = self.flow(q, p)
 			dq2,dp2 = self.flow(q+0.5*dt*dq1, p+0.5*dt*dp1)
-			return q+dt*dq2,p+dt*dp2
+			return q+dt*dq2, p+dt*dp2
+
 		def RK4(q,p,dt):
 			dq1,dp1 = self.flow(q, p)
 			dq2,dp2 = self.flow(q+0.5*dt*dq1, p+0.5*dt*dp1)
 			dq3,dp3 = self.flow(q+0.5*dt*dq2, p+0.5*dt*dp2)
 			dq4,dp4 = self.flow(q+dt*dq3, p+dt*dp3)
 			return q+dt*(dq1+2*dq2+2*dq3+dq4)/6., p+dt*(dp1+2*dp2+2*dp3+dp4)/6.
+
 		return {"Euler":Euler,"Runge-Kutta-2":RK2,"Runge-Kutta-4":RK4}
 
 	def incomplete_schemes(self,solver=None):
@@ -257,11 +232,10 @@ class Hamiltonian(object):
 			Defaults to a basic fixed point solver: "fixedpoint" in the same package.
 		"""
 		def Expl_q(q,p,dt):
-			dq = self.DpH(q,p)
-			return q+dt*dq,p
+			return q + dt*self.DpH(q,p)
+
 		def Expl_p(q,p,dt):
-			dp = -self.DqH(q,p)
-			return q,p+dt*dp
+			return p - dt*self.DqH(q,p)
 
 		if self.is_separable:
 			return {"Explicit-q":Expl_q,"Explicit-p":Expl_p,
@@ -282,52 +256,103 @@ class Hamiltonian(object):
 
 	def symplectic_schemes(self,**kwargs):
 		"""
-		Symplectic schemes, alternating implicit and explicit updates, 
-		of position and impulsion.
-		The schemes become fully explicit in the case of a separable Hamiltonian.
+		Symplectic schemes, alternating updates of position and impulsion.
+		The first updated variable is indicated with a suffix.
+
+		In the non-separable cases, some of the updates are implicit, otherwise
+		they are explicit.
 		Inputs : 
 			- kwargs. Passed to self.incomplete_schemes
 		"""
 		incomp = self.incomplete_schemes(**kwargs)
-		Expl_q,Expl_p,Impl_q,Impl_p = tuple(incomp[s] for s in 
-			"Explicit-q","Explicit-p","Implicit-q","Implicit-p")
+		if self.is_separable:
+			Expl_q,Expl_p = tuple(incomp[s] for s in 
+			("Explicit-q","Explicit-p"))
 
-		def Euler_pq(q,p,dt):
-			q,p = Impl_p(q,p,dt)
-			q,p = Expl_q(q,p,dt)
-			return q,p
+			def Euler_p(q,p,dt):
+				p = Expl_p(q,p,dt)
+				q = Expl_q(q,p,dt)
+				return q,p
+				
+			def Euler_q(q,p,dt):
+				q = Expl_q(q,p,dt)
+				p = Expl_p(q,p,dt)
+				return q,p 
+				
+			def Verlet_p(q,p,dt):
+				p=Expl_p(q,p,dt/2)
+				q=Expl_q(q,p,dt)
+				p=Expl_p(q,p,dt/2)
+				return q,p
+				
+			def Verlet_q(q,p,dt):
+				q=Expl_q(q,p,dt/2)
+				p=Expl_p(q,p,dt)
+				q=Expl_q(q,p,dt/2)
+				return q,p
 
-		def Euler_qp(q,p,dt):
-			q,p = Impl_q(q,p,dt)
-			q,p = Expl_p(q,p,dt)
-			return q,p
+			def Ruth3_p(q,p,dt):
+				"""Ronald Ruth 1983, as of Wikipedia"""
+				c1,c2,c2 = 1., -2./3., 2./3.
+				d1,d2,d3 = -1./24, 3./4, 7./24
+				p=Expl_p(q,p,c1*dt)
+				q=Expl_q(q,p,d1*dt)
+				p=Expl_p(q,p,c2*dt)
+				q=Expl_q(q,p,d2*dt)
+				p=Expl_p(q,p,c3*dt)
+				q=Expl_q(q,p,d3*dt)
+				return q,p
 
-		def Verlet_pqqp(q,p,dt):
-			q,p = Impl_p(q,p,dt/2.)
-			q,p = Expl_q(q,p,dt/2.)
-			q,p = Impl_q(q,p,dt/2.)
-			q,p = Expl_p(q,p,dt/2.)
-			return q,p
-
-		def Verlet_qppq(q,p,dt):
-			q,p = Impl_q(q,p,dt/2.)
-			q,p = Expl_p(q,p,dt/2.)
-			q,p = Impl_p(q,p,dt/2.)
-			q,p = Expl_q(q,p,dt/2.)
-			return q,p
-
-		return {"Euler-pq":Euler_pq,"Euler-qp":Euler_qp,
-		"Verlet-pqqp":Verlet_pqqp,"Verlet-qppq":Verlet_qppq}
-
-
-
-
-
-
-
+			def Ruth4_p(q,p,dt):
+				"""Ronald Ruth 1983, as of Wikipedia"""
+				t = 2.**(1./3.)
+				c1 = 1/(2*(2-t)); c2 = (1-t)*c1; c3,c4 = c2,c1
+				d1 = 2*c1; d2 = -t/d1; d3,d4 = d1,0
+				p=Expl_p(q,p,c1*dt)
+				q=Expl_q(q,p,d1*dt)
+				p=Expl_p(q,p,c2*dt)
+				q=Expl_q(q,p,d2*dt)
+				p=Expl_p(q,p,c3*dt)
+				q=Expl_q(q,p,d3*dt)
+				p=Expl_p(q,p,c4*dt) 
+				#q=Expl_q(q,p,d4*dt)
+				return q,p
 
 
+			return {"Euler-p":Euler_p,"Euler-q":Euler_q,
+			"Verlet-p":Verlet_p,"Verlet-q":Verlet_q,
+			"Ruth3-p":Ruth3_p,"Ruth4-p":Ruth4_p}
 
 
+		else: # Non separable case
+			Expl_q,Expl_p,Impl_q,Impl_p = tuple(incomp[s] for s in 
+				("Explicit-q","Explicit-p","Implicit-q","Implicit-p"))
+
+			def Euler_p(q,p,dt):
+				p=Impl_p(q,p,dt)
+				q=Expl_q(q,p,dt)
+				return q,p
+
+			def Euler_q(q,p,dt):
+				q=Impl_q(q,p,dt)
+				p=Expl_p(q,p,dt)
+				return q,p
+
+			def Verlet_p(q,p,dt):
+				p=Impl_p(q,p,dt/2.)
+				q=Expl_q(q,p,dt/2.)
+				p=Impl_q(q,p,dt/2.)
+				q=Expl_p(q,p,dt/2.)
+				return q,p
+
+			def Verlet_q(q,p,dt):
+				q=Impl_q(q,p,dt/2.)
+				p=Expl_p(q,p,dt/2.)
+				p=Impl_p(q,p,dt/2.)
+				q=Expl_q(q,p,dt/2.)
+				return q,p
+				
+			return {"Euler-p":Euler_p,"Euler-q":Euler_q,
+			"Verlet-p":Verlet_p,"Verlet-q":Verlet_q}
 
 

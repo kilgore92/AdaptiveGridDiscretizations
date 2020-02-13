@@ -104,6 +104,7 @@ def trace(a):
 # Low dimensional special cases
 
 def det(a):
+	a=ad.array(a)
 	dim = a.shape[0]
 	if a.shape[1]!=dim:
 		raise ValueError("inverse error : incompatible dimensions")
