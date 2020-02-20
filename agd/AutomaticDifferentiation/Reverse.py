@@ -197,7 +197,7 @@ def linear_inverse_with_adjoint(solver,matrix,niter=1):
 	def adjoint(x): 	return apply_linear_inverse(solver,matrix.T,x,niter=niter)
 	def method(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
-		if mode == "Forward":	return operator(u)
+		if   mode == "Forward":	return operator(u)
 		elif mode == "Reverse": c,_ 		= co_output; return [(u,adjoint(c))]
 		elif mode == "Reverse2":(c1,c2),_ 	= co_output; return [(u,adjoint(c1),adjoint(c2))]
 	return method
@@ -208,7 +208,7 @@ def linear_mapping_with_adjoint(matrix,niter=1):
 	def adjoint(x): 	return apply_linear_mapping(matrix.T,x,niter=niter)
 	def method(u,co_output=None):
 		mode = misc.reverse_mode(co_output)
-		if mode == "Forward":	return operator(u)
+		if   mode == "Forward":	return operator(u)
 		elif mode == "Reverse": c,_ 		= co_output; return [(u,adjoint(c))]
 		elif mode == "Reverse2":(c1,c2),_ 	= co_output; return [(u,adjoint(c1),adjoint(c2))]
 	return method

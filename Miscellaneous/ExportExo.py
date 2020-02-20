@@ -15,6 +15,7 @@ language = 'FR'
 
 def SplitExo(c):
 	text = []
+	comment = []
 	statementFR =[]
 	statementEN=[]
 	code = []
@@ -31,6 +32,12 @@ def SplitExo(c):
 		elif line == '<!---ExoCode\n':
 			assert current is text
 			current = code
+			continue
+		elif line == '<!---\n':
+			assert current is text
+			current = comment
+			continue
+		elif line == "<!---ExoRemoveNext--->\n":
 			continue
 		elif line == '--->' or line =='--->\n':
 			assert current is not text
@@ -69,12 +76,16 @@ def MakeExo(FileName,ExoName):
 	with open(FileName, encoding='utf8') as data_file:
 		data=json.load(data_file)
 	newcells = []
+	removeCell = False
 	for c in data['cells']:
 		if 'tags' in c['metadata']:
 			tags = c['metadata']['tags']
-			if 'ExoRemove' in tags:
+			if 'ExoRemove' in tags or removeCell:
+				removeCell=False
 				continue
-			elif 'ExoSplit' in tags:
+			elif 'ExoSplit' in tags or c['cell_type']=='markdown':
+				if "<!---ExoRemoveNext--->\n" in c['source']:
+					removeCell=True # Remove next cell
 				for x in SplitExo(c):
 					newcells.append(x)
 				continue
